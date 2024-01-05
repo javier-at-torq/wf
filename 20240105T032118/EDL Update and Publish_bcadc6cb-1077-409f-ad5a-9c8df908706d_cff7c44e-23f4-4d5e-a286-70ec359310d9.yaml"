@@ -1,0 +1,884 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: bcadc6cb-1077-409f-ad5a-9c8df908706d
+name: EDL Update and Publish
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: client
+          description: The name of the client
+          required: true
+          prettyName: client
+          shortText:
+            defaultValue: ""
+    nestedOnly: true
+playbook:
+  steps:
+    - parallel:
+        uuid: 614881a5-6c42-4234-b81a-21d7aa51d215
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 9027b0ad-8abf-4558-acf4-0312901d9648
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_manual_ip_block_entries
+                env:
+                  KEY: 5iTID_Bad_IP_{{ $.event.client }}
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: 5b5d4eae-bb57-49b7-877f-e78dd0ae6336
+                pretty_name: Retrieve manual IP block entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication
+                env:
+                  INPUT: '{{ $.retrieve_manual_ip_block_entries.api_object.value }}'
+                uuid: e3e0a877-7e3f-442c-925b-b4e765a62078
+                pretty_name: Create human readable table for publication
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_ip_block_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication.tabulate_output }}" > /etc/EDLS/{{ $.event.client }}/Blocklist/5iTID_Bad_IP_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                ignoreFailure: true
+                uuid: 8370f15a-514f-4edb-baf3-950ce3db5207
+                pretty_name: 'Update the manual IP block file on VM '
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_manual_ip_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_manual_ip_block_entries.api_object.value..entry }}'
+                uuid: 70ba973a-72ca-4c26-a82b-90d564ebd078
+                pretty_name: 'Prep Manual IP EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_ip_block_file_on_vm_1
+                env:
+                  COMMAND: echo "{{ $.prep_manual_ip_edl_for_publication.output }}" > /etc/EDLS/{{ $.event.client }}/Firewall/5iTID_Bad_IP_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: e03dbf0e-145d-4df4-aef3-b8cc49bed405
+                pretty_name: Update the manual IP block file on VM 1
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: 2d639574-4cb9-45a0-ba98-a9e6429f6a9a
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_manual_ip_allow_entries
+                env:
+                  KEY: 5iTID_IP_Whitelist_{{ $.event.client }}
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: c8fcd05f-d867-42d8-80e8-a0f95baec475
+                pretty_name: Retrieve manual IP allow entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication_1
+                env:
+                  INPUT: '{{ $.retrieve_manual_ip_allow_entries.api_object.value }}'
+                uuid: 883e455e-f8f7-446d-bfa1-2f5ad4ed7b0a
+                pretty_name: Create human readable table for publication 1
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_ip_allow_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_1.tabulate_output }}" > /etc/EDLS/{{ $.event.client }}/Whitelist/5iTID_IP_Whitelist_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                ignoreFailure: true
+                uuid: 194ce0d0-d442-4a45-a953-0cc6aa53f2f1
+                pretty_name: Update the manual IP allow file on VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_manual_ip_allow_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_manual_ip_allow_entries.api_object.value..entry }}'
+                uuid: d3b7569a-ca67-4b35-819b-2f215a8794c2
+                pretty_name: 'Prep Manual IP Allow EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_ip_allow_file_on_vm_1
+                env:
+                  COMMAND: echo "{{ $.prep_manual_ip_allow_edl_for_publication.output }}" > /etc/EDLS/{{ $.event.client }}/Firewall/5iTID_IP_Whitelist_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 8545a44c-74dc-4bbe-af09-8554a1fc43bb
+                pretty_name: Update the manual IP Allow file on VM 1
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: e4a25fc6-81d0-47ed-a343-b7c0b38f4074
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_manual_url_block_entries
+                env:
+                  KEY: 5iTID_Bad_URL_{{ $.event.client }}
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: 4897adfa-f459-40b2-943b-201e04228eb9
+                pretty_name: Retrieve Manual URL Block entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication_2
+                env:
+                  INPUT: '{{ $.retrieve_manual_url_block_entries.api_object.value }}'
+                uuid: a148cff5-6da6-4f44-abe3-a82986204362
+                pretty_name: Create human readable table for publication 2
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_url_block_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_2.tabulate_output }}" > /etc/EDLS/{{ $.event.client }}/Blocklist/5iTID_Bad_URL_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                ignoreFailure: true
+                uuid: cf5d1bb7-fdae-4761-8d34-f50093e5ed97
+                pretty_name: Update the Manual URL block file on VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_manual_url_block_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_manual_url_block_entries.api_object.value..entry }}'
+                uuid: 4e8c4632-7434-4d2f-bd46-cef84ab50a59
+                pretty_name: 'Prep Manual URL Block EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_url_block_file_on_vm_1
+                env:
+                  COMMAND: echo "{{ $.prep_manual_url_block_edl_for_publication.output }}" > /etc/EDLS/{{ $.event.client }}/Firewall/5iTID_Bad_URL_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 67ff0f21-dbaf-42f0-99d4-3b0ed1a7cc94
+                pretty_name: Update the manual URL block file on VM 1
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: c52f3ad9-790d-4b56-861a-826ece7d989e
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_manual_url_allow_entries
+                env:
+                  KEY: 5iTID_URL_Whitelist_{{ $.event.client }}
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: 49635820-a454-47b1-a06b-7b125536d533
+                pretty_name: Retrieve Manual URL Allow entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication_3
+                env:
+                  INPUT: '{{ $.retrieve_manual_url_allow_entries.api_object.value }}'
+                uuid: cb5ec713-0ea0-4d1b-b3c5-51a7eca40ae1
+                pretty_name: Create human readable table for publication 3
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_url_allow_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_3.tabulate_output }}" > /etc/EDLS/{{ $.event.client }}/Whitelist/5iTID_URL_Whitelist_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                ignoreFailure: true
+                uuid: 7b048d72-5bd7-4c6c-a48d-4caaf3348c5f
+                pretty_name: Update the Manual URL Allow file on VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_manual_url_allow_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_manual_url_allow_entries.api_object.value..entry }}'
+                uuid: 47944ee4-cc82-4a14-b98f-2d535355b8da
+                pretty_name: 'Prep Manual URL Allow EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_url_allow_file_on_vm_1
+                env:
+                  COMMAND: echo "{{ $.prep_manual_url_allow_edl_for_publication.output }}" > /etc/EDLS/{{ $.event.client }}/Firewall/5iTID_URL_Whitelist_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: d04822d1-637b-45ac-bf21-6bcc6cdad86a
+                pretty_name: Update the manual URL Allow file on VM 1
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: 1325ad56-3ab7-4b27-ad7d-a133777b0d5a
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_isac_ip_entries
+                env:
+                  KEY: 5iTID_Bad_IP_F
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: 9ac1e155-062d-4059-bfa4-afdb73425cad
+                pretty_name: Retrieve ISAC IP entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication_4
+                env:
+                  INPUT: '{{ $.retrieve_isac_ip_entries.api_object.value }}'
+                uuid: 266105a1-68a4-47e5-8ae4-aeedba9badfc
+                pretty_name: Create human readable table for publication 4
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_isac_ip_file_entries_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_4.tabulate_output }}" > /etc/EDLS/5iron/Blocklist/5iTID_Bad_IP_F.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: c9c970f8-c26d-4b06-ab93-d1181d476808
+                pretty_name: 'Update the ISAC IP file entries on VM '
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_isac_ip_block_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_isac_ip_entries.api_object.value..entry }}'
+                uuid: adcc3362-0469-41a9-842d-3b8bfe159b3d
+                pretty_name: 'Prep ISAC IP Block EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_isac_ip_block_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.prep_isac_ip_block_edl_for_publication.output }}" > /etc/EDLS/5iron/Firewall/5iTID_Bad_IP_FSISAC.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 4094443f-3d96-4be5-bf61-3a5a19f7a91d
+                pretty_name: 'Update the ISAC IP block file on VM '
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: 421bd04a-8982-4196-ac3a-48a0e78e0c53
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_isac_url_entries
+                env:
+                  KEY: 5iTID_Bad_URL_F
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: d02eb9ff-dae2-44ef-95c1-220dcf8fd182
+                pretty_name: Retrieve ISAC URL entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_block_edl_for_publication_5
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_isac_url_entries.api_object.value..entry }}'
+                uuid: a0921d86-b5dd-4e3a-bc90-2c80e449c896
+                pretty_name: Prep Block EDL for publication 5
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_isac_url_file_entries_on_vm
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_3.tabulate_output }}" > /etc/EDLS/5iron/Blocklist/5iTID_Bad_URL_F.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 12876794-9729-41ae-b258-fcf6b92e0f78
+                pretty_name: 'Update the ISAC URL file entries on VM  '
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_isac_url_block_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_isac_url_entries.api_object.value..entry }}'
+                uuid: 252b451b-0585-47a2-a17f-25493f928c37
+                pretty_name: 'Prep ISAC URL Block EDL for publication '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_isac_url_block_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.prep_isac_url_block_edl_for_publication.output }}" > /etc/EDLS/5iron/Firewall/5iTID_Bad_URL_FSISAC.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 1425f87f-c2b8-4582-83d7-4800acf259a3
+                pretty_name: 'Update the ISAC URL block file on VM '
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: d61e98ff-0102-4dfc-bb78-8c8caf4fb759
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_manual_domain_block_entries
+                env:
+                  KEY: 5iTID_Bad_Domain_{{ $.event.client }}
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: f35f242d-9d34-4373-8bcc-ea8258ce0221
+                pretty_name: Retrieve manual Domain Block entries
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: create_human_readable_table_for_publication_5
+                env:
+                  INPUT: '{{ $.retrieve_manual_domain_block_entries.api_object.value }}'
+                uuid: 08675e7b-d90d-4138-8f4e-4bd5fda31465
+                pretty_name: Create human readable table for publication 5
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_domain_block_file
+                env:
+                  COMMAND: echo "{{ $.create_human_readable_table_for_publication_5.tabulate_output }}" > /etc/EDLS/{{ $.event.client }}/Blocklist/5iTID_Bad_Domain_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: 2f946c96-a127-4b8a-90ac-faefbc1e3fd8
+                pretty_name: Update the manual Domain Block file
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                id: prep_manual_domain_block_edl_for_publication
+                env:
+                  DELIMITER: Newline
+                  INPUT: '{{ $.retrieve_manual_domain_block_entries.api_object..entry }}'
+                uuid: be8b4a91-9251-4d82-90f7-c461187c93ce
+                pretty_name: 'Prep Manual Domain Block EDL for publication  '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: update_the_manual_ip_block_file_on_vm
+                env:
+                  COMMAND: echo "{{ $.prep_manual_domain_block_edl_for_publication.output }}" > /etc/EDLS/{{ $.event.client }}/Firewall/5iTID_Bad_Domain_{{ $.event.client }}.txt
+                  HOSTNAME: 10.1.0.5
+                  PASSWORD: '{{ secret "torq_steprunner_password" }}'
+                  USERNAME: TorqAdm
+                runner: torq_azure_runner
+                uuid: c5aefe19-20d0-44f7-a2cc-aa97656ce4c5
+                pretty_name: Update the manual IP block file on VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 39e8ea30-68a7-45d5-a392-fbef3b18aa0e
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+      id: concatenate_and_dedup_all_of_the_block_feeds
+      env:
+        COMMAND: jq --slurp ' [.[0]+.[1]+.[2]+.[3]+.[4]+.[5]]  | add | unique'
+        INPUT: |-
+          {{ $.retrieve_isac_ip_entries.api_object.value..entry }}
+          {{ $.retrieve_isac_url_entries.api_object.value..entry }}
+      uuid: 36a2397f-a792-484d-aac3-894be55d3385
+      pretty_name: Concatenate and dedup all of the block feeds
+      manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+      isPrivate: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/subtract-arrays:1.1.4
+      id: filter_out_manually_entered_ip_allow_items
+      env:
+        LEFT_ARRAY: '{{ $.concatenate_and_dedup_all_of_the_block_feeds.output }}'
+        RIGHT_ARRAY: '{{ $.retrieve_manual_ip_allow_entries.api_object.value..entry }}'
+      uuid: 959f2771-7523-4016-ae3d-ea8fa0f5ce19
+      pretty_name: Filter out manually-entered IP allow items
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: array_substrut
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#subtract-arrays
+      manifestId: c507deac-1d72-40a9-b9eb-885615364974
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/subtract-arrays:1.1.4
+      id: filter_out_manually_entered_url_allow_items
+      env:
+        LEFT_ARRAY: '{{ $.filter_out_manually_entered_ip_allow_items.left_diff }}'
+        RIGHT_ARRAY: '{{ $.retrieve_manual_url_allow_entries.api_object.value..entry }}'
+      uuid: 317a0ff4-448b-408a-b0d3-ecedc3234d0d
+      pretty_name: Filter out manually-entered URL allow items
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: array_substrut
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#subtract-arrays
+      manifestId: c507deac-1d72-40a9-b9eb-885615364974
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+      id: store_the_compiled_edl_per_client
+      env:
+        KEY: 5iTID-compliled-{{ $.event.client }}
+        VALUE: '{{ $.filter_out_manually_entered_url_allow_items.left_diff }}'
+      envFrom:
+        integrationRef: mn_5iron_torq
+      uuid: 75749f8e-5812-4ee3-8c4c-884b502bddd5
+      pretty_name: Store the compiled EDL per client
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+              {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+              {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                  "value": {{ .VALUE }}
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+      id: prep_block_edl_for_publication
+      env:
+        DELIMITER: Newline
+        INPUT: '{{ $.filter_out_manually_entered_url_allow_items.left_diff }}'
+      uuid: 9677582d-167b-44ec-88dd-d283e988eebc
+      pretty_name: Prep Block EDL for publication
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: join_strings
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+      manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+      id: update_the_edl_file_on_thomas
+      env:
+        COMMAND: echo "{{ $.prep_block_edl_for_publication.output }}" > /etc/EDLS/5iron/Firewall/5iTID_EDL_FSISAC.txt
+        HOSTNAME: 10.1.0.5
+        PASSWORD: '{{ secret "torq_steprunner_password" }}'
+        USERNAME: TorqAdm
+      runner: torq_azure_runner
+      uuid: 69a2b9c2-11fe-4234-97e6-6bde1f856ae5
+      pretty_name: Update the EDL file on Thomas
+      options: {}
+      manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+      id: pov_copy_blocklist_to_host
+      env:
+        COMMAND: echo "{{ $.prep_block_edl_for_publication.output }}" > /usr/share/nginx/html/blocklist
+        HOSTNAME: 172.31.23.196
+        PRIVATE_KEY: '{{ secret "pov_runner_ssh_key" }}'
+        USERNAME: ec2-user
+      runner: torq_aws_runner
+      uuid: 63d7fd00-191e-49c5-9c56-287c50a0dd38
+      pretty_name: POV Copy blocklist to host
+      options: {}
+      manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+      id: pov_check_the_list
+      env:
+        COMMAND: cat /usr/share/nginx/html/blocklist
+        HOSTNAME: 172.31.23.196
+        PRIVATE_KEY: '{{ secret "pov_runner_ssh_key" }}'
+        USERNAME: ec2-user
+      runner: torq_aws_runner
+      uuid: 14247364-169b-403e-be7d-bb70b97afda0
+      pretty_name: POV check the list
+      options: {}
+      manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+  annotations:
+    - uuid: fad4c2ab-fa6c-428d-9e71-1d692be77a3c
+      x: 282
+      "y": 127
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"This workflow is run from other workflows."}]},{"type":"paragraph","content":[{"type":"text","text":"It collects the values stored in our various lists, concatenates them together, filters out any explicit allows, then publishes the list"}]}]}'
+    - uuid: 4c93cbd5-0b4f-439b-9697-b06ff264c11b
+      x: -413
+      "y": 32
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"TO DO LIST:"}]},{"type":"orderedList","attrs":{"start":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Update the credentials for "},{"type":"text","marks":[{"type":"link","attrs":{"href":"http://thomas.5iron.com","target":"_blank","class":null}}],"text":"thomas.5iron.com"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Test authentication"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Validate (verify) directory structure"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Validate that creds have write permission to the necessary files"}]}]}]}]}'
+root: true

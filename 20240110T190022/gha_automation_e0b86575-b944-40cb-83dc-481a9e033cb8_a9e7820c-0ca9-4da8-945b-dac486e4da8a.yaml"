@@ -1,0 +1,1000 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: e0b86575-b944-40cb-83dc-481a9e033cb8
+name: gha_automation
+trigger:
+  integrationTrigger:
+    integration:
+      name: gha_automation
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+      id: get_a_variable
+      env:
+        KEY: gha_strains
+      envFrom:
+        integrationRef: torq_api
+      uuid: 2c9f5d2e-48f2-45da-8937-992dbe416046
+      pretty_name: Get a variable
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: strain
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "strain":"{{ $.event.straiName.0 }}",
+           "clonid":"{{ $.event.clonId.0 }}"
+          }
+        VARIABLE_NAME: data
+      uuid: 108ddcc1-40c9-464d-8d45-d0866848c8a6
+      pretty_name: Strain
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.get_a_variable.api_object.value_array }}'
+                  operator: NOT_CONTAINS
+                  rvalue: '{{ $.strain.data }}'
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/torq/append-to-a-variable:8.0.2
+            id: append_strain_clone_id
+            env:
+              KEY: gha_strains
+              VALUE: '{{ $.strain.data }}'
+            envFrom:
+              integrationRef: torq_api
+            uuid: feb2567f-a278-46e2-9d61-6c9e3ff2f967
+            pretty_name: Append Strain-Clone ID
+            options:
+              executor:
+                name: http_request_v_4_2_8
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                        "key": "{{ .KEY | jsonEscape }}",
+                    {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                    {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                        "value": {{ .VALUE }}
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.torq.io/public/v2alpha/variables
+                sync: true
+                disable: false
+            manifestId: 550b262c-f525-43bc-a498-33104369e38f
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        else: []
+        uuid: 3d84f6f6-195d-4a69-9c4e-545728119ead
+        pretty_name: If Name is not in List
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "slack_channel" : "#gha"
+          }
+        VARIABLE_NAME: data
+      uuid: 965ee396-f8cf-42a9-bc09-40005475307a
+      pretty_name: Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - parallel:
+        uuid: d8094800-7ad9-454e-a3ff-ea7c0b08a04f
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: a0924ac1-148f-446a-823f-f36ce6fce49d
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.0.1
+                id: start_date
+                env:
+                  CURRENT_DATE_FORMAT_LAYOUT: "1136214245"
+                  DATE: '{{ $.event.startGrowDate.0 }}'
+                  NEW_CUSTOM_DATE_FORMAT: '%d %B, %Y'
+                  NEW_DATE_FORMAT_LAYOUT: Custom
+                uuid: 572e6a85-eb59-4c39-9360-584873b7c391
+                pretty_name: Start Date
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_14
+                    env:
+                      COMMAND: convert_date
+                    sync: true
+                    disable: false
+                manifestId: d6afccd7-ba59-48bc-a1d7-7c8b1b0ae3d6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: a86ebca1-92a1-4f8a-b4ff-8ef6b2f23461
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.3
+                id: now
+                env:
+                  DATE: ""
+                  DATE_FORMAT_LAYOUT: Mon Jan 2 15:04:05 2006
+                  TIME_AGO: ""
+                  TIME_ZONE: America/Mexico_City
+                uuid: 83690fee-a1f2-4ee5-966f-4464b89a62cc
+                pretty_name: Now
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_14
+                    env:
+                      COMMAND: get_date
+                    sync: true
+                    disable: false
+                documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                manifestId: 93b3df17-f8b3-4654-b174-3623967bf424
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: 13aab580-8b29-47d1-8283-c01a343f58e2
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.2.2
+                id: calculate_prebloom_date_unixtime
+                env:
+                  INPUT: '{{ $.event.startGrowDate.0 }} + ({{ $.event.vegDays.0 }} * 86400) '
+                uuid: dad43068-a3d0-4d6f-97a7-9ac5834645c4
+                pretty_name: Calculate PreBloom Date Unixtime
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_24
+                    env:
+                      COMMAND: math_utils
+                    sync: true
+                    disable: false
+                manifestId: 307b803b-7f8d-4a05-b541-c1586da55d66
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.0.1
+                id: prebloom_date
+                env:
+                  CURRENT_DATE_FORMAT_LAYOUT: "1136214245"
+                  DATE: '{{ $.calculate_prebloom_date_unixtime.result }}'
+                  NEW_CUSTOM_DATE_FORMAT: '%d %B, %Y'
+                  NEW_DATE_FORMAT_LAYOUT: Custom
+                uuid: bb45ef62-30a6-4dfd-875f-ceb04e7b74b4
+                pretty_name: PreBloom Date
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_14
+                    env:
+                      COMMAND: convert_date
+                    sync: true
+                    disable: false
+                manifestId: d6afccd7-ba59-48bc-a1d7-7c8b1b0ae3d6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: f9e1db0f-f75a-4b65-9b6c-773a4d36040d
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.2.2
+                id: calculate_bloom_date_unixtime
+                env:
+                  INPUT: '{{ $.event.startGrowDate.0 }} + ({{ $.event.vegDays.0 }} * 86400) + (15 * 86400)'
+                uuid: 8f8f493e-d6d1-44a6-a4f4-465da89af412
+                pretty_name: Calculate Bloom Date Unixtime
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_24
+                    env:
+                      COMMAND: math_utils
+                    sync: true
+                    disable: false
+                manifestId: 307b803b-7f8d-4a05-b541-c1586da55d66
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.0.1
+                id: bloom_date
+                env:
+                  CURRENT_DATE_FORMAT_LAYOUT: "1136214245"
+                  DATE: '{{ $.calculate_bloom_date_unixtime.result }}'
+                  NEW_CUSTOM_DATE_FORMAT: '%d %B, %Y'
+                  NEW_DATE_FORMAT_LAYOUT: Custom
+                uuid: 964ae36f-8c66-47d1-8a5e-4a57841fd33d
+                pretty_name: Bloom Date
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_14
+                    env:
+                      COMMAND: convert_date
+                    sync: true
+                    disable: false
+                manifestId: d6afccd7-ba59-48bc-a1d7-7c8b1b0ae3d6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: c0ab60dc-24f5-46ac-acf4-8176c945b3e4
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.2.2
+                id: calculate_harvest_date_unixtime
+                env:
+                  INPUT: '{{ $.event.startGrowDate.0 }} + ({{ $.event.totalGrowDays.0 }}*86400)'
+                uuid: 5148d3c0-4daa-4288-a270-3a97229a729c
+                pretty_name: Calculate Harvest Date Unixtime
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_24
+                    env:
+                      COMMAND: math_utils
+                    sync: true
+                    disable: false
+                manifestId: 307b803b-7f8d-4a05-b541-c1586da55d66
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.0.1
+                id: harvest_date
+                env:
+                  CURRENT_DATE_FORMAT_LAYOUT: "1136214245"
+                  DATE: '{{ $.calculate_harvest_date_unixtime.result }}'
+                  NEW_CUSTOM_DATE_FORMAT: '%d %B, %Y'
+                  NEW_DATE_FORMAT_LAYOUT: Custom
+                uuid: db7c5fc1-40cf-4cee-b1c5-f31ebbec7fae
+                pretty_name: Harvest Date
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_14
+                    env:
+                      COMMAND: convert_date
+                    sync: true
+                    disable: false
+                manifestId: d6afccd7-ba59-48bc-a1d7-7c8b1b0ae3d6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: anbau_date_section
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "type": "section",
+          	"text": {
+          				"type": "mrkdwn",
+          				"text": "*Anbau Begint:* `{{ $.start_date.result }}`\n*Prebloom:* `{{ $.prebloom_date.result }}`\n*Bloom:* `{{ $.bloom_date.result }}`\n*Anbau fertig:* `{{ $.harvest_date.result}}`\n"
+            }
+          }
+        VARIABLE_NAME: section
+      uuid: 3e1eb56e-9e6e-41e0-a4f3-6445afd3dd8d
+      pretty_name: Anbau Date Section
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: anbau_tags_und_wochen
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "type": "section",
+          	"text": {
+          				"type": "mrkdwn",
+          				"text": "*Anbau Wochen:* `{{ $.event.growWeek.0 }}`\n*Total Tagen:* {{ $.event.runnedDays.0 }}/{{ $.event.totalGrowDays.0 }}"
+            }
+          }
+        VARIABLE_NAME: section
+      uuid: 3ba3cc8b-71cb-45fd-bb60-2946363deaf4
+      pretty_name: Anbau Tags und Wochen
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - parallel:
+        uuid: 8733f484-a07e-4039-b3e7-222f8f8298e2
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 1ce2dac6-68fc-49db-811f-9d046b2625e4
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.growStatus.0 }}'
+                            operator: EQUALS
+                            rvalue: vegetative
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: status_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "image",
+                          			"image_url": "https://ghaimg.s3.amazonaws.com/gha_timelapse_veggetative.png",
+                          			"alt_text": "{{ $.event.straiName.0 }} is Vegging."
+                          		}
+                        VARIABLE_NAME: banner
+                      uuid: 384a3923-830b-46cb-bd38-6ca2beb471a6
+                      pretty_name: Status Banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_context
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "context",
+                          			"elements": [
+                          				{
+                          					"type": "plain_text",
+                          					"text": "Anbau Begint: {{ jsonEscape $.start_date.result }}",
+                          					"emoji": true
+                          				}
+                          			]
+                          		}
+                        VARIABLE_NAME: section
+                      uuid: 8ccbfc2e-b658-4d20-9482-c40336ceadc1
+                      pretty_name: Anbau Context
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_date_section
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*Prebloom:* `{{ $.prebloom_date.result }}`\n*Bloom:* `{{ $.bloom_date.result }}`\n*Anbau fertig:* `{{ $.harvest_date.result}}`\n"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: 04ee81ae-a52a-4846-a437-949022eaa6f3
+                      pretty_name: Anbau Date Section
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.event.growWeek.0 }}'
+                                  operator: EQUALS
+                                  rvalue: 3|5|7
+                        then: []
+                        else: []
+                        uuid: 93d4ab6b-380c-46d8-b1d3-a93dac9e84c2
+                        pretty_name: If
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: section_raten
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": ":bombilla: *Vegetative Tips* --- Add Sugar and banana Rinse"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: f4bebffd-2b42-4889-aa9a-ceb71de37ee9
+                      pretty_name: Section Raten
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: 02244b74-645b-4622-b1bd-655cc76d97d5
+                  pretty_name: If
+          - uuid: d890188a-a7c4-4b10-a7ab-d419c42e5002
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.growStatus.0 }}'
+                            operator: EQUALS
+                            rvalue: pre-bloom
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: status_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "image",
+                          			"image_url": "https://ghaimg.s3.amazonaws.com/gha_timelapse_prebloom.png",
+                          			"alt_text": "{{ $.event.straiName.0 }} is starting to bloom."
+                          		}
+                        VARIABLE_NAME: banner
+                      uuid: 71091db3-b726-4523-9a3b-03a0f08ceb4a
+                      pretty_name: Status Banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_context
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "context",
+                          			"elements": [
+                          				{
+                          					"type": "plain_text",
+                          					"text": "Anbau Begint: {{ jsonEscape $.start_date.result }}\nPrebloom: {{ jsonEscape $.prebloom_date.result }}",
+                          					"emoji": true
+                          				}
+                          			]
+                          		}
+                        VARIABLE_NAME: section
+                      uuid: 14fbcc68-0ea3-498b-b3f1-9d018e7d0327
+                      pretty_name: Anbau Context
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_date_section
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*Bloom:* `{{ $.bloom_date.result }}`\n*Anbau fertig:* `{{ $.harvest_date.result}}`\n"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: c137092a-8867-4f6b-b468-4fa3c8f3d2c7
+                      pretty_name: Anbau Date Section
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: section_raten
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*PreeBloom Tips*"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: ba1b0c73-e8e7-4c67-90e1-1b0adc91b403
+                      pretty_name: Section Raten
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: e67c74f1-59b1-4bba-b935-ba78a29729a4
+                  pretty_name: If
+          - uuid: 51194349-0796-4938-a807-4acdab2f2a73
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.growStatus.0 }}'
+                            operator: EQUALS
+                            rvalue: bloom
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: status_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "image",
+                          			"image_url": "https://ghaimg.s3.amazonaws.com/gha_timelapse_bloom.png",
+                          			"alt_text": "{{ $.event.straiName.0 }} is blooming."
+                          		}
+                        VARIABLE_NAME: banner
+                      uuid: b39c282f-3315-47c5-af0e-aa05423bf026
+                      pretty_name: Status Banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_context
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "context",
+                          			"elements": [
+                          				{
+                          					"type": "plain_text",
+                          					"text": "Anbau Begint: {{ jsonEscape $.start_date.result }}\nPrebloom: {{ jsonEscape $.prebloom_date.result }}\nBloom: {{ $.bloom_date.result }}",
+                          					"emoji": true
+                          				}
+                          			]
+                          		}
+                        VARIABLE_NAME: section
+                      uuid: 98e84790-bf35-4617-b2c6-363e7f4b8c9e
+                      pretty_name: Anbau Context
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_date_section
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*Anbau fertig:* `{{ $.harvest_date.result}}`\n"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: d5daaf8b-9711-4b21-8902-11ef0ee21dea
+                      pretty_name: Anbau Date Section
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: section_raten
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*Bloom Tips*"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: 62f8641e-0dd9-4b92-8cc2-a184b200b6bf
+                      pretty_name: Section Raten
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: c3442230-ab77-49e0-908f-e27348380dfd
+                  pretty_name: If
+          - uuid: 3887e0ea-7b4e-46ce-bf45-be2649990d6a
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.growStatus.0 }}'
+                            operator: EQUALS
+                            rvalue: harvest
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: status_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "image",
+                          			"image_url": "https://ghaimg.s3.amazonaws.com/gha_timelapse_harvets.png",
+                          			"alt_text": "{{ $.event.straiName.0 }} is ready to Harvest!!!."
+                          		}
+                        VARIABLE_NAME: banner
+                      uuid: 35a9d140-22c7-4063-a45d-6389702b6d89
+                      pretty_name: Status Banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_context
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                          			"type": "context",
+                          			"elements": [
+                          				{
+                          					"type": "plain_text",
+                          					"text": "Anbau Begint: {{ jsonEscape $.start_date.result }}\nPrebloom: {{ jsonEscape $.prebloom_date.result }}\nBloom: {{ $.bloom_date.result }}\nAnbau fertig: {{ $.harvest_date.result}}",
+                          					"emoji": true
+                          				}
+                          			]
+                          		}
+                        VARIABLE_NAME: section
+                      uuid: a9846d88-9a96-43f1-ba3b-5cdcab76fcc3
+                      pretty_name: Anbau Context
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: anbau_date_section
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          	  "type": "mrkdwn",
+                          		"text": "*Fertig!!!*\n"}
+                          }
+                        VARIABLE_NAME: section
+                      uuid: 6aa4ab2e-b8aa-4797-ba8c-8b92cdcd5ab0
+                      pretty_name: Anbau Date Section
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+                      id: section_raten
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "section",
+                          	"text": {
+                          				"type": "mrkdwn",
+                          				"text": "*Harvest Tips*"
+                            }
+                          }
+                        VARIABLE_NAME: section
+                      uuid: 685ef7c5-eee1-4799-b31d-4d3fda3790f1
+                      pretty_name: Section Raten
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_0_43
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: a9678808-f90a-4a3e-84e0-8fe603061210
+                  pretty_name: If
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: set_slack_channel_per_strain
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: strain-{{ lower $.event.straiName.0 }}
+        VARIABLE_NAME: channel
+      uuid: 872b81ee-6214-4e49-9a13-8f7a2a8068e3
+      pretty_name: Set Slack Channel per strain
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: nachrichten_senden
+      env:
+        BLOCKS: |-
+          {
+          	"blocks": [
+          		{
+          			"type": "header",
+          			"text": {
+          				"type": "plain_text",
+          				"text": "{{ $.event.straiName.0 }} #{{ $.event.clonId.0 }} @ {{ $.event.env.0 }}",
+          				"emoji": true
+          			}
+          		},
+              {{ $.status_banner.banner }},
+              {{ $.anbau_context.section }},
+          		{{ $.anbau_date_section.section }},
+              {{ $.anbau_tags_und_wochen.section }},
+          		{{ $.section_raten.section }},
+          		{
+          			"type": "context",
+          			"elements": [
+          				{
+          					"type": "plain_text",
+          					"text": "GHA Nachricht @ {{ $.now.result }}",
+          					"emoji": true
+          				}
+          			]
+          		},
+          		{
+          			"type": "divider"
+          		}
+          	]
+          }
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        MESSAGE_TYPE: blocks
+        NOTIFICATION_TEXT: Status of your grow from GHA
+        RECIPIENT: '#{{ $.set_slack_channel_per_strain.channel }}'
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: 51413bba-8534-40a2-b20d-a56049e9459a
+      pretty_name: Nachrichten senden
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 122396f6-e054-49c4-9eb9-f8877b30ab2a
+  output_schema: '{}'
+root: true

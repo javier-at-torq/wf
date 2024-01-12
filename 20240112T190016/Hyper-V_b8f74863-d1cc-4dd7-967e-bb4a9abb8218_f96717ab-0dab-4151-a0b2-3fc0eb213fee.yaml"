@@ -1,0 +1,623 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: b8f74863-d1cc-4dd7-967e-bb4a9abb8218
+name: Hyper-V
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: hyper_v_action_menu
+          required: true
+          prettyName: Hyper-V Action Menu
+          singleSelect:
+            options:
+              - Visualize VMs
+              - Create VM
+              - Delete VMs
+            defaultValue: Visualize VMs
+    onSubmitActionType: next_webform_page
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+      id: wf_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "switch_name" :"vswitch01",
+            "root_paht": "C:\\vms\\",
+            "hyperv_username":"Administrator",
+            "hyperv_hostname":"172.20.22.104"
+          }
+        VARIABLE_NAME: data
+      uuid: 45324926-ad17-4942-a86c-d52aedc13ffa
+      pretty_name: wf_context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_4_3
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: a1c16bfc-720f-47e0-a2ce-dda1f650739b
+        pretty_name: Switch
+        cases:
+          - id: 6d2359f8-9e66-4c3b-b69e-63b2abc4a594
+            pretty_name: Visualize VMs
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.hyper_v_action_menu }}'
+                      operator: EQUALS
+                      rvalue: Visualize VMs
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: get_vm
+                env:
+                  COMMAND: Get-VM | ConvertTo-Json
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                uuid: 909ca367-23f2-4bc1-9c8d-52dca9cd4657
+                pretty_name: Get-VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/parsers/json-parser:1.0.4
+                id: get_vm_json
+                env:
+                  INPUT: '{{ $.get_vm.output }}'
+                uuid: 1d079d23-622b-42df-b460-918a27cab5ee
+                pretty_name: Get-VM-JSON
+                options: {}
+                manifestId: 91872c2f-8d5b-42d4-a41f-c79d849f559a
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.3.0
+                id: vms
+                env:
+                  INPUT: '{{ $.get_vm_json.output }}'
+                  JSON_QUERY: .[] | {VMName,Status,State}
+                uuid: ac1574fe-36c8-47c5-86e8-15f0e523db4e
+                pretty_name: VMs
+                options:
+                  executor:
+                    name: jq_infra_v_3_3_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 13e8f773-c042-5be2-8f25-a4b50d8d8be3
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                id: all_vms_markdown_table
+                env:
+                  INPUT: '{{ $.vms.output }}'
+                  MARKDOWN: "true"
+                uuid: 76218898-93c5-4ac4-aa06-33b1c12e3a1a
+                pretty_name: All VMs Markdown Table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_4
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.11
+                id: get_vm_out
+                env:
+                  CONTENT: '{{ $.all_vms_markdown_table.tabulate_output }}'
+                  RECIPIENT: '#devnull'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 794eff1c-a2cb-4e47-ba4b-e95d35c1d027
+                pretty_name: Get-VM - Out
+                options:
+                  executor:
+                    name: slack_message_snippet_v_1_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: cff2c750-24fe-502d-a15e-1c3e169fda90
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 22da961d-e390-45d0-9b45-187652946097
+            pretty_name: Create VM
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.hyper_v_action_menu }}'
+                      operator: EQUALS
+                      rvalue: Create VM
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.2
+                id: vm_name
+                env:
+                  LENGTH: "8"
+                  STRING_FORMAT: Alphanumeric with only upper
+                uuid: e0eac7f9-09c0-4308-ad5e-0fdc15d07ee2
+                pretty_name: vm_name
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: generate_alphanumeric
+                    sync: true
+                    disable: false
+                manifestId: f3c7e87c-9d61-4db9-95bb-c0c99ef58b16
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: new_vm
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: New-VM -Name {{ $.vm_name.result }} -MemoryStartupBytes 512MB -Path {{ $.wf_context.data.root_paht }}{{ $.vm_name.result }}\{{ $.vm_name.result }}.local -SwitchName {{ $.wf_context.data.switch_name }}
+                  VARIABLE_NAME: script
+                uuid: 7dc8ecee-7d52-4483-868b-f52f5656e3dd
+                pretty_name: New-VM
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: new_vm_ssh
+                env:
+                  COMMAND: '{{ $.new_vm.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: de3591c1-ee01-4ea7-b4bd-cc954dd09fb0
+                pretty_name: New-VM-SSH
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: new_vhd
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: New-VHD -Path {{ $.wf_context.data.root_paht }}{{ $.vm_name.result }}\{{ $.vm_name.result }}.vhdx -SizeBytes 2GB -Dynamic  | ConvertTo-Json
+                  VARIABLE_NAME: script
+                uuid: 1d4ec350-a71f-4017-973e-95b1236c7b4d
+                pretty_name: New-VHD
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: new_vhd_ssh
+                env:
+                  COMMAND: '{{ $.new_vhd.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: e384d719-791b-4dd1-9f24-ad8ae8a66eea
+                pretty_name: New-VHD-SSH
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: add_vmharddiskdrive
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: Add-VMHardDiskDrive -VMName {{ $.vm_name.result }} -Path {{ $.wf_context.data.root_paht }}{{ $.vm_name.result }}\{{ $.vm_name.result }}.vhdx
+                  VARIABLE_NAME: script
+                ignoreFailure: true
+                uuid: 29dd4a69-22e9-4e7d-a0df-42652f66f7a1
+                pretty_name: Add-VMHardDiskDrive
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: add_vmharddiskdrive_ssh
+                env:
+                  COMMAND: '{{ $.add_vmharddiskdrive.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: 75123375-62d8-408c-bd75-da26ef29bf94
+                pretty_name: Add-VMHardDiskDrive-SSH
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: set_vmdvddrive
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: Set-VMDvdDrive -VMName {{ $.vm_name.result }} -ControllerNumber 1 -Path C:\iso\archlinux.iso
+                  VARIABLE_NAME: script
+                uuid: ac1ee5ce-3cc0-4e4b-be89-732641df1332
+                pretty_name: Set-VMDvdDrive
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: set_vmdvddrive_ssh
+                env:
+                  COMMAND: '{{ $.set_vmdvddrive.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: 5bb20a33-2dfd-48b1-ac11-6a61ffbded38
+                pretty_name: Set-VMDvdDrive-SSH
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: set_vmmemory
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: Set-VMMemory -VMName {{ $.vm_name.result }} -DynamicMemoryEnabled $true -StartupBytes 512MB -MinimumByte 512MB
+                  VARIABLE_NAME: script
+                uuid: 046e729c-0cb3-49ab-9127-4c20f3d1c2d7
+                pretty_name: Set-VMMemory
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: set_vmmemory_ssh
+                env:
+                  COMMAND: '{{ $.set_vmmemory.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: 4bb7c005-749b-4844-a6c2-e74d5569ed43
+                pretty_name: Set-VMMemory-SSH
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: startvm
+                env:
+                  COMMAND: Start-VM –Name {{ $.vm_name.result }} | ConvertTo-Json
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: 457db620-3c4e-4144-a300-ffc322f68533
+                pretty_name: StartVM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: get_vm
+                env:
+                  COMMAND: Get-VM -Name {{ $.vm_name.result }}
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                uuid: b6af43c3-dadd-436f-aed9-a4af7076b901
+                pretty_name: Get-VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: getvm_nwadapter
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: ' Get-VMNetworkAdapter -VMName {{ $.vm_name.result }}'
+                  VARIABLE_NAME: script
+                uuid: 6822399f-76eb-49fa-91db-85a87a083091
+                pretty_name: GetVM NWAdapter
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: get_vm_na
+                env:
+                  COMMAND: '{{ $.getvm_nwadapter.script }}'
+                  HOSTNAME: 172.20.22.104
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: Administrator
+                runner: local_torq_academy_vm
+                uuid: d2bd9e97-8d12-40f6-9851-9fd77bb0cfaa
+                pretty_name: Get-VM NA
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.11
+                id: create_full_vm_out
+                env:
+                  CONTENT: |-
+                    {{ $.get_vm.output }}
+
+                    {{ $.get_vm_na.output }}
+                  RECIPIENT: '#devnull'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 34253713-0cb1-4dbb-9ad2-fc0f0da48f22
+                pretty_name: Create Full VM - Out
+                options:
+                  executor:
+                    name: slack_message_snippet_v_1_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: cff2c750-24fe-502d-a15e-1c3e169fda90
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 52b1bc44-4401-4272-815d-c6f7b1dbef92
+            pretty_name: Delete VMs
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.hyper_v_action_menu }}'
+                      operator: EQUALS
+                      rvalue: Delete VMs
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                id: get_vm
+                env:
+                  COMMAND: Get-VM | ConvertTo-Json
+                  HOSTNAME: '{{ $.wf_context.data.hyperv_hostname }}'
+                  PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                  USERNAME: '{{ $.wf_context.data.hyperv_username }}'
+                runner: local_torq_academy_vm
+                uuid: 07865e0d-ac6e-4447-b793-2c6e8d2121a1
+                pretty_name: Get-VM
+                options: {}
+                manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/parsers/json-parser:1.0.4
+                id: get_vm_json
+                env:
+                  INPUT: '{{ $.get_vm.output }}'
+                uuid: bdfd211a-ec96-4394-9e13-74d1d5d4b948
+                pretty_name: 'Get-VM-JSON '
+                options: {}
+                manifestId: 91872c2f-8d5b-42d4-a41f-c79d849f559a
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.3.0
+                id: vms
+                env:
+                  INPUT: '{{ $.get_vm_json.output }}'
+                  JSON_QUERY: '[.[] | .VMName]'
+                uuid: 02821769-26cc-4e3a-9a2e-54c71151d679
+                pretty_name: VMs
+                options:
+                  executor:
+                    name: jq_infra_v_3_3_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 13e8f773-c042-5be2-8f25-a4b50d8d8be3
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.2
+                id: send_form
+                env:
+                  CONCLUDE_WEB_FORM_WITH: Close form
+                  FORM_NAME: VMs To be Deleted
+                  PARAMETERS: '[{"name":"vms_to_delete","prettyName":"VMs to Delete","description":"","required":true,"defaultValue":"","optionsList":[],"type":14,"uiPlaceholder":"","multiSelect":{"optionsList":[],"defaultValuesList":[],"optionsTemplate":"{{ jsonEscape $.vms.output }}"}}]'
+                uuid: 3756ec3f-9b39-44e1-8287-05deffc65fa7
+                pretty_name: Send Form
+                options:
+                  executor:
+                    name: utils_forms_send_form_v_4_1_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 9d6c13ca-659f-5078-b893-5e1eda021c11
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - loop:
+                  in: '{{ $.send_form.answers.vms_to_delete }}'
+                  key: loop_key
+                  value: loop_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: remove_vm
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: Remove-VM -Name "{{ $.loop_value }}" -Force
+                        VARIABLE_NAME: script
+                      uuid: 5f2b3e69-ea20-4ae8-9e9a-c51f92ee8ac6
+                      pretty_name: Remove-VM
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/ssh/command:1.0.6
+                      id: remove_vm_ssh
+                      env:
+                        COMMAND: '{{ $.remove_vm.script }}'
+                        HOSTNAME: '{{ $.wf_context.data.hyperv_hostname }}'
+                        PASSWORD: '{{ secret "ssh_pass_hyperv" }}'
+                        USERNAME: '{{ $.wf_context.data.hyperv_username }}'
+                      runner: local_torq_academy_vm
+                      ignoreFailure: true
+                      uuid: f91683a5-7fe7-4945-89f5-fd67f38181fa
+                      pretty_name: Remove-VM-SSH
+                      options: {}
+                      manifestId: ba028dcb-db21-420a-94ad-374d711f390d
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 2e643e03-c01e-4865-8405-f2103213366b
+                  pretty_name: Loop
+        default:
+          id: 2be59430-bfd7-4a05-ac81-75d34988c0d5
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+              id: new_vm_2
+              env:
+                DATA_TYPE: string
+                VALUE_STRING: New-VM -Name {{ $.vm_name.result }} -MemoryStartupBytes 512MB -Path {{ $.wf_context.data.root_paht }}{{ $.vm_name.result }}.local -SwitchName {{ $.wf_context.data.switch_name }}
+                VARIABLE_NAME: script
+              uuid: adb94264-18ed-4939-9ef2-31b23c8de1b1
+              pretty_name: New-VM 2
+              options:
+                executor:
+                  name: utils_infrastructure_v_1_4_3
+                  env:
+                    COMMAND: set_variable
+                  sync: true
+                  disable: false
+              manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: true
+            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+              id: new_vm_1
+              env:
+                DATA_TYPE: string
+                VALUE_STRING: New-VM -Name {{ $.vm_name.result }} -MemoryStartupBytes 512MB -Path C:\vms\{{ $.vm_name.result }}.local -SwitchName vswitch01
+                VARIABLE_NAME: script
+              uuid: 3c394544-3371-4b23-957c-46d27aa26d8b
+              pretty_name: New-VM 1
+              options:
+                executor:
+                  name: utils_infrastructure_v_1_4_3
+                  env:
+                    COMMAND: set_variable
+                  sync: true
+                  disable: false
+              manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: true
+  annotations:
+    - uuid: 97e27a3b-b2ae-4064-85ea-a29d2a7e85bd
+      x: 527
+      "y": 299
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true

@@ -1,0 +1,179 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: f45b7d4f-e794-4e46-8f6b-9fa5a8ccfc28
+name: Update Phishing URL DB
+trigger:
+  scheduledTrigger:
+    integrationId: e75b61c3-3b4f-49b1-aba0-a7108f9bfa8c
+    scheduledTriggerParameters:
+      cronTab: 0 00 4 * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+          "mongo_key":"vodHJ4nfh5sEufjTruq3LCZ8IscjoWhmtgl7jJ6KDefALMHjquv4FcEEoToVzCAD"
+          }
+        VARIABLE_NAME: data
+      uuid: bdbca77e-5584-459b-abe5-b086712ac943
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+      id: get_date
+      env:
+        DATE_FORMAT_LAYOUT: "1136214245"
+        TIME_AGO: ""
+        TIME_ZONE: America/Mexico_City
+      uuid: 4ceda70f-856e-41c6-9cdb-68a6a1370000
+      pretty_name: Get Date
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+      id: fetch_feeds_from_openphish
+      env:
+        PYTHON_CODE: |-
+          import json
+          import requests
+
+          feed = requests.get("https://openphish.com/feed.txt", stream=True)
+          links_list = []
+          for line in feed.iter_lines():
+              if line: links_list.append(line.decode())
+          output = {"links":links_list, "len":len(links_list)}
+
+          print(json.dumps(output))
+      uuid: eca1b1d0-3fab-40d8-b783-3483686e47b7
+      pretty_name: Fetch Feeds from OpenPhish
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.11
+      id: data_transformation
+      env:
+        INPUT: '{{ $.fetch_feeds_from_openphish.links }}'
+        JSON_QUERY: '.[]| {"feed":"openphish","timestamp":{{ $.get_date.timestamp }},"url": . }'
+      uuid: e3447bd8-579c-4712-a7a8-f1ab681d1241
+      pretty_name: Data Transformation
+      options:
+        executor:
+          name: jq_infra_v_3_1_11
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 5818b575-f3bb-413b-a5a7-d7c808965d23
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: mongo_insert_many_items_reputationdb
+      env:
+        AUTHORIZATION: None
+        BODY: |-
+          {
+            "dataSource": "ReputationDB",
+            "database": "ReputationDB",
+            "collection": "phishing-urls",
+            "documents": {{ $.data_transformation.output }}
+            }
+        CONTENT_TYPE: application/json; charset=utf-8
+        HEADERS: '{"api-key":"{{ $.workflow_context.data.mongo_key }}","Content-Type":"application/json"}'
+        METHOD: POST
+        URL: https://us-west-2.aws.data.mongodb-api.com/app/data-fwulc/endpoint/data/v1/action/insertMany
+      uuid: 85d7b528-b7dd-4d86-bdfa-47fe8f47ab35
+      pretty_name: Mongo Insert Many Items ReputationDB
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 4e72f2c7-92f5-4fc9-8643-79d6a6d7b5f5
+        use_schema: true
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: mongo_insert_many_items_phishersframweork_1
+      env:
+        AUTHORIZATION: None
+        BODY: |-
+          {
+                "dataSource": "Cluster0",
+                "database": "todo",
+                "collection": "tasks",
+                "documents": {{ $.data_transformation.output }}
+            }
+        CONTENT_TYPE: application/json; charset=utf-8
+        HEADERS: '{"api-key":"z58BasKfKNZPEhE7mZ3ZgifGts2YCvQRFxZ9l9wGGLOUjoNwYy4D2YNumLP544Hq","Content-Type":"application/json"}'
+        METHOD: POST
+        URL: https://us-west-2.aws.data.mongodb-api.com/app/data-dmgrr/endpoint/data/v1/action/insertMany
+      uuid: 50e197ec-ca1a-44b9-87cb-9369135e847c
+      pretty_name: Mongo Insert Many Items PhishersFramweork 1
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+  output_schema: '{}'
+root: true

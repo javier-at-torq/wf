@@ -1,0 +1,135 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3fc7ae8e-9280-4686-bb08-ed441eb7c333
+name: Open Case with Closing Interaction
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_CREATED
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "onhold_form": {
+                  "type": 8,
+                  "prettyName": "OnHold Form",
+                  "description": "Workflow ID for OnHold Form",
+                  "uiPlaceholder": "6575dff0-c422-4eb7-9f56-3ffe2a6ec909"
+              },
+              "closing_form": {
+                  "type": 8,
+                  "prettyName": "Closing Form",
+                  "description": "Workflow ID for Closing State Form",
+                  "uiPlaceholder": "6575dff0-c422-4eb7-9f56-3ffe2a6ec909"
+              }
+          }
+        VALUES: |-
+          {
+            "onhold_form": "6575dff0-c422-4eb7-9f56-3ffe2a6ec909",
+            "closing_form": "75e59096-dbc4-407d-8c14-f30e1b62a0b8"
+          }
+      uuid: 48aa1e5b-9b6c-49c4-b962-8252cc2e679e
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/set-state-change-hook:1.1.0
+      id: closed_formular_interaction
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        CASE_STATE: Closed
+        WORKFLOW: '{{ $.workflow_parameters.closing_form }}'
+      uuid: bcd032c0-7eed-445a-82c1-b7bb8e575510
+      pretty_name: Closed  Formular Interaction
+      options:
+        executor:
+          name: torq_cases_set-state-change-hook_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 5f5a0e01-34df-5777-b359-e2d4143557b5
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/set-state-change-hook:1.1.0
+      id: closed_formular_interaction_1
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        CASE_STATE: Closed
+        WORKFLOW: 75e59096-dbc4-407d-8c14-f30e1b62a0b8
+      uuid: b315111d-7527-4496-bb24-08a5b3b0ad3d
+      pretty_name: Closed  Formular Interaction 1
+      options:
+        executor:
+          name: torq_cases_set-state-change-hook_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 5f5a0e01-34df-5777-b359-e2d4143557b5
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/set-state-change-hook:1.1.0
+      id: onhold_formular_interaction
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        CASE_STATE: On hold
+        WORKFLOW: 044ec920-f67b-440e-a085-7f099e27f13f
+      uuid: 9ffbfd90-0d4b-4555-a8ed-5e8cc544dc12
+      pretty_name: OnHold Formular Interaction
+      options:
+        executor:
+          name: torq_cases_set-state-change-hook_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 5f5a0e01-34df-5777-b359-e2d4143557b5
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/set-state-change-hook:1.1.0
+      id: assign_in_progress_wf
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        CASE_STATE: In progress
+        WORKFLOW: 0aa72cde-38c3-4201-b229-dce2f28dac58
+      uuid: 034259f8-34b1-4280-8bde-d16000a3de1c
+      pretty_name: Assign IN-PROGRESS WF
+      options:
+        executor:
+          name: torq_cases_set-state-change-hook_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 5f5a0e01-34df-5777-b359-e2d4143557b5
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+  annotations:
+    - uuid: 0b9534ab-4d8a-4720-a350-22efb2f08d99
+      x: -361
+      "y": 264
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Interaction for CLOSED Cases"}]}]}'
+    - uuid: 8264b987-8ac0-47a0-8401-d2d5f048234d
+      x: 329
+      "y": 248
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Interaction for ON-HOLD Cases"}]}]}'
+  output_schema: '{}'
+root: true

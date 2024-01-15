@@ -1,0 +1,3473 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 1686710e-7408-49a4-9d9c-f04fa6f7cf3a
+name: EDL Menu
+trigger:
+  integrationTrigger:
+    integration:
+      name: wolken
+      typeId: slack
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: workflow_settings
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "slack_integration":"analyze_potentially_malicious_ip_or_url",
+            "torq_integration":"mn_5iron_torq"
+          }
+        VARIABLE_NAME: var
+      uuid: e1680542-0d1b-4045-b813-b10316f3614d
+      pretty_name: Workflow settings
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.3
+      id: retrieve_client_list
+      env:
+        KEY: clients
+      envFrom:
+        integrationRef: torq_api
+      uuid: 3f7d790f-4b64-41ee-9f71-1c4f4c47312f
+      pretty_name: Retrieve Client List
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: faea2b84-7bb4-5c65-8193-f6c2ec4fdf6f
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - loop:
+        in: '{{ $.retrieve_client_list.api_object.value }}'
+        key: client_key
+        value: client_value
+        steps:
+          - collector:
+              id: client_block
+              uuid: 042288d0-0ec0-44a2-8f19-16a245fc2690
+              pretty_name: client_block
+              expression: |-
+                {
+                            "text": {
+                              "type": "plain_text",
+                              "text": "{{ $.client_value }}",
+                              "emoji": true
+                            },
+                            "value": "{{ $.client_value }}"
+                          }
+              flatten: true
+        uuid: 464c1755-c1bd-4203-9777-e4b7288870ad
+        pretty_name: Loop over the list of clients
+        run_in_parallel: true
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+      id: initial_menu
+      env:
+        BLOCKS: |-
+          {
+            "blocks": [
+              {
+                "type": "image",
+                "image_url": "https://preview.redd.it/l0tt5bjphyq41.jpg?width=600&format=pjpg&auto=webp&s=18f1bd4a94fb0672e19ab6cec9b20e6ffb4f9690",
+                "alt_text": "inspiration"
+              },
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "Firewall Dynamic List Interface",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "input",
+                "block_id":"selection",
+                "element": {
+                  "type": "static_select",
+                  "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select an item",
+                    "emoji": true
+                  },
+                  "options": [
+                    {
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Show a list",
+                        "emoji": true
+                      },
+                      "value": "show"
+                    },
+                    {
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Search for an entry",
+                        "emoji": true
+                      },
+                      "value": "search"
+                    },
+                    {
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Add an entry",
+                        "emoji": true
+                      },
+                      "value": "add"
+                    },
+                    {
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Remove an entry",
+                        "emoji": true
+                      },
+                      "value": "remove"
+                    }
+                  ],
+                  "action_id": "static_select-action"
+                },
+                "label": {
+                  "type": "plain_text",
+                  "text": "What would you like to do?",
+                  "emoji": true
+                }
+              }
+            ]
+          }
+        RECIPIENT: '#{{ $.event.channel }}'
+      envFrom:
+        integrationRef: wolken
+      uuid: b079a419-ac2f-4e90-b2a5-de3b3d36ed99
+      pretty_name: Initial menu
+      options: {}
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: 4aeab3da-6d22-4d93-826c-d9b5f8ff0e2e
+        pretty_name: What did the user select?
+        cases:
+          - id: 54e72304-7290-4748-8cac-baaeed76880a
+            pretty_name: Show a list
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: show
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Show a list",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: fc6dfb44-121a-49cf-91c2-a6a57330d8a7
+                pretty_name: Action Ack
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: show_list
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Show a list",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "type",
+                          "element": {
+                            "type": "radio_buttons",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "IP",
+                                  "emoji": true
+                                },
+                                "value": "ip"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "URL",
+                                  "emoji": true
+                                },
+                                "value": "url"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Domain",
+                                  "emoji": true
+                                },
+                                "value": "domain"
+                              }
+                            ],
+                            "action_id": "radio_buttons-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Indicator Type",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "which_list",
+                          "element": {
+                            "type": "static_select",
+                            "placeholder": {
+                              "type": "plain_text",
+                              "text": "Select a list",
+                              "emoji": true
+                            },
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Allow List",
+                                  "emoji": true
+                                },
+                                "value": "allow"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Block List",
+                                  "emoji": true
+                                },
+                                "value": "block"
+                              }
+                            ],
+                            "action_id": "static_select-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Which list would you like to see?",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "client",
+                          "element": {
+                            "type": "static_select",
+                            "placeholder": {
+                              "type": "plain_text",
+                              "text": "Select the Client from this list",
+                              "emoji": true
+                            },
+                            "options": {{ $.client_block.result }},
+                            "action_id": "static_select-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Client",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 2e24b021-d3ec-41f6-b95f-80dd6e11e936
+                pretty_name: Show list
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - switch:
+                  uuid: 11481bd2-88db-47fc-9f84-a0d5f2ed19e3
+                  pretty_name: Which list are we showing?
+                  cases:
+                    - id: 631a6b8d-de98-444a-8d32-9d5d7c31976a
+                      pretty_name: IP Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.which_list.''static_select-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Whitelist_IP_{{ $.show_list.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: d3dde564-41cd-4a20-84a1-7514f148b8ab
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 5cf1c5f8-bbb0-42a3-bdd3-82a66e805d1a
+                      pretty_name: IP Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.which_list.''static_select-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_IP_{{ $.show_list.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 3fbe52ce-0a7f-4482-8341-911468afd80c
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: e1642a69-435c-4d19-b5cb-78492cf6b999
+                      pretty_name: URL Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.which_list.''static_select-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Whitelist_URL_{{ $.show_list.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 7e62af39-4170-4039-a10a-d89b2d999875
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 005eb271-b4f0-42e3-84c9-39e1a968b983
+                      pretty_name: URL Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.which_list.''static_select-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_URL_{{ $.show_list.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 88f9e8cf-56b5-4e9e-9cc1-d7b2215cadaf
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: aa8ff1b6-e1f4-4a6e-a8ea-4013c00f52fd
+                      pretty_name: Domain Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: domain
+                              - lvalue: '{{ $.show_list.form_submission_event.state.values.which_list.''static_select-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_Domain_{{ $.show_list.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 50e95c2e-cf8b-4079-bd8c-83ef24c9b77c
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                  default:
+                    id: cbee1490-4c8e-47c0-834f-89b35e5d84a4
+                    steps: []
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                id: retrieve_the_list
+                env:
+                  KEY: '{{ $.list.value }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.torq_integration }}'
+                uuid: b1eb547c-3748-48f0-a37f-6350d89a8b1d
+                pretty_name: Retrieve the list
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ len $.retrieve_the_list.api_object.value }}'
+                            operator: GREATER_EQUAL
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                      id: create_ascii_table
+                      env:
+                        INPUT: '{{ $.retrieve_the_list.api_object.value }}'
+                        MARKDOWN: "true"
+                      uuid: e0f0b8f5-5207-4f8f-8a7c-9e6c8ad35d70
+                      pretty_name: Create ASCII table
+                      options:
+                        executor:
+                          name: utils_output_utils_tabulate_v_1_2_4
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.10
+                      id: send_snippet
+                      env:
+                        CONTENT: '{{ $.create_ascii_table.tabulate_output }}'
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                        TITLE: Here is the {{ $.show_list.form_submission_event.state.values.which_list.'static_select-action'.selected_option.value }} list
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 85ff8823-ef24-4652-82d9-68b5b2ae1fa0
+                      pretty_name: Send Snippet
+                      options:
+                        executor:
+                          name: slack_message_snippet_v_1_3_10
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 7142cd06-4538-44e2-af0a-e1b9c90e6818
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Show a list",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "context",
+                                "elements": [
+                                  {
+                                    "type": "plain_text",
+                                    "text": "The requested list, {{ $.list.value }} is empty.",
+                                    "emoji": true
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: dc040a6e-973a-4d67-b633-a36f6102dae3
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 2e1fabf7-d540-4c1a-b40a-227a1bdfb449
+                  pretty_name: Is the list not empty?
+          - id: 52c842e4-bd70-422b-bbe7-accfa0bbf71f
+            pretty_name: Search
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: search
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Search the lists for an entry",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: f2e36cf0-0a21-450b-8f8c-89d9fefb063f
+                pretty_name: Action Ack
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: search_lists
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Search the lists",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "This will search both the allow and block lists and report the findings.",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "entry",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Which Entry are you looking for?",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: a0d49c73-f8ce-4010-a578-d19ee1387e91
+                pretty_name: Search lists
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq/list-variables:8.0.3
+                id: list_the_available_lists
+                envFrom:
+                  integrationRef: mn_5iron_torq
+                uuid: 8df88bc9-9bbb-40a7-90d9-c239c40f0391
+                pretty_name: List the available lists
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables
+                    sync: true
+                    disable: false
+                manifestId: a300d054-42fd-59dd-86a7-71123518ef6a
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                id: filter_for_tids
+                env:
+                  FILTER_ARG: 5iTID
+                  FILTER_FUNC: Contains
+                  INPUT: '{{ $.list_the_available_lists.api_object.keys }}'
+                uuid: 904009b5-0d3d-49ca-87f8-8f9c4adbc042
+                pretty_name: Filter for TiDs
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: array_filter
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: counter
+                env:
+                  DATA_TYPE: number
+                  VALUE_NUMBER: "0"
+                  VARIABLE_NAME: result
+                uuid: 3ccf3d14-3bca-4db6-8e27-8655cbaa930d
+                pretty_name: Counter
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Search the lists for an entry",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "Please stand by.  Inspecting {{ $.filter_for_tids.length }} list(s) for the requested entry..."
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: df7e180f-1154-497a-9596-a2eb41683c1a
+                pretty_name: 'Action Ack '
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - loop:
+                  in: '{{ $.filter_for_tids.result }}'
+                  key: list_key
+                  value: list_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                      id: retrieve_the_list
+                      env:
+                        KEY: '{{ $.list_value }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.torq_integration }}'
+                      uuid: a4f83518-42b7-43b4-b035-bfa7c94be86a
+                      pretty_name: Retrieve the list
+                      options:
+                        executor:
+                          name: http_request_v_4_2_8
+                          env:
+                            AUTHORIZATION: Bearer
+                            HEADERS: '{}'
+                            METHOD: GET
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                          sync: true
+                          disable: false
+                      manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.retrieve_the_list.api_object.value..entry }}'
+                                  operator: CONTAINS
+                                  rvalue: '{{ $.search_lists.form_submission_event.state.values.entry.''plain_text_input-action''.value }}'
+                        then:
+                          - collector:
+                              id: list_with_positive_results
+                              uuid: 877eebc5-8978-417f-b181-4cea5ac4db7d
+                              pretty_name: List with positive results
+                              expression: '{{ $.list_value }}'
+                              flatten: true
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.2.4
+                            id: counter
+                            env:
+                              INPUT: '{{ $.counter.result }} +1'
+                            uuid: fca84ebc-b903-43fd-815c-75ee4d5d7ba8
+                            pretty_name: Counter
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_44
+                                env:
+                                  COMMAND: math_utils
+                                sync: true
+                                disable: false
+                            manifestId: b4a64aca-c7e4-47bb-a06b-3c15d59083c6
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        else: []
+                        uuid: 652f83b7-fdc1-42a4-ae98-9b8fab4d7b66
+                        pretty_name: Was it found in the list
+                  uuid: 924f3a3c-59ff-4de2-9146-948094539eee
+                  pretty_name: Check the lists
+                  run_in_parallel: true
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.counter.result }}'
+                            operator: GREATER_EQUAL
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.3
+                      id: comma_delineate_the_matched_lists
+                      env:
+                        DELIMITER: Comma
+                        INPUT: '{{ $.list_with_positive_results.result }}'
+                      uuid: 472c7799-90b9-4a8d-a1a9-0600d87de077
+                      pretty_name: Comma delineate the matched lists
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: join_strings
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                      manifestId: 4885f1da-ac3a-4350-8db1-3e5e237ca8f0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: send_result
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": ":white_check_mark: Entry _{{ $.search_lists.form_submission_event.state.values.entry.'plain_text_input-action'.value }}_ is *PRESENT* in the following lists:"
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "{{ $.comma_delineate_the_matched_lists.output }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 4258d168-ab67-4002-832b-b68bae62ccf3
+                      pretty_name: Send Result
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: send_result
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": ":x: Entry _{{ $.search_lists.form_submission_event.state.values.entry.'plain_text_input-action'.value }}_ is *NOT PRESENT* in any of the {{ $.filter_for_tids.length }} list(s) checked*"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 0817457a-d87f-488c-86c3-b59a969f5e95
+                      pretty_name: Send Result
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 0d1e424f-2bfd-46bd-bfea-528030322e60
+                  pretty_name: Were any hits detected?
+          - id: d9074a1b-f7fe-4284-aa8f-6742cb1ff2a5
+            pretty_name: Add an entry
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: add
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add an entry",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 8eb41312-cad7-4f56-91ab-ea16c64c94c4
+                pretty_name: Action Ack
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: add_an_entry
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add an entry",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "client",
+                          "element": {
+                            "type": "static_select",
+                            "placeholder": {
+                              "type": "plain_text",
+                              "text": "Select the Client from this list",
+                              "emoji": true
+                            },
+                            "options": {{ $.client_block.result }},
+                            "action_id": "static_select-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Client",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "type",
+                          "element": {
+                            "type": "radio_buttons",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "IP",
+                                  "emoji": true
+                                },
+                                "value": "ip"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "URL",
+                                  "emoji": true
+                                },
+                                "value": "url"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Domain",
+                                  "emoji": true
+                                },
+                                "value": "domain"
+                              }
+                            ],
+                            "action_id": "radio_buttons-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Indicator Type",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "which_list",
+                          "element": {
+                            "type": "radio_buttons",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Allow List",
+                                  "emoji": true
+                                },
+                                "value": "allow"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Block List",
+                                  "emoji": true
+                                },
+                                "value": "block"
+                              }
+                            ],
+                            "action_id": "radio_buttons-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Which List would you like to update?",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "entry",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Provide the URL/IP/Domain to add",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "block_id": "permanent",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Should this be a permanent entry?*"
+                          },
+                          "accessory": {
+                            "type": "checkboxes",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "Yes"
+                                },
+                                "description": {
+                                  "type": "mrkdwn",
+                                  "text": "Check this box to make this entry permanent"
+                                },
+                                "value": "permanent"
+                              }
+                            ],
+                            "action_id": "checkboxes-action"
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "note",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Provide incident number of ticket, and justification (a note)",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: dabc54ec-bb3a-4422-9768-d796950b49a9
+                pretty_name: Add an entry
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - switch:
+                  uuid: 8226b072-1306-4d74-93f6-e50aaa0e9c72
+                  pretty_name: Which list are we updating?
+                  cases:
+                    - id: 7ecd631e-099f-46b8-8bda-6e3c9b62ca8c
+                      pretty_name: IP Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_IP_Whitelist_{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: dd8c6d93-cfd1-43b5-92c8-4103fd4d2973
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 1ae4d6f2-02a5-4ccf-872c-5fc174a892ca
+                      pretty_name: IP Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_IP_{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: c9e8c339-589a-4eae-b517-e4ed0d8a2f7b
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 326c352c-151c-470e-9130-a18dea9d9f0e
+                      pretty_name: URL Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_URL_Whitelist_{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 392208f0-7402-452a-b5a5-b344704bc986
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 66859ca9-ce23-4ac6-8b26-e3a7e5f9e748
+                      pretty_name: URL Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_URL_{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: b3b17153-cf33-49bd-9bcb-6e102b091a8a
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 87c9b7b2-98b8-4d74-9e7d-467715a1b087
+                      pretty_name: Domain Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                              - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: domain
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_Domain_{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 8cbb5d65-d2a6-4b05-8aa1-45aa81b2173b
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                  default:
+                    id: cdff19c1-3a17-4e71-b190-d77c2890ddf8
+                    steps:
+                      - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                        id: action_ack_1
+                        env:
+                          BLOCKS: |-
+                            {
+                              "blocks": [
+                                {
+                                  "type": "header",
+                                  "text": {
+                                    "type": "plain_text",
+                                    "text": "Firewall Dynamic List Interface: Add an entry",
+                                    "emoji": true
+                                  }
+                                },
+                                {
+                                  "type": "section",
+                                  "text": {
+                                    "type": "mrkdwn",
+                                    "text": "The workflow encountered an error and could not proceed."
+                                  }
+                                },
+                                    {
+                                  "type": "section",
+                                  "text": {
+                                    "type": "mrkdwn",
+                                    "text": "Link to the execution log: https://app.torq.io/workflow/cd664252-5f10-4743-a213-bd9f7b43e544?tab=history&account=5iron&execution={{ $.metadata.execution_id }}."
+                                  }
+                                }
+                              ]
+                            }
+                          MESSAGE_TYPE: blocks
+                          RECIPIENT: '#{{ $.event.channel }}'
+                          THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                        envFrom:
+                          integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                        uuid: 2bc507f1-b4f0-4a4f-a3d3-53f5e26ebfe1
+                        pretty_name: Action Ack 1
+                        options:
+                          executor:
+                            name: slack_message_blocks_v_2_3_11
+                            env: {}
+                            sync: true
+                            disable: false
+                        documentationUrl: https://app.slack.com/block-kit-builder
+                        manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - exit:
+                          success: "false"
+                          pretty_name: Exit
+                          output: '{}'
+                          uuid: 35587644-5dc4-460a-8606-5d6949883862
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: confirm_action
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add an entry",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Confirm action",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*List to update*: {{ $.list.value }}"
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Entry to add*: {{ $.add_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: Confirmed, No
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 394654f6-3277-4a13-8686-fbfbf0cad91d
+                pretty_name: Confirm action
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.confirm_action.selected_response }}'
+                            operator: EQUALS
+                            rvalue: Confirmed
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Add an entry",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*List to update*: {{ $.list.value }}"
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Entry to add*: {{ $.add_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 41c23585-d94f-4b41-8316-17da2e581aa9
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.add_an_entry.form_submission_event.state.values.permanent.''checkboxes-action''.selected_options.0.value }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                            id: permanent_flag
+                            env:
+                              DATA_TYPE: boolean
+                              VALUE_BOOLEAN: "true"
+                              VARIABLE_NAME: setting
+                            uuid: fb37cce9-1ecc-4c09-b94c-15128922a390
+                            pretty_name: permanent flag
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_44
+                                env:
+                                  COMMAND: set_variable
+                                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                sync: true
+                                disable: false
+                            manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                            id: permanent_flag
+                            env:
+                              DATA_TYPE: boolean
+                              VALUE_BOOLEAN: "false"
+                              VARIABLE_NAME: setting
+                            uuid: 9252fb57-d699-4a39-8079-66201d90eb33
+                            pretty_name: permanent flag
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_44
+                                env:
+                                  COMMAND: set_variable
+                                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                sync: true
+                                disable: false
+                            manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        uuid: 8893686b-a579-4709-b35d-7ed30c705a1c
+                        pretty_name: If
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.5
+                      id: get_date
+                      env:
+                        DATE_FORMAT_LAYOUT: "2006-01-02"
+                      uuid: 44af354f-875d-4079-a471-90748337db7e
+                      pretty_name: Get Date
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: get_date
+                          sync: true
+                          disable: false
+                      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                      manifestId: 681058f5-9dc9-42ff-864d-1aefe505816f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                      id: retrieve_the_list
+                      env:
+                        KEY: '{{ $.list.value }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.torq_integration }}'
+                      uuid: 557f708a-8a94-40cc-84ac-2b7206c77e16
+                      pretty_name: Retrieve the list
+                      options:
+                        executor:
+                          name: http_request_v_4_2_8
+                          env:
+                            AUTHORIZATION: Bearer
+                            HEADERS: '{}'
+                            METHOD: GET
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                          sync: true
+                          disable: false
+                      manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/append-to-array:2.0.0
+                      id: append_to_the_list
+                      env:
+                        INPUT: '{{ $.retrieve_the_list.api_object.value }}'
+                        NEW_MEMBER: |-
+                          {
+                                  "added": "{{ $.get_date.result }}",
+                                  "updated":"{{ $.get_date.result }}",
+                                  "entry": "{{ $.add_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}",
+                                  "note": "{{ $.add_an_entry.form_submission_event.state.values.note.'plain_text_input-action'.value }}",
+                                  "permanent":"{{ $.permanent_flag.setting }}"
+                          }
+                      uuid: 9c397346-0777-4364-91ea-2c9cad0522c7
+                      pretty_name: Append to the list
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_41
+                          env:
+                            COMMAND: append_to_array
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#append-to-array
+                      manifestId: 2dfe2c96-6d64-4a08-b923-c0db516a146f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                      id: update_the_list
+                      env:
+                        KEY: '{{ $.list.value }}'
+                        VALUE: '{{ $.append_to_the_list.result }}'
+                      envFrom:
+                        integrationRef: mn_5iron_torq
+                      uuid: 117f88b0-e572-4921-ba15-bae552abcf38
+                      pretty_name: Update the list
+                      options:
+                        executor:
+                          name: http_request_v_4_6_0
+                          env:
+                            AUTHORIZATION: Bearer
+                            BODY: |-
+                              {
+                              {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                              {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                  "value": {{ .VALUE }}
+                              }
+                            CONTENT_TYPE: application/json
+                            HEADERS: '{}'
+                            METHOD: POST
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                          sync: true
+                          disable: false
+                      manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                      id: create_ascii_table
+                      env:
+                        INPUT: '{{ $.update_the_list.api_object.value }}'
+                        MARKDOWN: "true"
+                      uuid: 4ff5bf75-8a7f-4da6-a50c-3f4ca4690581
+                      pretty_name: Create ASCII table
+                      options:
+                        executor:
+                          name: utils_output_utils_tabulate_v_1_2_4
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.10
+                      id: send_snippet
+                      env:
+                        CONTENT: '{{ $.create_ascii_table.tabulate_output }}'
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                        TITLE: Here is the updated {{ $.show_list.form_submission_event.state.values.which_list.'static_select-action'.selected_option.value }} list
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 438dc801-1325-4d2f-86e7-632bac44b4cf
+                      pretty_name: Send Snippet
+                      options:
+                        executor:
+                          name: slack_message_snippet_v_1_3_10
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 7142cd06-4538-44e2-af0a-e1b9c90e6818
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Add an entry - Updating Published EDL",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*List to update*: {{ $.add_an_entry.form_submission_event.state.values.which_list.'radio_buttons-action'.selected_option.value }}"
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Entry to add*: {{ $.add_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel}}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: c055d8fe-06da-4a66-97b7-10acc852c63f
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - trigger:
+                        id: edl_update_and_publish
+                        playbook_id: bcadc6cb-1077-409f-ad5a-9c8df908706d
+                        pretty_name: EDL Update and Publish
+                        uuid: 2bc2797b-0dc5-4b50-83e2-c41b51d7bc76
+                        input: |-
+                          {
+                            "client": "{{ $.add_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}"
+                          }
+                        ignore_failure: true
+                        playbook_name: EDL Update and Publish
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.edl_update_and_publish.step_status.code }}'
+                                  operator: EQUALS
+                                  rvalue: "1"
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: action_ack
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "header",
+                                      "text": {
+                                        "type": "plain_text",
+                                        "text": "Firewall Dynamic List Interface: Add an entry - Updating Published EDL",
+                                        "emoji": true
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": ":white_check_mark: *Published EDL Updated successfully*"
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: cc7bbf16-cb77-4436-9827-fbbca47bb71c
+                            pretty_name: Action Ack
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: action_ack
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "header",
+                                      "text": {
+                                        "type": "plain_text",
+                                        "text": "Firewall Dynamic List Interface: Add an entry - Updating Published EDL",
+                                        "emoji": true
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": ":x: *We encoutnered an issue updating the EDL*: {{ $.edl_update_and_publish.step_status.message }}"
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: 69ff8639-49eb-4577-a633-42eef1d429af
+                            pretty_name: Action Ack
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        uuid: 2ce43c08-4ecf-43bc-96e7-c1faef890acf
+                        pretty_name: Were we successful in updating the published list?
+                  else: []
+                  uuid: a1a92d43-c8aa-463a-962a-eafe1196adf9
+                  pretty_name: Was the action confirmed?
+          - id: ece1d258-14de-46a2-a32e-90cdee5b2098
+            pretty_name: Remove an entry
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: remove
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Remove an entry",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: c4582d3a-fa7c-47e5-918c-3c15f9765e8c
+                pretty_name: Action Ack
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: remove_an_entry
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Remove an entry",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "client",
+                          "element": {
+                            "type": "static_select",
+                            "placeholder": {
+                              "type": "plain_text",
+                              "text": "Select the Client from this list",
+                              "emoji": true
+                            },
+                            "options": {{ $.client_block.result }},
+                            "action_id": "static_select-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Client",
+                            "emoji": true
+                          }
+                        },
+                            {
+                          "type": "input",
+                          "block_id": "type",
+                          "element": {
+                            "type": "radio_buttons",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "IP",
+                                  "emoji": true
+                                },
+                                "value": "ip"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "URL",
+                                  "emoji": true
+                                },
+                                "value": "url"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Domain",
+                                  "emoji": true
+                                },
+                                "value": "domain"
+                              }
+                            ],
+                            "action_id": "radio_buttons-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Indicator Type",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "which_list",
+                          "element": {
+                            "type": "radio_buttons",
+                            "options": [
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Allow List",
+                                  "emoji": true
+                                },
+                                "value": "allow"
+                              },
+                              {
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Block List",
+                                  "emoji": true
+                                },
+                                "value": "block"
+                              }
+                            ],
+                            "action_id": "radio_buttons-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Which List would you like to update?",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "entry",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Provide the entry to remove",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "note",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Provide additional information for removal (a note)",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 61d23392-37b8-463d-8ec8-9991f33f9b1e
+                pretty_name: Remove an entry
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - switch:
+                  uuid: 181ba184-817e-44d4-b0a3-549b70d88ff5
+                  pretty_name: Which list are we updating?
+                  cases:
+                    - id: e69663ea-c6b3-4619-9552-289dd2751d7f
+                      pretty_name: IP Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_IP_Whitelist_{{ $.remove_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: ffae2b0b-d3d8-4d47-849c-af3bc77463de
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 08fb6dcb-2a62-48dd-bb34-f91919457697
+                      pretty_name: IP Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: ip
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_IP_{{ $.remove_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: a6a3637d-d4c6-4b1e-a614-7b225c923207
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 3c98a38c-7ee3-4e2d-9305-12ee3a6b8cbf
+                      pretty_name: URL Allow
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: allow
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_URL_Whitelist_{{ $.remove_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: 131186d6-9dbb-46cc-a5fd-c1a9915127d0
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - id: 80e923ca-6215-4f59-b24f-829998c8c24d
+                      pretty_name: URL Block
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.which_list.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: block
+                              - lvalue: '{{ $.remove_an_entry.form_submission_event.state.values.type.''radio_buttons-action''.selected_option.value }}'
+                                operator: EQUALS
+                                rvalue: url
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                          id: list
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: 5iTID_Bad_URL_{{ $.remove_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}
+                            VARIABLE_NAME: value
+                          uuid: b0ecbd82-c4e3-45f0-a45b-e5cee94baac4
+                          pretty_name: list
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_4_3
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                  default:
+                    id: a1cfe356-137e-4a33-998e-f9c9a63fea82
+                    steps:
+                      - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                        id: action_ack
+                        env:
+                          BLOCKS: |-
+                            {
+                              "blocks": [
+                                {
+                                  "type": "header",
+                                  "text": {
+                                    "type": "plain_text",
+                                    "text": "Firewall Dynamic List Interface: Remove an entry",
+                                    "emoji": true
+                                  }
+                                },
+                                {
+                                  "type": "section",
+                                  "text": {
+                                    "type": "mrkdwn",
+                                    "text": "The workflow encountered an error and could not proceed."
+                                  }
+                                },
+                                    {
+                                  "type": "section",
+                                  "text": {
+                                    "type": "mrkdwn",
+                                    "text": "Link to the execution log: https://app.torq.io/workflow/cd664252-5f10-4743-a213-bd9f7b43e544?tab=history&account=5iron&execution={{ $.metadata.execution_id }}."
+                                  }
+                                }
+                              ]
+                            }
+                          MESSAGE_TYPE: blocks
+                          RECIPIENT: '#{{ $.event.channel }}'
+                          THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                        envFrom:
+                          integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                        uuid: 131f322c-998b-452d-ba41-a2d9e1b26ab1
+                        pretty_name: Action Ack
+                        options:
+                          executor:
+                            name: slack_message_blocks_v_2_3_11
+                            env: {}
+                            sync: true
+                            disable: false
+                        documentationUrl: https://app.slack.com/block-kit-builder
+                        manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - exit:
+                          success: "false"
+                          pretty_name: Exit
+                          output: '{}'
+                          uuid: d9e18750-5eb5-4689-b636-73ae3fa1e7d2
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: confirm_action
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Remove an entry",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Confirm action",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*List to update*: {{ $.list.value }}"
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Entry to remove*: {{ $.remove_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: Confirmed, No
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 5995234b-13ec-4f3f-9a7c-8bd6578aaee4
+                pretty_name: Confirm action
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.confirm_action.selected_response }}'
+                            operator: EQUALS
+                            rvalue: Confirmed
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Remove an entry",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*List to update*: {{ $.remove_an_entry.form_submission_event.state.values.which_list.'radio_buttons-action'.selected_option.value }}"
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Entry to add*: {{ $.remove_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: dfdf5b7f-2c48-4f5f-8d1e-295c3d024de6
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                      id: retrieve_the_list
+                      env:
+                        KEY: '{{ $.list.value }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.torq_integration }}'
+                      uuid: b77f1ce1-4e81-47aa-b6ea-4e0bcbc2c7ae
+                      pretty_name: Retrieve the list
+                      options:
+                        executor:
+                          name: http_request_v_4_2_8
+                          env:
+                            AUTHORIZATION: Bearer
+                            HEADERS: '{}'
+                            METHOD: GET
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                          sync: true
+                          disable: false
+                      manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.retrieve_the_list.api_object.value..entry }}'
+                                  operator: CONTAINS
+                                  rvalue: '{{ $.remove_an_entry.form_submission_event.state.values.entry.''plain_text_input-action''.value }}'
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                            id: filter_the_list
+                            env:
+                              FIELD_PATH: entry
+                              FILTER_ARG: '{{ $.remove_an_entry.form_submission_event.state.values.entry.''plain_text_input-action''.value }}'
+                              FILTER_FUNC: Not Equals
+                              INPUT: '{{ $.retrieve_the_list.api_object.value }}'
+                            uuid: 9bb90585-66b9-42bd-83aa-9f4eb8fd6e42
+                            pretty_name: Filter the list
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_44
+                                env:
+                                  COMMAND: array_filter
+                                sync: true
+                                disable: false
+                            documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                            manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.2
+                            id: update_the_list
+                            env:
+                              KEY: '{{ $.list.value }}'
+                              VALUE: '{{ $.filter_the_list.result }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.torq_integration }}'
+                            uuid: 808dec58-f270-460b-bd1e-eda5d062f856
+                            pretty_name: Update the list
+                            options:
+                              executor:
+                                name: http_request_v_4_2_8
+                                env:
+                                  AUTHORIZATION: Bearer
+                                  BODY: |-
+                                    {
+                                    {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                    {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                        "value": {{ .VALUE }}
+                                    }
+                                  CONTENT_TYPE: application/json
+                                  HEADERS: '{}'
+                                  METHOD: POST
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                  TIMEOUT: "30"
+                                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                                  URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                                sync: true
+                                disable: false
+                            manifestId: 5121bbab-7064-4377-9c87-b9d739a28165
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.4
+                            id: create_ascii_table
+                            env:
+                              INPUT: '{{ $.update_the_list.api_object.value }}'
+                              MARKDOWN: "true"
+                            uuid: 921c729e-9650-4c9f-bc1a-e227fdd1011c
+                            pretty_name: Create ASCII table
+                            options:
+                              executor:
+                                name: utils_output_utils_tabulate_v_1_2_4
+                                env: {}
+                                sync: true
+                                disable: false
+                            manifestId: e54f4cc7-cf14-4a58-b3e2-abd97f819966
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.10
+                            id: send_snippet
+                            env:
+                              CONTENT: '{{ $.create_ascii_table.tabulate_output }}'
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                              TITLE: Here is the updated {{ $.show_list.form_submission_event.state.values.which_list.'static_select-action'.selected_option.value }} list
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: 5aae0fa5-5bca-47e3-a818-3a10da5a6ddf
+                            pretty_name: Send Snippet
+                            options:
+                              executor:
+                                name: slack_message_snippet_v_1_3_10
+                                env: {}
+                                sync: true
+                                disable: false
+                            manifestId: 7142cd06-4538-44e2-af0a-e1b9c90e6818
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: action_ack
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "header",
+                                      "text": {
+                                        "type": "plain_text",
+                                        "text": "Firewall Dynamic List Interface: Remove an entry - Updating Published EDL",
+                                        "emoji": true
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": "*List to update*: {{ $.remove_an_entry.form_submission_event.state.values.which_list.'radio_buttons-action'.selected_option.value }}"
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": "*Entry to add*: {{ $.remove_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}"
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: c4681bf0-3a62-4a6a-b0af-387312962bed
+                            pretty_name: Action Ack
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - trigger:
+                              id: edl_update_and_publish
+                              playbook_id: bcadc6cb-1077-409f-ad5a-9c8df908706d
+                              pretty_name: EDL Update and Publish
+                              uuid: 0a9e59f6-2644-4fda-9f94-d9b5ae98d46e
+                              input: |-
+                                {
+                                  "client": "{{ $.remove_an_entry.form_submission_event.state.values.client.'static_select-action'.selected_option.value }}"
+                                }
+                              ignore_failure: true
+                              playbook_name: EDL Update and Publish
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.edl_update_and_publish.step_status.code }}'
+                                        operator: EQUALS
+                                        rvalue: "1"
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                  id: action_ack
+                                  env:
+                                    BLOCKS: |-
+                                      {
+                                        "blocks": [
+                                          {
+                                            "type": "header",
+                                            "text": {
+                                              "type": "plain_text",
+                                              "text": "Firewall Dynamic List Interface: Remove an entry - Updating Published EDL",
+                                              "emoji": true
+                                            }
+                                          },
+                                          {
+                                            "type": "section",
+                                            "text": {
+                                              "type": "mrkdwn",
+                                              "text": ":white_check_mark: *Published EDL Updated successfully*"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    MESSAGE_TYPE: blocks
+                                    RECIPIENT: '#{{ $.event.channel }}'
+                                    THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                                  envFrom:
+                                    integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                                  uuid: e73f1088-a05c-4082-9fc4-24b4abef8994
+                                  pretty_name: Action Ack
+                                  options:
+                                    executor:
+                                      name: slack_message_blocks_v_2_3_11
+                                      env: {}
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://app.slack.com/block-kit-builder
+                                  manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                  id: action_ack
+                                  env:
+                                    BLOCKS: |-
+                                      {
+                                        "blocks": [
+                                          {
+                                            "type": "header",
+                                            "text": {
+                                              "type": "plain_text",
+                                              "text": "Firewall Dynamic List Interface: Remove an entry - Updating Published EDL",
+                                              "emoji": true
+                                            }
+                                          },
+                                          {
+                                            "type": "section",
+                                            "text": {
+                                              "type": "mrkdwn",
+                                              "text": ":x: *We encoutnered an issue updating the EDL*: {{ $.edl_update_and_publish.step_status.message }}"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    MESSAGE_TYPE: blocks
+                                    RECIPIENT: '#{{ $.event.channel }}'
+                                    THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                                  envFrom:
+                                    integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                                  uuid: 5d38761a-caaa-483a-a05c-97742180a616
+                                  pretty_name: Action Ack
+                                  options:
+                                    executor:
+                                      name: slack_message_blocks_v_2_3_11
+                                      env: {}
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://app.slack.com/block-kit-builder
+                                  manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              uuid: 8ca00a9c-a0dc-4b6f-b77a-3bee23e2948d
+                              pretty_name: Were we successful in updating the published list?
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: send_result
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": ":x: Entry _{{ $.remove_an_entry.form_submission_event.state.values.entry.'plain_text_input-action'.value }}_ is *NOT PRESENT* in *{{ $.list_value }} list*. No action taken."
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: torqit
+                            uuid: e9de9a52-086e-43b5-a420-f64a7069fbf1
+                            pretty_name: Send Result
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        uuid: 8561bce0-5a3d-487b-8c26-41e4b32ca41f
+                        pretty_name: Is the entry in the list?
+                  else: []
+                  uuid: 07ca6f1d-b15f-4a10-8a3f-9d7f1c17cf5e
+                  pretty_name: Was the action confirmed?
+          - id: 9b8b89e7-d3fe-4890-9743-761d14bd8102
+            pretty_name: Add a customer
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: customer_add
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: action_ack
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add a customer",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 7291608a-3262-42c3-8f00-cf6f838af52f
+                pretty_name: Action Ack
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: add_a_customer
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add a customer",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "entry",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Please provide the customer name",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "input",
+                          "block_id": "note",
+                          "element": {
+                            "type": "plain_text_input",
+                            "action_id": "plain_text_input-action"
+                          },
+                          "label": {
+                            "type": "plain_text",
+                            "text": "Please provide additional information (a note)",
+                            "emoji": true
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 1abb172f-82a4-4ca0-8488-933e1bd0340f
+                pretty_name: Add a customer
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/replace-text:2.0.2
+                id: replace
+                env:
+                  INPUT: '{{ $.add_a_customer.form_submission_event.state.values.entry.''plain_text_input-action''.value }}'
+                  NEW_TEXT: _and_
+                  OLD_TEXT: '&'
+                uuid: d69ee12f-15cf-48b7-9b04-f324eaecc5f4
+                pretty_name: Replace &
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: replace_text
+                    sync: true
+                    disable: false
+                manifestId: 0fcc9b41-a46c-4405-923f-b5d30622a85d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/replace-text:2.0.2
+                id: replace_spaces_with_underscores
+                env:
+                  INPUT: '{{ $.replace.result }}'
+                  NEW_TEXT: _
+                  OLD_TEXT: ' '
+                uuid: 590d2d7c-7cf2-4ccc-8bf8-828b56f500bf
+                pretty_name: Replace spaces with underscores
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: replace_text
+                    sync: true
+                    disable: false
+                manifestId: 0fcc9b41-a46c-4405-923f-b5d30622a85d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/send-block-form:2.1.11
+                id: confirm_action
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Firewall Dynamic List Interface: Add a customer",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Confirm action",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Customer to add* _note: value may be normalized)_: {{ $.replace_spaces_with_underscores.result }}"
+                          }
+                        }
+                      ]
+                    }
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: Confirmed, No
+                  THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                uuid: 67b684bb-e45b-48a7-bf4e-bb221bd42dc2
+                pretty_name: Confirm action
+                options: {}
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: cb85b9e0-117b-4e62-ac5b-793365eabc37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.confirm_action.selected_response }}'
+                            operator: EQUALS
+                            rvalue: Confirmed
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Add a customer",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Customer to add*: {{ $.replace_spaces_with_underscores.result }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: e8728a05-a5a6-4d7b-9121-68dd2fe5961a
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/append-to-array:2.0.0
+                      id: add_the_new_client_to_the_client_list
+                      env:
+                        INPUT: '{{ $.retrieve_client_list.api_object.value }}'
+                        NEW_MEMBER: '{{ $.replace_spaces_with_underscores.result }}'
+                      uuid: 00d985bc-0097-4ca3-91f0-c9a987cea6c4
+                      pretty_name: Add the new client to the client list
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_41
+                          env:
+                            COMMAND: append_to_array
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#append-to-array
+                      manifestId: 2dfe2c96-6d64-4a08-b923-c0db516a146f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                      id: update_the_client_list
+                      env:
+                        KEY: clients
+                        VALUE: '{{ $.add_the_new_client_to_the_client_list.result }}'
+                      envFrom:
+                        integrationRef: mn_5iron_torq
+                      uuid: 1cbb9568-5f1b-42fc-bf62-e52bc781c79a
+                      pretty_name: Update the client list
+                      options:
+                        executor:
+                          name: http_request_v_4_6_0
+                          env:
+                            AUTHORIZATION: Bearer
+                            BODY: |-
+                              {
+                              {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                              {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                  "value": {{ .VALUE }}
+                              }
+                            CONTENT_TYPE: application/json
+                            HEADERS: '{}'
+                            METHOD: POST
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                          sync: true
+                          disable: false
+                      manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/torq/append-to-a-variable:8.0.3
+                      id: update_the_client_list
+                      env:
+                        KEY: clients
+                        VALUE: '{{ $.replace_spaces_with_underscores.result }}'
+                      envFrom:
+                        integrationRef: mn_5iron_torq
+                      uuid: afe3a402-6e2b-4558-b511-cbfe8971f314
+                      pretty_name: Update the client list
+                      options:
+                        executor:
+                          name: http_request_v_4_6_0
+                          env:
+                            AUTHORIZATION: Bearer
+                            BODY: |-
+                              {
+                                  "key": "{{ .KEY | jsonEscape }}",
+                              {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                              {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                  "value": {{ .VALUE }}
+                              }
+                            CONTENT_TYPE: application/json
+                            HEADERS: '{}'
+                            METHOD: POST
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .ACCESS_TOKEN }}'
+                            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables
+                          sync: true
+                          disable: false
+                      manifestId: dc30f833-c2dd-57a9-8b3b-95968d599b21
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - parallel:
+                        uuid: 9532ed05-8c7a-44c4-a3d2-a80cbe4406c5
+                        pretty_name: Parallel Executions
+                        threads:
+                          - uuid: 6139ec1f-89f1-430b-93da-81798de7c77a
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_ip_block
+                                env:
+                                  KEY: 5iTID_Bad_IP_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: e097eaf0-1721-4abc-8be5-aa35b07b5996
+                                pretty_name: Create IP block
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_url_block
+                                env:
+                                  KEY: 5iTID_Bad_URL_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: 1e3031ef-6c41-400f-b355-91b247898038
+                                pretty_name: Create URL block
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_domain_block
+                                env:
+                                  KEY: 5iTID_Bad_Domains_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: 42148c49-7575-4124-bcaa-441590b5c165
+                                pretty_name: Create Domain block
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                          - uuid: 7db24273-316c-4e67-aede-b5ef132f085b
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_ip_allow
+                                env:
+                                  KEY: 5iTID_IP_Whitelist_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: 05c55f69-f911-4bb6-a1d0-76f761d2d6b2
+                                pretty_name: Create IP Allow
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_url_allow
+                                env:
+                                  KEY: 5iTID_URL_Whitelist_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: 64217fb5-a40e-4098-9896-9967ad07a7d3
+                                pretty_name: Create URL Allow
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.3
+                                id: create_domain_allow
+                                env:
+                                  KEY: 5iTID_Domains_Whitelist_{{ $.replace_spaces_with_underscores.result }}
+                                  VALUE: '[]'
+                                envFrom:
+                                  integrationRef: mn_5iron_torq
+                                uuid: 355b291b-e180-461d-ac4c-835c62542e92
+                                pretty_name: Create Domain Allow
+                                options:
+                                  executor:
+                                    name: http_request_v_4_6_0
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      BODY: |-
+                                        {
+                                        {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                        {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                            "value": {{ .VALUE }}
+                                        }
+                                      CONTENT_TYPE: application/json
+                                      HEADERS: '{}'
+                                      METHOD: POST
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                                    sync: true
+                                    disable: false
+                                manifestId: f5b1228a-1346-5919-87b0-802cee552a06
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: action_ack
+                      env:
+                        BLOCKS: |-
+                          {
+                            "blocks": [
+                              {
+                                "type": "header",
+                                "text": {
+                                  "type": "plain_text",
+                                  "text": "Firewall Dynamic List Interface: Add a customer - Updating Published EDL",
+                                  "emoji": true
+                                }
+                              },
+                              {
+                                "type": "section",
+                                "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Customer to add*: {{ $.replace_spaces_with_underscores.result }}"
+                                }
+                              }
+                            ]
+                          }
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                      envFrom:
+                        integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                      uuid: 4939803f-29b6-4c97-bc8f-e66363743386
+                      pretty_name: Action Ack
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - trigger:
+                        id: edl_update_and_publish
+                        playbook_id: bcadc6cb-1077-409f-ad5a-9c8df908706d
+                        pretty_name: EDL Update and Publish
+                        uuid: 22702cb2-1ecc-410c-8c02-7724536071c4
+                        input: |-
+                          {
+                            "client": "{{ $.replace_spaces_with_underscores.result }}"
+                          }
+                        ignore_failure: true
+                        playbook_name: EDL Update and Publish
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.edl_update_and_publish.step_status.code }}'
+                                  operator: EQUALS
+                                  rvalue: "1"
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: action_ack
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "header",
+                                      "text": {
+                                        "type": "plain_text",
+                                        "text": "Firewall Dynamic List Interface: Remove an entry - Updating Published EDL",
+                                        "emoji": true
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": ":white_check_mark: *Published EDL Updated successfully*"
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: a3c7d857-9b51-4c6e-9531-9c4bfeed441f
+                            pretty_name: Action Ack
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                            id: action_ack
+                            env:
+                              BLOCKS: |-
+                                {
+                                  "blocks": [
+                                    {
+                                      "type": "header",
+                                      "text": {
+                                        "type": "plain_text",
+                                        "text": "Firewall Dynamic List Interface: Remove an entry - Updating Published EDL",
+                                        "emoji": true
+                                      }
+                                    },
+                                    {
+                                      "type": "section",
+                                      "text": {
+                                        "type": "mrkdwn",
+                                        "text": ":x: *We encoutnered an issue updating the EDL*: {{ $.edl_update_and_publish.step_status.message }}"
+                                      }
+                                    }
+                                  ]
+                                }
+                              MESSAGE_TYPE: blocks
+                              RECIPIENT: '#{{ $.event.channel }}'
+                              THREAD_TS: '{{ $.initial_menu.message_ts }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_settings.var.slack_integration }}'
+                            uuid: a39bfd04-0102-4ec3-8d57-a5faae192697
+                            pretty_name: Action Ack
+                            options:
+                              executor:
+                                name: slack_message_blocks_v_2_3_11
+                                env: {}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://app.slack.com/block-kit-builder
+                            manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                        uuid: 821df7c0-a9d4-4898-84d7-34ac3fb3ea0f
+                        pretty_name: Were we successful in updating the published list?
+                  else: []
+                  uuid: 9c6080cc-23df-4c06-98ce-91a688bd276c
+                  pretty_name: Was the action confirmed?
+          - id: e340bd17-4197-46e3-8260-1a033db757e7
+            pretty_name: Remove a customer
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.initial_menu.form_submission_event.state.values.selection.''static_select-action''.selected_option.value }}'
+                      operator: EQUALS
+                      rvalue: customer_remove
+            steps: []
+        default:
+          id: 1fdedce6-d8c3-410d-accd-342f50d1c703
+          steps: []
+  annotations:
+    - uuid: 37a0dc46-07d6-4fc1-a6d2-6b9fa2bcd6da
+      x: -650
+      "y": 848
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Dynamically pull list of lists and loop over those"}]}]}'
+    - uuid: 7a4ab7cc-9664-400b-8716-000a4158270e
+      x: -1267
+      "y": 1118
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Update with client and make easier"}]}]}'
+    - uuid: c4cd1822-7521-4716-a5a4-ec12119b3009
+      x: -594
+      "y": 284
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Use client list in later steps"}]}]}'
+    - uuid: 731471d5-5b49-4e75-8ab0-661ad38c9851
+      x: 436
+      "y": 631
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"This loop generates the code for the list of clients used in the Slack blocks below."}]}]}'
+    - uuid: 7c7ccfcb-c4db-48ef-9e29-19cc8f99b2d5
+      x: -881
+      "y": 1368
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"finish updating for multi-client aspects"}]}]}'
+    - uuid: 3f8405be-ca38-4426-acee-1be8c63943c7
+      x: 1459
+      "y": 1414
+      attachedStepId: d69ee12f-15cf-48b7-9b04-f324eaecc5f4
+      attachedDistance:
+        x: -339
+        "y": -91
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Normalize the input"}]}]}'
+  output_schema: '{}'
+root: true

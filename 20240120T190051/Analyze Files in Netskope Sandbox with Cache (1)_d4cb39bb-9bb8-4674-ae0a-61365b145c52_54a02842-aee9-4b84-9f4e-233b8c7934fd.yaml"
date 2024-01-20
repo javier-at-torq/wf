@@ -1,0 +1,477 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: d4cb39bb-9bb8-4674-ae0a-61365b145c52
+name: Analyze Files in Netskope Sandbox with Cache (1)
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: sample_file
+          required: true
+          prettyName: Sample File
+          file: {}
+    onSubmitActionType: next_webform_page
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "cache_expiration_time": {
+                  "type": 8,
+                  "prettyName": "Cache Expiration Time",
+                  "description": "Time in days to cache ",
+                  "uiPlaceholder": "7d"
+              },
+              "netskope_integration": {
+                  "type": 17,
+                  "prettyName": "Netskope Integration",
+                  "description": "The name of the integration with Netskope",
+                  "uiPlaceholder": "netskope",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "netskope_token"
+                  }
+              },
+              "torq_integration": {
+                  "type": 17,
+                  "prettyName": "Torq Integration",
+                  "description": "The name of the integration with Torq",
+                  "uiPlaceholder": "torq",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "torq_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "cache_expiration_time": "7d",
+            "netskope_integration": "netskope_v2",
+            "torq_integration": "torq_api"
+          }
+      uuid: 75f8426d-4ac8-423a-8fac-ee0ca5af996a
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/calculate-sha256:1.1.3
+      id: calculate_sha256
+      env:
+        FILE: '{{ file $.event.sample_file }}'
+      uuid: 6f240e5c-f0b9-401d-8548-068805d3bd2b
+      pretty_name: Calculate SHA256
+      options:
+        executor:
+          name: utils_infrastructure_v_1_9_0
+          env:
+            COMMAND: calculate_sha256
+          sync: true
+          disable: false
+      manifestId: 88ddee5a-3a79-5eb5-a8d6-ec195eb71e04
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.1.0
+      id: cache_lookup
+      env:
+        KEY: NSKP_Cache_{{ $.calculate_sha256.result }}
+      envFrom:
+        integrationRef: '{{ $.workflow_parameters.torq_integration }}'
+      uuid: 244189de-f738-4c27-ad02-262bf640e542
+      pretty_name: Cache Lookup
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: 113df204-5b8d-5be4-8f22-895f9e87a732
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.cache_lookup.api_object }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/netskope/scan-a-file-in-sandbox:3.0.0
+            id: scan_a_file_in_sandbox
+            env:
+              FILE_CONTENT: '{{ file $.event.sample_file }}'
+              FILENAME: file.exe
+            envFrom:
+              integrationRef: '{{ $.workflow_parameters.netskope_integration }}'
+            ignoreFailure: true
+            uuid: 86123a20-742c-40e8-9433-7fce551ccde7
+            pretty_name: Scan a File in Sandbox
+            options:
+              executor:
+                name: http_request_v_4_9_1
+                env:
+                  AUTHORIZATION: None
+                  BODY: '[{"key":"ty[e","type":"text","value":"application/octet-stream"},{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILENAME | jsonEscape }}"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: |-
+                    {
+                      "Netskope-Api-Token": "{{ .NETSKOPE_API_TOKEN | jsonEscape }}"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["NETSKOPE_TENANT_NAME","NETSKOPE_API_TOKEN","FILENAME","FILE_CONTENT"]'
+                  URL: https://{{ .NETSKOPE_TENANT_NAME }}.goskope.com/api/v2/atp/scans/filescan?scantype=sandbox
+                sync: true
+                disable: false
+            documentationUrl: https://docs.netskope.com/en/netskope-help/admin-console/rest-api/rest-api-v2-overview-312207/
+            manifestId: a2f85d5e-51ee-5c3f-bcb8-10b014eca360
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.scan_a_file_in_sandbox.step_status.code }}'
+                        operator: EQUALS
+                        rvalue: "1"
+              then:
+                - loop:
+                    key: loop_key
+                    value: loop_value
+                    steps:
+                      - name: us-docker.pkg.dev/stackpulse/public/netskope/get-scan-report:2.0.0
+                        id: get_scan_report
+                        env:
+                          JOB_ID: '{{ $.scan_a_file_in_sandbox.api_object.jobid }}'
+                        envFrom:
+                          integrationRef: '{{ $.workflow_parameters.netskope_integration }}'
+                        uuid: 7c245243-d4fd-4437-98d0-7fff8133d6d1
+                        pretty_name: Get Scan Report
+                        options:
+                          executor:
+                            name: http_request_v_4_9_1
+                            env:
+                              AUTHORIZATION: None
+                              BODY: ""
+                              CONTENT_TYPE: application/json; charset=utf-8
+                              HEADERS: |-
+                                {
+                                  "Netskope-Api-Token": "{{ .NETSKOPE_API_TOKEN | jsonEscape }}"
+                                }
+                              METHOD: GET
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["NETSKOPE_TENANT_NAME","JOB_ID","NETSKOPE_API_TOKEN"]'
+                              URL: https://{{ .NETSKOPE_TENANT_NAME }}.goskope.com/api/v2/atp/scans/reports/{{ .JOB_ID }}
+                            sync: true
+                            disable: false
+                        documentationUrl: https://docs.netskope.com/en/netskope-help/admin-console/rest-api/rest-api-v2-overview-312207/
+                        manifestId: 7323bca8-2d05-5828-9152-1fbc5192c145
+                        isPrivate: false
+                        isPrivateUrl: true
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - if:
+                          conditions:
+                            or:
+                              - and:
+                                  - lvalue: '{{ $.get_scan_report.api_object.status }}'
+                                    operator: EQUALS
+                                    rvalue: OK
+                              - and:
+                                  - lvalue: '{{ $.get_scan_report.status_code }}'
+                                    operator: EQUALS
+                                    rvalue: "404"
+                          then:
+                            - break:
+                                pretty_name: Break
+                                uuid: 5acd4328-ecca-4684-ac76-f15c677f4160
+                          else:
+                            - wait:
+                                id: wait
+                                pretty_name: Wait
+                                uuid: 91b01465-5347-46cb-af54-935c9a1c7759
+                                time_unit: "1"
+                                duration: "30"
+                          uuid: 84a4cf14-0f6c-49f6-bad9-592522a41c64
+                          pretty_name: If Analysis status is OK
+                    uuid: 4bede565-89c8-457c-b9bb-c78e55254e64
+                    pretty_name: Loop until Analysis is finished
+                    until_break: true
+                - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+                  id: add_report_to_cache
+                  env:
+                    EXPIRES_IN: '{{ $.workflow_parameters.cache_expiration_time }}'
+                    KEY: NSKP_Cache_{{ $.calculate_sha256.result }}
+                    VALUE: '{{ $.get_scan_report.api_object }}'
+                  envFrom:
+                    integrationRef: '{{ $.workflow_parameters.torq_integration }}'
+                  uuid: 656bf2c2-1b30-41b5-8cd7-d91e09cba028
+                  pretty_name: Add Report to Cache
+                  options:
+                    executor:
+                      name: http_request_v_4_6_0
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: |-
+                          {
+                          {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                          {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                              "value": {{ .VALUE }}
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: '{}'
+                        METHOD: POST
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .ACCESS_TOKEN }}'
+                        URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                      sync: true
+                      disable: false
+                  manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+                  id: show_results
+                  env:
+                    CONCLUDE_WEB_FORM_WITH: Close form
+                    FORM_NAME: Sandbox Analisys Results
+                    PARAMETERS: '[{"name":"663bb997-b4de-4adf-bc12-cbd36f4641d2","prettyName":"","description":"*ERROR*\n\n{{ $.scan_a_file_in_sandbox.api_object.error_message }}","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"*ERROR*\n\n{{ $.scan_a_file_in_sandbox.api_object.error_message }}"}}]'
+                    TIMEOUT: 5m
+                  uuid: b5964be2-e746-4dd5-8464-0fbe3a32bcfd
+                  pretty_name: Show Results
+                  options:
+                    executor:
+                      name: utils_forms_send_form_v_4_1_3
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - exit:
+                    success: "false"
+                    pretty_name: Exit
+                    output: '{}'
+                    uuid: 73bf3522-2414-48df-a776-8924500f99b1
+              uuid: 6440dc32-6742-4637-a19f-a46766bebbe2
+              pretty_name: If FileType supported
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+            id: get_scan_report
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: '{{ $.cache_lookup.api_object.value }}'
+              VARIABLE_NAME: api_object
+            uuid: 9b3456ae-82d4-4c0c-ae35-71d0782bf930
+            pretty_name: Get Scan Report
+            options:
+              executor:
+                name: utils_infrastructure_v_1_9_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: be0f42c2-c768-4b4d-8bb1-7fd2aa8f19e0
+        pretty_name: If Samples Not in Cache
+    - parallel:
+        uuid: 7b3a5b56-124e-432a-8da2-c334490e1559
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: a44b35dc-1f20-4b16-953a-c9f1ce97caf2
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.7.0
+                id: processess
+                env:
+                  INPUT: '{{ $.get_scan_report.api_object.process_tree }}'
+                  JSON_QUERY: map( { "CMD Line":.command_line, "Process":.process_name } )
+                uuid: 357c1711-3726-484d-a996-f8be449512e4
+                pretty_name: Processess
+                options:
+                  executor:
+                    name: jq_infra_v_3_7_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 7cb928aa-2448-5edd-a72f-5716ab8649bd
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+                id: processes_table
+                env:
+                  INPUT: '{{ $.processess.output }}'
+                  MARKDOWN: "true"
+                uuid: b258dbc9-6f79-4685-971e-5888a8210ecb
+                pretty_name: Processes Table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: 9e7462df-236d-4c9a-8bb2-13a2364d8494
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.7.0
+                id: ttps
+                env:
+                  INPUT: '{{ $.get_scan_report.api_object.observed_behavior }}'
+                  JSON_QUERY: '[to_entries[].value | select(type == "object" and length > 0) |.[] | select(type == "object" and length > 0) | .ttp | select(length > 0)|to_entries[] | {"ID":.key,"TTP Description":.value.long,"TTP":.value.short} ] | unique'
+                uuid: 0061d776-a0e3-4112-bf4c-283fe53543ad
+                pretty_name: TTPs
+                options:
+                  executor:
+                    name: jq_infra_v_3_7_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 7cb928aa-2448-5edd-a72f-5716ab8649bd
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+                id: ttps_table
+                env:
+                  AUTO_WRAP: "false"
+                  INPUT: '{{ $.ttps.output }}'
+                  MARKDOWN: "true"
+                  MAX_COLUMN_LENGTH: "0"
+                uuid: cd66abbc-b802-48f8-bac5-5af04a6053b0
+                pretty_name: TTPs Table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+      id: show_results
+      env:
+        CONCLUDE_WEB_FORM_WITH: Close form
+        FORM_NAME: Sandbox Analisys Results
+        PARAMETERS: '[{"name":"2a383054-6f59-49a3-a408-978cbdfbb847","prettyName":"","description":"|*Verdict:*|*{{ $.get_scan_report.api_object.verdict }}*|\n|---|---|\n|*AV Detection:*|{{ $.get_scan_report.api_object.av_detection.malware_name }}|\n|*MD5 Hash:*|{{ $.get_scan_report.api_object.md5 }}|\n|*SHA256 Hash:*|{{ $.get_scan_report.api_object.sha256 }}|\n","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"|*Verdict:*|*{{ $.get_scan_report.api_object.verdict }}*|\n|---|---|\n|*AV Detection:*|{{ $.get_scan_report.api_object.av_detection.malware_name }}|\n|*MD5 Hash:*|{{ $.get_scan_report.api_object.md5 }}|\n|*SHA256 Hash:*|{{ $.get_scan_report.api_object.sha256 }}|\n"}},{"name":"e2cdcd31-dc48-4e6a-a7a3-857f83b4e0f5","prettyName":"","description":"{{ jsonEscape $.processes_table.tabulate_output }}","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"{{ jsonEscape $.processes_table.tabulate_output }}"}},{"name":"ttps","prettyName":"TTPs","description":"Tactics & Techniques\n\n{{ jsonEscape $.ttps_table.tabulate_output }}","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"Tactics & Techniques\n\n{{ jsonEscape $.ttps_table.tabulate_output }}"}}]'
+        TIMEOUT: 5m
+      uuid: b7218f3a-e86b-45a7-a2e7-22c1def60552
+      pretty_name: Show Results
+      options:
+        executor:
+          name: utils_forms_send_form_v_4_1_3
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.get_scan_report.api_object }}'
+        uuid: 51c620e3-5093-4568-9fae-7f136bf8190e
+  annotations:
+    - uuid: bba52b7d-a184-406d-8556-ee48ce982652
+      x: -578
+      "y": 117
+      width: 522
+      height: 542
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Analyze Files in Netskope Sandbox with Cache"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow allows an analyst to submit a file using a Webform to Netskope Sandbox for analysis."}]},{"type":"paragraph","content":[{"type":"text","text":"When a file is received it hash is calculated and looked up in a temporary cache. If file analysis is not cached yet then the file is submitted for analysis. otherwise the cached results is returned."}]},{"type":"paragraph","content":[{"type":"text","text":"Workflow will return trough Webforms analysis verdict and related TTPs."}]},{"type":"paragraph","content":[{"type":"text","text":"Both Netskope Steps in this workflow  "},{"type":"text","marks":[{"type":"code"}],"text":"Scan a File in Sandbox"},{"type":"text","text":" and "},{"type":"text","marks":[{"type":"code"}],"text":"Get Scan Report"},{"type":"text","text":" uses "},{"type":"text","marks":[{"type":"bold"}],"text":"Netskope''s API V2"}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://www.netskope.com/wp-content/uploads/2021/06/logo-netskope-primary.png","alt":null,"title":null}}]}]}'
+    - uuid: c2dd83cf-751c-47c9-98cb-ba492b8b4f4f
+      x: 648
+      "y": 762
+      attachedStepId: 86123a20-742c-40e8-9433-7fce551ccde7
+      attachedDistance:
+        x: -368
+        "y": -94
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Submit Samples to SandBox"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Netskope Sandbox supports only binary files. Otherwise a "},{"type":"text","marks":[{"type":"code"}],"text":"File Type not supported"},{"type":"text","text":" error is returned"}]}]}'
+    - uuid: 2878ba44-5027-494c-936e-b7fc3f5786ea
+      x: 386
+      "y": 489
+      attachedStepId: 244189de-f738-4c27-ad02-262bf640e542
+      attachedDistance:
+        x: -386
+        "y": -96
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Check if there is a previous analysis."}]}]}'
+    - uuid: 2b461ebb-2e53-4e40-a30a-f6866c80a895
+      x: -160
+      "y": 912
+      attachedStepId: 9b3456ae-82d4-4c0c-ae35-71d0782bf930
+      attachedDistance:
+        x: 20
+        "y": -244
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"                Return cached results"}]}]}'
+    - uuid: b567075e-4a16-4233-bb3d-53b6132b6877
+      x: 787
+      "y": 1825
+      attachedStepId: 656bf2c2-1b30-41b5-8cd7-d91e09cba028
+      attachedDistance:
+        x: -367
+        "y": -96
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Add a new analysis to cache"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Cache expiration is by default 7d. Change its frequency on "},{"type":"text","marks":[{"type":"code"}],"text":"Workflow Parameters"},{"type":"text","text":" step."}]}]}'
+    - uuid: b121c119-4ad0-419a-a4a8-8cdbb1b5f549
+      x: 520
+      "y": 2365
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Data Transformation"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"On this section, the verdicts and TTPs are extracted and formatted as a markdown table."}]}]}'
+    - uuid: de094827-7467-438f-82c1-ce485ce7f832
+      x: 1077
+      "y": 1183
+      attachedStepId: 7c245243-d4fd-4437-98d0-7fff8133d6d1
+      attachedDistance:
+        x: -377
+        "y": -96
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Analysis Status"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Check the status of the analysis until status shows "},{"type":"text","marks":[{"type":"bold"}],"text":"OK"},{"type":"text","text":"."}]}]}'
+  output_schema: '{}'
+root: true

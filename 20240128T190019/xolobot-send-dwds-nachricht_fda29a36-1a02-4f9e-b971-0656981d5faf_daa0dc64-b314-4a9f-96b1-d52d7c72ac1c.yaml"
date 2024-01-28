@@ -1,0 +1,398 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: fda29a36-1a02-4f9e-b971-0656981d5faf
+name: xolobot-send-dwds-nachricht
+trigger:
+  scheduledTrigger:
+    integrationId: d28e4ada-eaea-42c7-8942-e69d82d5cc2b
+    scheduledTriggerParameters:
+      cronTab: 0 05 7 * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+      id: today
+      env:
+        DATE: ""
+        DATE_FORMAT_LAYOUT: Mon Jan 2 15:04:05 2006
+        TIME_ZONE: America/Mexico_City
+      uuid: b898018c-fae1-48b6-ad80-51c7f0367e11
+      pretty_name: Today
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: welcome_msg
+      env:
+        BLOCKS: |-
+          {
+          	"blocks": [
+          		{
+          			"type": "section",
+          			"text": {
+          				"type": "mrkdwn",
+          				"text": "*Hallo!* Nachrichten für {{ $.today.result }} "
+          			}
+          		}
+          	]
+          }
+        ICON_URL: https://i.pinimg.com/280x280_RS/25/0d/c4/250dc4e8e4b3b18fac7cb588d8841b2b.jpg
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#deutsch'
+        USERNAME: Verbal Chatbot
+      envFrom:
+        integrationRef: wolken
+      uuid: 33bad76d-afef-4407-a8cf-8c3fa832cd8d
+      pretty_name: Welcome Msg
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - parallel:
+        uuid: d090f679-17aa-4d05-91fa-8cdaa0c37d91
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 4866d03f-57ea-4e04-84fe-dbb645309abb
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+                id: get_latest_feed_dwds
+                env:
+                  PYTHON_CODE: |-
+                    import feedparser
+                    import json
+
+                    Feed = feedparser.parse('https://www.dwds.de/api/feed/latest')
+                    pointer = Feed.entries[0]
+                    print(json.dumps(pointer))
+                  REQUIREMENTS: feedparser
+                uuid: 31db4821-440a-4852-9323-bc9ec86c9238
+                pretty_name: Get Latest Feed DWDS
+                options: {}
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: send_slack_message_blocks
+                env:
+                  BLOCKS: |-
+                    {
+                    	"blocks": [
+                        {
+                    			"type": "header",
+                    			"text": {
+                    				"type": "plain_text",
+                    				"text": "Das Worte des Tages",
+                    				"emoji": true
+                    			}
+                    		},
+                    		{
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":earth_americas: *{{ $.get_latest_feed_dwds.title }}*: <{{ $.get_latest_feed_dwds.link }}|Open in DWDS WB>"
+                    			}
+                    		}
+                    	]
+                    }
+                  ICON_URL: https://seeklogo.com/images/C/Coat_of_Arms_of_Germany-logo-9BFCF3B586-seeklogo.com.png
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#deutsch'
+                  THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+                  USERNAME: DWDS
+                envFrom:
+                  integrationRef: wolken
+                uuid: bc3080ad-fefc-446d-97b5-7b09672830c4
+                pretty_name: Send Slack Message Blocks
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: df304589-ad63-42e6-9e15-ac0ef41f87e8
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+                id: get_latest_feed_dw
+                env:
+                  PYTHON_CODE: |-
+                    import feedparser
+                    import json
+
+                    Feed = feedparser.parse('https://rss.dw.com/xml/DKpodcast_lgn_de')
+                    pointer = Feed.entries[0]
+                    print(json.dumps(pointer))
+                  REQUIREMENTS: feedparser
+                uuid: eb9fb8d3-c1ec-483e-ac97-365efcce3763
+                pretty_name: Get Latest Feed DW
+                options: {}
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                id: send_an_http_request
+                env:
+                  AUTHORIZATION: None
+                  HEADERS: ""
+                  METHOD: GET
+                  URL: '{{ $.get_latest_feed_dw.link }}'
+                uuid: 89d79969-be77-4c54-87c9-34c815178f19
+                pretty_name: Send an HTTP request
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-urls:2.1.4
+                id: extract_all_urls
+                env:
+                  INPUT: '{{ $.send_an_http_request.api_object }}'
+                uuid: 3f5c357a-a1d0-403b-8f60-411cc0e252f0
+                pretty_name: Extract all URLs
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: extract_all_urls
+                    sync: true
+                    disable: false
+                manifestId: dadf4e56-718b-4fd0-844e-8ef24c2e2f7b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+                id: get_date
+                env:
+                  CUSTOM_DATE_FORMAT: '%d%m%Y'
+                  DATE: ""
+                  DATE_FORMAT_LAYOUT: Custom
+                  TIME_ZONE: America/Mexico_City
+                uuid: 63f58042-3438-4dbe-82eb-dddd5fbc1b11
+                pretty_name: Get Date
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: get_date
+                    sync: true
+                    disable: false
+                documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.11
+                id: directdownload
+                env:
+                  INPUT: '{{ $.extract_all_urls.results }}'
+                  JSON_QUERY: .[] | select(. | contains("learngerman.dw.com/de/{{ $.get_date.result }}-langsam-gesprochene-nachrichten"))
+                uuid: 1209b1ec-171f-412e-8279-cb2753c177c0
+                pretty_name: DirectDownload
+                options:
+                  executor:
+                    name: jq_infra_v_3_1_11
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 5818b575-f3bb-413b-a5a7-d7c808965d23
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: send_dw_langsam_gesprochen
+                env:
+                  BLOCKS: |-
+                    {
+                    	"blocks": [
+                        {
+                    			"type": "header",
+                    			"text": {
+                    				"type": "plain_text",
+                    				"text": "Langsam Gesprochene Nachrichten",
+                    				"emoji": true
+                    			}
+                    		},
+                    		{
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":earth_americas: <{{ $.directdownload.output }}|{{ $.get_latest_feed_dw.title }}>"
+                    			}
+                    		},
+                        {
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":headphones: <{{ $.get_latest_feed_dw.links.1.href }}|Langsam Gesprochene Audio>"
+                    			}
+                    		}
+                    	]
+                    }
+                  ICON_URL: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYkV2_YK_6f_QLvYg1QqJotA0IIQVo1IXNsA&usqp=CAU
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#deutsch'
+                  THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+                  USERNAME: Deutsche Welle
+                envFrom:
+                  integrationRef: wolken
+                uuid: 95a1c4f1-f87e-4c3b-8772-d7b8223152a6
+                pretty_name: Send DW Langsam Gesprochen
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                id: get_nachrichten_text
+                env:
+                  AUTHORIZATION: None
+                  HEADERS: ""
+                  METHOD: GET
+                  URL: '{{ $.directdownload.output }}'
+                uuid: 65a36993-5d36-4560-be50-eac381153d0f
+                pretty_name: Get Nachrichten Text
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/strip-html-tags:1.0.4
+                id: strip_html_tags
+                env:
+                  INPUT: '{{ $.get_nachrichten_text.api_object }}'
+                  SANITIZE_MODE: strict
+                uuid: 1844dee0-a0d7-4f24-8166-07edfe3893db
+                pretty_name: Strip HTML Tags
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: strip_html_tags
+                    sync: true
+                    disable: false
+                manifestId: 7336986f-844f-460e-87f7-9e335c754143
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/split-text:1.1.2
+                id: split_text
+                env:
+                  INPUT: '{{ $.strip_html_tags.result }}'
+                  SEPARATOR: ' '
+                uuid: 74cdd48a-ebb7-420b-82fa-1d6d4794df7b
+                pretty_name: Split Text
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: split_text
+                    sync: true
+                    disable: false
+                manifestId: 28047e6e-0866-4508-aa69-b60d18c9a593
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/unique-on-array:1.1.3
+                id: unique_on_array
+                env:
+                  INPUT: '{{ $.split_text.result }}'
+                uuid: eff30a31-8c88-45d0-91d7-ad1b52007993
+                pretty_name: Unique on Array
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: unique_on_array
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#unique-on-array
+                manifestId: 97e4b6dc-c426-479f-913a-3ccca67a6bd8
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 5ef375a5-2828-459f-bde5-010b19aeb7f7
+  output_schema: '{}'
+root: true

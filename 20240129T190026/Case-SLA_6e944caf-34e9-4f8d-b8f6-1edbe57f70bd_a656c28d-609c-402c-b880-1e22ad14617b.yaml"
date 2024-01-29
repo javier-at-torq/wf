@@ -1,0 +1,110 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 6e944caf-34e9-4f8d-b8f6-1edbe57f70bd
+name: Case-SLA
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_TAGS_UPDATED
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.cases.current.tags.0 }}'
+                operator: OPERATOR_EQUALS
+                rvalue: new_case_tag
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/send_form_to_case:1.1.0
+      id: assign_user_input_task_to_case
+      env:
+        CASE_ID: '{{ $.event.cases.current.id }}'
+        CONCLUDE_WEB_FORM_WITH: Next task
+        FORM_NAME: 'Task #1'
+        PARAMETERS: '[{"name":"display","prettyName":"display","description":"","required":true,"defaultValue":"","optionsList":[],"type":12,"uiPlaceholder":"","pb_boolean":{"defaultValue":true}},{"name":"number_of_loop","prettyName":"Number of loop","description":"","required":true,"defaultValue":"","optionsList":[],"type":11,"uiPlaceholder":"","integer":{"defaultValue":0}}]'
+      uuid: 0b475db8-0f23-4d99-9f0a-06f33dc17e5e
+      pretty_name: Assign user input task to case
+      options:
+        executor:
+          name: utils_cases_send_form_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 1486c194-46c6-5d9f-8214-65df8ed7151b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: ""
+                  operator: EQUALS
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/send_form_to_case:1.1.0
+            id: assign_user_input_task_to_case_2
+            env:
+              CASE_ID: '{{ $.event.cases.current.id }}'
+              CONCLUDE_WEB_FORM_WITH: Next task
+              FORM_NAME: 'Task #2'
+              PARAMETERS: '[{"name":"display","prettyName":"display","description":"","required":true,"defaultValue":"","optionsList":[],"type":14,"uiPlaceholder":"","multiSelect":{"optionsList":["abc","xyz","1234","567"],"defaultValuesList":["abc"],"optionsTemplate":""}}]'
+            uuid: 20090c8a-a951-4a09-94f3-47bc8c440966
+            pretty_name: Assign user input task to case 2
+            options:
+              executor:
+                name: utils_cases_send_form_v_1_1_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 1486c194-46c6-5d9f-8214-65df8ed7151b
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.6
+            id: send_message
+            env:
+              MESSAGE_TEXT: ""
+              RECIPIENT: ""
+            envFrom:
+              integrationRef: wolken
+            ignoreFailure: true
+            uuid: 6a0fca30-1089-4e4b-957e-d73e220e8a3e
+            pretty_name: Send Message
+            options:
+              executor:
+                name: slack_message_message_v_2_0_6
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 3d36d573-3d64-5e78-85a8-e307fa70fd88
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: 35ddba5f-362a-4882-94e3-dca2d7de24c4
+        pretty_name: If
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/send_form_to_case:1.1.0
+      id: assign_user_input_task_to_case_1
+      env:
+        CASE_ID: '{{ $.event.cases.current.id }}'
+        CONCLUDE_WEB_FORM_WITH: Close task
+        FORM_NAME: 'Task #3'
+        PARAMETERS: '[{"name":"07d11739-3e91-4552-a0e1-6f1498728593","prettyName":"","description":"","required":true,"defaultValue":"","optionsList":[],"type":12,"uiPlaceholder":"","pb_boolean":{"defaultValue":true}}]'
+      uuid: 831d3020-0810-433d-9e5a-f4b54b3055ba
+      pretty_name: Assign user input task to case 1
+      options:
+        executor:
+          name: utils_cases_send_form_v_1_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 1486c194-46c6-5d9f-8214-65df8ed7151b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+  output_schema: '{}'
+root: true

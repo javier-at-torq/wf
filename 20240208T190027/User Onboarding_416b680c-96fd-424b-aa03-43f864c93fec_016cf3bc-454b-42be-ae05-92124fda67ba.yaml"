@@ -1,0 +1,558 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 416b680c-96fd-424b-aa03-43f864c93fec
+name: User Onboarding
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: user
+          description: Este Processo permite criar un novo empleado
+          required: true
+          prettyName: 'User '
+          markdownText:
+            defaultValue: Este Processo permite criar un novo empleado
+    onSubmitActionType: next_webform_page
+    formName: Creacion de novos usuarios
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_active_directory/custom-ldap-search-query:2.1.0
+      id: list_ous_gh
+      env:
+        BASE_DN: DC=torq,DC=local
+        QUERY: (&(objectClass=organizationalUnit))
+      envFrom:
+        integrationRef: local_ad
+      runner: local_torq_academy_vm
+      uuid: 626d6d92-ed2e-4b1a-8d6f-59136333d0ec
+      pretty_name: List OUs - GH
+      options: {}
+      manifestId: 5eae6679-a497-5625-9cea-5c03f5cee6b9
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.3.0
+      id: filter_array
+      env:
+        FIELD_PATH: dn
+        FILTER_ARG: '["OU=Domain Controllers"]'
+        FILTER_FUNC: Not Contains
+        INPUT: '{{ $.list_ous_gh.api_object.result }}'
+      uuid: 95bf9944-42a6-4489-be47-3ca99ac4f4ec
+      pretty_name: Filter Array
+      options:
+        executor:
+          name: utils_infrastructure_v_1_5_1
+          env:
+            COMMAND: array_filter
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+      manifestId: 587bf1b7-f81a-59bd-8a23-7c002a1463c5
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.6.1
+      id: gh_list
+      env:
+        INPUT: '{{ $.filter_array.result }}'
+        JSON_QUERY: .[] | .attributes.name[0]
+      uuid: f1bd44a2-ce11-4f25-b150-4b4f4cc05e33
+      pretty_name: GH_List
+      options:
+        executor:
+          name: jq_infra_v_3_6_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 2b76f88c-430e-51ad-9485-5e859484f954
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.2
+      id: dados_pessoais
+      env:
+        CONCLUDE_WEB_FORM_WITH: Next form
+        FORM_NAME: Creacion de novos usuarios - Dados Pessoais
+        PARAMETERS: '[{"name":"nome","prettyName":"Nome","description":"Nome dele novo usuario","required":true,"defaultValue":"","optionsList":[],"type":8,"uiPlaceholder":"","shortText":{"defaultValue":""}},{"name":"sobrenome","prettyName":"Sobrenome","description":"El sobrenome do Usuario","required":true,"defaultValue":"","optionsList":[],"type":8,"uiPlaceholder":"","shortText":{"defaultValue":""}},{"name":"data_de_nascimento","prettyName":"Data de nascimento","description":"Data de nascimento","required":true,"defaultValue":"","optionsList":[],"type":8,"uiPlaceholder":"","shortText":{"defaultValue":"22.03.1980"}},{"name":"cidade","prettyName":"Cidade","description":"Cidade","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":["Sao Paolo","Goiana"],"defaultValue":"Sao Paolo","optionsTemplate":""}},{"name":"matricula","prettyName":"Matricula","description":"Numero de Matricula","required":true,"defaultValue":"","optionsList":[],"type":8,"uiPlaceholder":"","shortText":{"defaultValue":"asdasdasdas"}}]'
+      uuid: 305a92c4-88a3-46a8-9d7c-e1e54020ac03
+      pretty_name: Dados Pessoais
+      options:
+        executor:
+          name: utils_forms_send_form_v_4_1_2
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 9d6c13ca-659f-5078-b893-5e1eda021c11
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.2
+      id: default_password
+      env:
+        LENGTH: "16"
+        STRING_FORMAT: Alphanumeric both lower and upper
+      uuid: c216088f-b0ca-4052-80f4-6b29c6b65976
+      pretty_name: Default Password
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: generate_alphanumeric
+          sync: true
+          disable: false
+      manifestId: f3c7e87c-9d61-4db9-95bb-c0c99ef58b16
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.2
+      id: dados_de_trabalho
+      env:
+        CONCLUDE_WEB_FORM_WITH: Next form
+        FORM_NAME: Creacion de novos usuarios - Dados de Trabalho
+        PARAMETERS: '[{"name":"cargo","prettyName":"Cargo","description":"Cargo de Novo Usuario","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":["Motorista","Recepcionista"],"defaultValue":"","optionsTemplate":""}},{"name":"empresa","prettyName":"Empresa","description":"Empresa onde trabalha el usuario","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":["Televisao Anhaguera SA, Goiana","Televisao Anhaguera SA, xyz","Nova Empresa"],"defaultValue":"Nova Empresa","optionsTemplate":""}},{"name":"gh","prettyName":"GH","description":"","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":[],"defaultValue":"Segurança e Administraçao","optionsTemplate":"{{ jsonEscape $.gh_list.output }}"}}]'
+      uuid: 9c8a7d71-8e0e-4b5e-9e68-f0b5ea22caa5
+      pretty_name: Dados de Trabalho
+      options:
+        executor:
+          name: utils_forms_send_form_v_4_1_2
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 9d6c13ca-659f-5078-b893-5e1eda021c11
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:3.0.0
+      id: add_user_in_local_ad
+      env:
+        PYTHON_CODE: "import json\nfrom ldap3 import Server, Connection, NTLM, SUBTREE, ALL_ATTRIBUTES, Tls, ALL\nimport ldap3.extend.microsoft\nfrom ldap3 import ObjectDef, AttrDef, Reader, Writer, Entry, Attribute, OperationalAttribute\nfrom ldap3.extend import microsoft\nimport ssl\nfrom datetime import datetime\nfrom ldap3.utils.log import (set_library_log_detail_level, get_library_log_detail_level, set_library_log_hide_sensitive_data, EXTENDED)\nfrom ldap3.utils.conv import escape_filter_chars\n\ndef main():\n    DomainController_IP = \"172.20.22.66\"\n    ldap_user = \"torq.local\\\\torq\"\n    base_dn = 'DC=torq,DC=local'\n    shortname = '{{ $.dados_pessoais.answers.nome }}'\n    name = '{{ $.dados_pessoais.answers.nome }}'\n    displayname = '{{ $.dados_pessoais.answers.nome }} {{ $.dados_pessoais.answers.sobrenome }}'\n    lastname = '{{ $.dados_pessoais.answers.sobrenome }}'\n    domain=\"hyperautomation.com.mx\"\n    mail= name[0:3].lower()+'.'+lastname[0:3].lower()+'@'+domain\n    user_password = '{{ $.default_password.result }}'\n\n    #Define the parent Organization Unit (OU) where the group will be created\n    parent_ou = 'OU={{ $.dados_de_trabalho.answers.gh }},'+base_dn\n\n    server = Server(DomainController_IP, get_info='ALL')\n    # To use LDAPS to connect to AD use this server definition instead:\n    #server = Server(DomainController_IP, use_ssl=True, get_info='ALL')\n    #conn = Connection(server,ldap_user,'{{ secret \"local_ad_password\" }}',client_strategy='SYNC', auto_bind=True)\n    # To use NTLMv2 Authentication with LDAP on Active Directory use this connection definition instead:\n    conn = Connection(server,user=ldap_user, password=\"{{ secret \"local_ad_password\" }}\", authentication=NTLM, client_strategy='SYNC', auto_bind=True)\n\n    user_dn = 'CN=' + shortname + ',' + parent_ou\n    object_class = ['organizationalPerson', 'person', 'top', 'user']\n    attr = {\n          'givenName': name,\n          'name': displayname,\n          'displayName': displayname,\n          'sn': lastname,\n          'description': 'User create by Torq Automation',\n          'mail': mail,\n          'userPrincipalName':mail,\n         # 'userAccountControl': '512',\n         # 'unicodePwd': f'\"{user_password}\"'.encode('utf-16-le'), \n         # 'unicodePwd': f'{user_password}'.encode('utf-16-le'), \n          'l': '{{ $.dados_pessoais.answers.cidade }}',\n          \"c\":\"BR\",\n          \"co\":\"Brazil\",\n          \"countryCode\":76\n    }\n    conn.add(user_dn , object_class , attr)\n    #password_modify_request = ldap3.extend.microsoft.modifyPassword.ad_modify_password(conn, user_dn, user_password, old_password='')\n    conn.unbind()\n    attr['unicodePwd'] = user_password\n    return {\"result\":conn.result, \"attributes\":attr}\n\nif __name__ in ('__builtin__', 'builtins', '__main__'):\n    result = main()\n    print(json.dumps(result))"
+        REQUIREMENTS: ldap3
+      runner: local_torq_academy_vm
+      uuid: 5cca3825-cc28-4e97-ba41-01072c2061e7
+      pretty_name: Add User in Local AD
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: 606ec72d-4226-53ac-a144-63055ae8dbe9
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_active_directory/custom-ldap-search-query:2.1.0
+      id: search_new_user_in_ad
+      env:
+        BASE_DN: DC=torq,DC=local
+        QUERY: (&(objectclass=user)(mail={{ $.add_user_in_local_ad.attributes.mail }}))
+      envFrom:
+        integrationRef: local_ad
+      runner: local_torq_academy_vm
+      uuid: fe093279-adf2-4cff-8496-1d102d3069e7
+      pretty_name: Search New User in AD
+      options: {}
+      manifestId: 5eae6679-a497-5625-9cea-5c03f5cee6b9
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_active_directory/unlock-account:1.4.0
+      id: unlock_account
+      env:
+        BASE_DN: DC=torq,DC=local
+        USER_NAME: '{{ $.search_new_user_in_ad.api_object.result.0.attributes.cn.0 }}'
+      envFrom:
+        integrationRef: local_ad
+      runner: local_torq_academy_vm
+      uuid: f152729a-7221-4df3-b372-22733f050ef8
+      pretty_name: Unlock Account
+      options: {}
+      manifestId: 8431abff-be6c-4ee5-a3e0-8d3e9c21f3cd
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/generate-access-token:2.0.3
+      id: generate_access_token
+      envFrom:
+        integrationRef: hyperautomation_graphql
+      uuid: 25a67449-e31d-4c49-979d-46596eeab06d
+      pretty_name: Generate Access Token
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            BODY: '[{"key": "client_id", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_ID | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_ID"}, {"key": "scope", "type": "text", "value": "https://graph.microsoft.com/.default"}, {"key": "client_secret", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_SECRET | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_SECRET"}, {"key": "grant_type", "type": "text", "value": "client_credentials"}]'
+            CONTENT_TYPE: application/x-www-form-urlencoded
+            HEADERS: |-
+              {
+                  "Content-Type": "application/x-www-form-urlencoded"
+              }
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_365_TENANT_ID", "MICROSOFT_365_CLIENT_ID", "MICROSOFT_365_CLIENT_SECRET"]'
+            TIMEOUT: "30"
+            URL: https://login.microsoftonline.com/{{ .MICROSOFT_365_TENANT_ID | urlEnc }}/oauth2/v2.0/token
+          sync: true
+          disable: false
+      manifestId: 94deb564-a701-47a1-8cc2-8460f8bf7803
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - loop:
+        key: loop_key
+        value: loop_value
+        steps:
+          - wait:
+              id: wait
+              pretty_name: Wait
+              uuid: 74385824-be98-440b-9e15-bd596f470544
+              time_unit: "2"
+              duration: "2"
+          - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/search-users-by-email:4.0.0
+            id: search_users_by_email
+            env:
+              MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+              USER_EMAIL: '{{ $.add_user_in_local_ad.attributes.mail }}'
+            uuid: 7d3da235-7711-4534-8a50-ca0b0eeb1343
+            pretty_name: Search Users by Email
+            options:
+              executor:
+                name: http_request_v_4_2_11
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: |-
+                    {
+                        "ConsistencyLevel": "eventual"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_EMAIL"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                  URL: https://graph.microsoft.com/v1.0/users?&$search="mail:{{ .USER_EMAIL }}"{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&$skiptoken={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0
+            manifestId: e2c071a3-fd32-43ac-9a98-b6e39908aa8f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.search_users_by_email.api_object.value }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/enable-user:4.0.0
+                  id: enable_user
+                  env:
+                    MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                    USER_ID: '{{ $.search_users_by_email.api_object.value.0.id }}'
+                  uuid: 45683977-e3c3-4cb7-bebd-c7fa4db7184c
+                  pretty_name: Enable User
+                  options:
+                    executor:
+                      name: http_request_v_4_2_11
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: |-
+                          {
+                              "accountEnabled": true
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: |-
+                          {
+                              "ConsistencyLevel": "eventual"
+                          }
+                        METHOD: PATCH
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                        URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0&tabs=http
+                  manifestId: 829d3745-af44-454c-b9fc-53a0bfceeb87
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+                  id: enable_user_1
+                  env:
+                    AUTHORIZATION: Bearer
+                    BODY: |
+                      {
+                          "accountEnabled": true
+                      }
+                    CONTENT_TYPE: application/json
+                    HEADERS: |-
+                      {
+                          "ConsistencyLevel": "eventual"
+                      }
+                    METHOD: PATCH
+                    TIMEOUT: "30"
+                    TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                    URL: https://graph.microsoft.com/v1.0/users/{{ $.search_users_by_email.api_object.value.0.id }}
+                  uuid: 1ab811ed-c119-4be1-afbe-4607e0d90dca
+                  pretty_name: Enable User 1
+                  options:
+                    executor:
+                      name: http_request_v_4_6_0
+                      env:
+                        FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                        GO_TEMPLATE_BODY_PARSING: "false"
+                        RESPONSE_API_OBJECT_ONLY: "false"
+                      sync: true
+                      disable: false
+                  icon: https://cdn.torq.io/vendors/microsoft_azure_ad.svg
+                  documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0&tabs=http
+                  manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: true
+                - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/reset-user-password:4.0.0
+                  id: reset_user_password
+                  env:
+                    MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                    TEMP_PASSWORD: '{{ $.default_password.result }}'
+                    USER_ID: '{{ $.search_users_by_email.api_object.value.0.id }}'
+                  ignoreFailure: true
+                  uuid: 75255313-beb5-4825-a4a4-c65ff3e4ec29
+                  pretty_name: Reset User Password
+                  options:
+                    executor:
+                      name: http_request_v_4_2_11
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: |-
+                          {
+                              "passwordProfile": {
+                                  "forceChangePasswordNextSignIn": true,
+                                  "password": "{{ .TEMP_PASSWORD | jsonEscape }}"
+                              }
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: '{}'
+                        METHOD: PATCH
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID", "TEMP_PASSWORD"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                        URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-beta&tabs=http#example-3-update-the-passwordprofile-of-a-user-to-reset-their-password
+                  manifestId: ec34bb82-5751-43cf-86a4-2355f7ff5f68
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: true
+                - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                  id: list_namedlocations
+                  env:
+                    MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                    REQUEST_URL: https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations
+                  uuid: 531b08fb-033f-4d64-9cd1-7439f4136577
+                  pretty_name: List namedLocations
+                  options:
+                    executor:
+                      name: http_request_v_4_2_3
+                      env:
+                        AUTHORIZATION: Bearer
+                        HEADERS: |-
+                          {
+                              "ConsistencyLevel": "eventual"
+                          }
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                        URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                  manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                  id: set_location
+                  env:
+                    FILTER_QUERY: |-
+                      mutation {
+                        updateUser(id: "{{ $.search_users_by_email.api_object.value.0.id }}", input: {
+                          location: "Brazil"
+                        }) {
+                          id
+                          displayName
+                          location
+                        }
+                      }
+                    MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                    REQUEST_URL: https://graph.microsoft.com/v1.0/users/{{ $.search_users_by_email.api_object.value.0.id }}
+                  uuid: 5d9c45be-4717-4f28-9cae-f398de6458f8
+                  pretty_name: Set Location
+                  options:
+                    executor:
+                      name: http_request_v_4_2_3
+                      env:
+                        AUTHORIZATION: Bearer
+                        HEADERS: |-
+                          {
+                              "ConsistencyLevel": "eventual"
+                          }
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                        URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                  manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: true
+                - break:
+                    pretty_name: Break
+                    uuid: e2cf617a-4c7c-4d34-989e-eefb72cb6781
+              else: []
+              uuid: b6784753-daec-46f4-8a9f-41bc7f332622
+              pretty_name: If
+        uuid: 157b159e-6399-45a8-8414-1d6dcbee96b9
+        pretty_name: Loop
+        range:
+          start: "0"
+          end: "12"
+          interval: "1"
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+      id: find_subscribed_skus
+      env:
+        MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+        REQUEST_URL: https://graph.microsoft.com/v1.0/subscribedSkus
+      uuid: 2119dd06-3398-4942-a568-809cba31b500
+      pretty_name: Find Subscribed SKUs
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: |-
+              {
+                  "ConsistencyLevel": "eventual"
+              }
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+            URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+          sync: true
+          disable: false
+      documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+      manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.6.1
+      id: skus_names
+      env:
+        INPUT: '{{ $.find_subscribed_skus.api_object.value }}'
+        JSON_QUERY: '[.[] | .skuPartNumber]'
+      uuid: ac581236-e993-45e9-80e4-b1fe961ecd9d
+      pretty_name: SKUS Names
+      options:
+        executor:
+          name: jq_infra_v_3_6_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 2b76f88c-430e-51ad-9485-5e859484f954
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.2
+      id: licencias_o365
+      env:
+        CONCLUDE_WEB_FORM_WITH: Close form
+        FORM_NAME: Creacion de novos usuarios - Resultado
+        PARAMETERS: '[{"name":"licencias","prettyName":"Licencias","description":"Aggregar licencias","required":true,"defaultValue":"","optionsList":[],"type":14,"uiPlaceholder":"","multiSelect":{"optionsList":[],"defaultValuesList":[],"optionsTemplate":"{{ jsonEscape $.skus_names.output }}"}}]'
+      uuid: 685b8638-1aef-416a-b299-652abb0334da
+      pretty_name: Licencias O365
+      options:
+        executor:
+          name: utils_forms_send_form_v_4_1_2
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 9d6c13ca-659f-5078-b893-5e1eda021c11
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.6.1
+      id: run_jq_command
+      env:
+        INPUT: '{{ $.find_subscribed_skus.api_object.value }}'
+        JSON_QUERY: '[.[] | {"skuid":.skuId, "skuName":.skuPartNumber}]'
+      uuid: 6c70d3a4-fe88-410e-a8e2-dc10acbb929b
+      pretty_name: Run jq Command
+      options:
+        executor:
+          name: jq_infra_v_3_6_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 2b76f88c-430e-51ad-9485-5e859484f954
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: true
+    - trigger:
+        id: assign_or_remove_licenses_on_users_for_microsoft_via_graph_api
+        playbook_id: dcc6ba5e-8e8e-408e-989b-b9d76e09f728
+        pretty_name: Assign or Remove Licenses on Users for Microsoft via Graph API
+        uuid: 899d097c-e0e9-4be4-8324-893af2f376ec
+        input: |-
+          {
+            "email": "{{ $.search_new_user_in_ad.api_object.result.0.attributes.mail.0 }}",
+            "microsoft_integration": "hyperautomation_graphql",
+            "action": "assignment",
+            "assignment_sku": "f245ecc8-75af-4f8e-b61f-27d8114de5f3"
+          }
+        playbook_name: Assign or Remove Licenses on Users for Microsoft via Graph API
+        mock_output:
+          enabled: false
+          payload: '{}'
+  output_schema: '{}'
+root: true

@@ -1,0 +1,1127 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 5ebfaa48-b0ad-4f05-b7ef-91f78e7e23fd
+name: Recorded Future Sandbox - File Analysis with Cache
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: file_url
+          description: The resource to fetch the file from.
+          required: true
+          prettyName: File URL
+          shortText:
+            defaultValue: http://www.example.com/file.exe
+        - name: file_hash
+          description: The hash of the file.
+          prettyName: File Hash
+          shortText:
+            defaultValue: ""
+        - name: recorded_future_sandbox_integration
+          description: The name of the integration with Recorded Future Sandbox
+          required: true
+          prettyName: Recorded Future Sandbox Integration
+          integration:
+            defaultValue: recorded_future_sandbox
+            vendor: recorded_future_sandbox_token
+        - name: torq_integration
+          description: The name of the integration with Torq
+          required: true
+          prettyName: Torq Integration
+          integration:
+            defaultValue: torq
+            vendor: torq_token
+        - name: provide_raw_analysis_data
+          required: true
+          prettyName: Provide Raw Analysis Data
+          boolean:
+            defaultValue: true
+    nestedOnly: true
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "cache_ttl": {
+                  "type": 11,
+                  "prettyName": "Cache TTL",
+                  "description": "The cache TTL set in hours to cache IOCs",
+                  "uiPlaceholder": "24"
+              }
+          }
+        VALUES: |-
+          {
+            "cache_ttl": 24
+          }
+      uuid: 66e433ac-0ea6-4524-91e1-c83d4c2ff150
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.file_hash }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - switch:
+              uuid: dda60244-8692-4236-a0e7-e8bf911db186
+              pretty_name: Hash Type
+              cases:
+                - id: accd49cb-90a1-4958-95be-f2bae348150c
+                  pretty_name: MD5
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ len $.event.file_hash }}'
+                            operator: EQUALS
+                            rvalue: "32"
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: hashtype
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: md5
+                        VARIABLE_NAME: data
+                      uuid: 30ee9644-1912-4d06-8570-a10c51d4deaf
+                      pretty_name: hashtype
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                - id: d08de732-d9d3-4437-bccd-a6d7f8081555
+                  pretty_name: SHA256
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ len $.event.file_hash }}'
+                            operator: EQUALS
+                            rvalue: "64"
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: hashtype
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: sha256
+                        VARIABLE_NAME: data
+                      uuid: 88c41058-79fa-4de2-8901-9e380d32119a
+                      pretty_name: hashtype
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                - id: 45bb5c99-0f80-4178-91b6-d2d86acc8452
+                  pretty_name: SHA1
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ len $.event.file_hash }}'
+                            operator: EQUALS
+                            rvalue: "40"
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: hashtype
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: sha1
+                        VARIABLE_NAME: data
+                      uuid: a2696f1c-7ca0-482f-bf6b-fda569cc004b
+                      pretty_name: hashtype
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+              default:
+                id: 9aca04b5-a51b-47d2-84e9-1f7b4f7f1b32
+                steps: []
+                pretty_name: Default
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+            id: sample_hash
+            env:
+              DATA_TYPE: string
+              VALUE_STRING: '{{ $.event.file_hash }}'
+              VARIABLE_NAME: data
+            uuid: d454e7e3-84d8-4dff-85a7-a07738563780
+            pretty_name: Sample Hash
+            options:
+              executor:
+                name: utils_infrastructure_v_1_4_3
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/calculate-sha256:2.0.0
+            id: calculate_sample_sha256
+            env:
+              FILE: '{{  $.event.file_url }}'
+            ignoreFailure: true
+            uuid: e2406382-b9f8-48c8-8fbc-09353a2cdae9
+            pretty_name: 'Calculate Sample SHA256 '
+            options:
+              executor:
+                name: utils_infrastructure_v_1_12_0
+                env:
+                  COMMAND: calculate_sha256
+                sync: true
+                disable: false
+            manifestId: e6fd0f63-1706-58c2-835b-3971913e601a
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.calculate_sample_sha256.step_status.code }}'
+                        operator: EQUALS
+                        rvalue: "1"
+              then:
+                - parallel:
+                    uuid: 9fdd72cb-4ce1-40c3-918f-9b2b845cf93f
+                    pretty_name: Parallel Executions
+                    threads:
+                      - uuid: 7d852be6-40ba-4fb3-9baf-873d0f4bd3af
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                            id: hashtype
+                            env:
+                              DATA_TYPE: string
+                              VALUE_STRING: sha256
+                              VARIABLE_NAME: data
+                            uuid: a3da4347-0598-4132-93ab-9308906fc43f
+                            pretty_name: hashtype
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_4_3
+                                env:
+                                  COMMAND: set_variable
+                                sync: true
+                                disable: false
+                            manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                      - uuid: b2869ae5-f31c-49e2-9a42-481ecef855bb
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                            id: sample_hash
+                            env:
+                              DATA_TYPE: string
+                              VALUE_STRING: '{{ $.calculate_sample_sha256.result }}'
+                              VARIABLE_NAME: data
+                            uuid: fa2ac941-376c-4e2e-bbe0-4b1c7076d3e0
+                            pretty_name: Sample Hash
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_4_3
+                                env:
+                                  COMMAND: set_variable
+                                sync: true
+                                disable: false
+                            manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+              else:
+                - exit:
+                    success: "true"
+                    pretty_name: Exit
+                    output: |-
+                      {
+                        "output": {
+                          "observable_value": "{{ $.event.file_url }}",
+                          "observable_reputation": "File Not Found"
+                        }
+                      }
+                    uuid: d2c39e60-d149-46b5-86b3-cba808cd0d94
+                    use_schema: true
+              uuid: 0507e3c6-00d0-4e09-ad4c-d8d1b2d5048a
+              pretty_name: If File Exist
+        uuid: 9380c85a-896e-40d5-a172-2888c67e2568
+        pretty_name: If Hash is Provided
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/calculate-sha1:2.0.0
+      id: create_sha1_of_observable
+      env:
+        FILE: '{{ $.sample_hash.data }}'
+      uuid: 4c318d89-9d26-4fe1-a081-151915efdaba
+      pretty_name: Create SHA1 of Observable
+      options:
+        executor:
+          name: utils_infrastructure_v_1_12_0
+          env:
+            COMMAND: calculate_sha1
+          sync: true
+          disable: false
+      manifestId: 3984d107-81b0-5b62-9868-e850cfb2ae77
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.1.0
+      id: read_ioc_cache
+      env:
+        KEY: '{{ $.metadata.workflow_id }}_{{ $.create_sha1_of_observable.result }}'
+      envFrom:
+        integrationRef: '{{ $.event.torq_integration }}'
+      uuid: ae9eb959-59f5-483f-8339-a02a03b4dd6f
+      pretty_name: Read IOC Cache
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: 113df204-5b8d-5be4-8f22-895f9e87a732
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.read_ioc_cache.api_object.value }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/recorded_future_sandbox/search-sample:1.0.0
+            id: search_sample
+            env:
+              SEARCH_QUERY: '{{ $.hashtype.data }}:{{ $.sample_hash.data}}'
+            envFrom:
+              integrationRef: '{{ $.event.recorded_future_sandbox_integration }}'
+            uuid: 2223b6fe-5053-4e6a-aa56-77961c842e42
+            pretty_name: Search Sample
+            options:
+              executor:
+                name: http_request_v_4_2_8
+                env:
+                  AUTHORIZATION: Bearer
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["SEARCH_QUERY", "RECORDED_FUTURE_SANDBOX_API_KEY"]'
+                  TOKEN: '{{ .RECORDED_FUTURE_SANDBOX_API_KEY }}'
+                  URL: https://sandbox.recordedfuture.com/api/v0/search?&query={{ .SEARCH_QUERY | urlEnc }}
+                sync: true
+                disable: false
+            manifestId: 6b51e3dc-1d98-429a-9667-0fd42ac495ab
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.search_sample.api_object.data }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                  id: analysis_ids
+                  env:
+                    INPUT: '{{ $.search_sample.api_object.data }}'
+                    JSON_QUERY: '[.[] | .id ]'
+                  uuid: 880f92c7-fa82-4d1a-82a3-49b42cd33a75
+                  pretty_name: Analysis IDs
+                  options:
+                    executor:
+                      name: jq_infra_v_3_10_0
+                      env:
+                        COMMAND: jq_command
+                      sync: true
+                      disable: false
+                  documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                  manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+              else:
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.event.file_url }}'
+                              operator: REGEX
+                              rvalue: tqfile://\S+
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/recorded_future_sandbox/analyze-sample-from-url:1.0.0
+                        id: analyze_file
+                        env:
+                          SAMPLE_URL: '{{ file $.event.file_url }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.recorded_future_sandbox_integration }}'
+                        ignoreFailure: true
+                        uuid: a739b193-fdee-472a-9f3a-db6ad3e37ae9
+                        pretty_name: Analyze File
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              AUTHORIZATION: Bearer
+                              BODY: |-
+                                {
+                                    "kind": "fetch",
+                                    "url": "{{ .SAMPLE_URL | jsonEscape }}",
+                                {{ if .INTERACTIVE }}    "interactive": "{{ .INTERACTIVE }}",{{ end }}
+                                {{ if .PASSWORD }}    "password": "{{ .PASSWORD | jsonEscape }}",{{ end }}
+                                    "profiles": [
+                                        {
+                                {{ if .PROFILE_ID }}            "profile": "{{ .PROFILE_ID | jsonEscape }}"{{ end }}
+                                        }
+                                    ]
+                                }
+                              BODY_VARS_CONFIG: '{"PROFILE_ID": "$.profiles"}'
+                              CONTENT_TYPE: application/json
+                              HEADERS: '{}'
+                              METHOD: POST
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["RECORDED_FUTURE_SANDBOX_API_KEY", "SAMPLE_URL"]'
+                              TOKEN: '{{ .RECORDED_FUTURE_SANDBOX_API_KEY }}'
+                              URL: https://sandbox.recordedfuture.com/api/v0/samples
+                            sync: true
+                            disable: false
+                        manifestId: 2752b1ff-55ec-459b-85b3-c25991196990
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/recorded_future_sandbox/analyze-sample-from-url:1.0.0
+                        id: analyze_file
+                        env:
+                          SAMPLE_URL: '{{ $.event.file_url }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.recorded_future_sandbox_integration }}'
+                        ignoreFailure: true
+                        uuid: 638d2413-d71e-4e92-8468-618ce2c609ec
+                        pretty_name: Analyze File
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              AUTHORIZATION: Bearer
+                              BODY: |-
+                                {
+                                    "kind": "fetch",
+                                    "url": "{{ .SAMPLE_URL | jsonEscape }}",
+                                {{ if .INTERACTIVE }}    "interactive": "{{ .INTERACTIVE }}",{{ end }}
+                                {{ if .PASSWORD }}    "password": "{{ .PASSWORD | jsonEscape }}",{{ end }}
+                                    "profiles": [
+                                        {
+                                {{ if .PROFILE_ID }}            "profile": "{{ .PROFILE_ID | jsonEscape }}"{{ end }}
+                                        }
+                                    ]
+                                }
+                              BODY_VARS_CONFIG: '{"PROFILE_ID": "$.profiles"}'
+                              CONTENT_TYPE: application/json
+                              HEADERS: '{}'
+                              METHOD: POST
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["RECORDED_FUTURE_SANDBOX_API_KEY", "SAMPLE_URL"]'
+                              TOKEN: '{{ .RECORDED_FUTURE_SANDBOX_API_KEY }}'
+                              URL: https://sandbox.recordedfuture.com/api/v0/samples
+                            sync: true
+                            disable: false
+                        manifestId: 2752b1ff-55ec-459b-85b3-c25991196990
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    uuid: 62afa6eb-0838-4cab-a8eb-34bb89eda302
+                    pretty_name: If URL is tqfile
+                - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                  id: analysis_ids
+                  env:
+                    INPUT: '{{ $.analyze_file.api_object }}'
+                    JSON_QUERY: '[ .id ]'
+                  uuid: 28767a89-2d9d-41c4-91fe-ec1ad64e9e49
+                  pretty_name: Analysis IDs
+                  options:
+                    executor:
+                      name: jq_infra_v_3_10_0
+                      env:
+                        COMMAND: jq_command
+                      sync: true
+                      disable: false
+                  documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                  manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+              uuid: e5e508d6-25d0-423a-a1e4-e3f9e8c3bb77
+              pretty_name: If Sample Found
+          - loop:
+              in: '{{ $.analysis_ids.output }}'
+              key: analysis_id_key
+              value: analysis_id_value
+              steps:
+                - name: us-docker.pkg.dev/stackpulse/public/recorded_future_sandbox/sample-summary:1.0.0
+                  id: sample_summary
+                  env:
+                    SAMPLE_ID: '{{ $.analysis_id_value }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.recorded_future_sandbox_integration }}'
+                  ignoreFailure: true
+                  uuid: e5911262-7420-4002-83f5-8b21fda239bf
+                  pretty_name: Sample Summary
+                  options:
+                    executor:
+                      name: http_request_v_4_2_8
+                      env:
+                        AUTHORIZATION: Bearer
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["SAMPLE_ID", "RECORDED_FUTURE_SANDBOX_API_KEY"]'
+                        TOKEN: '{{ .RECORDED_FUTURE_SANDBOX_API_KEY }}'
+                        URL: https://sandbox.recordedfuture.com/api/v0/samples/{{ .SAMPLE_ID | urlEnc }}/summary
+                      sync: true
+                      disable: false
+                  manifestId: aae73521-826a-45d4-8830-bbd736647a1e
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry:
+                    type: 2
+                    max_retries: 50
+                    delay: 30
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.sample_summary.api_object.status }}'
+                              operator: NOT_EQUALS
+                              rvalue: reported
+                - name: us-docker.pkg.dev/stackpulse/public/recorded_future_sandbox/get-sample-overview:1.0.0
+                  id: sample_overview
+                  env:
+                    SAMPLE_ID: '{{ $.analysis_id_value }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.recorded_future_sandbox_integration }}'
+                  uuid: f6cfb2bf-73e7-42c1-83b6-33a01b090b79
+                  pretty_name: Sample Overview
+                  options:
+                    executor:
+                      name: http_request_v_4_2_8
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: ""
+                        HEADERS: '{}'
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["RECORDED_FUTURE_SANDBOX_API_KEY","SAMPLE_ID"]'
+                        TOKEN: '{{ .RECORDED_FUTURE_SANDBOX_API_KEY }}'
+                        URL: https://sandbox.recordedfuture.com/api/v0/samples/{{ .SAMPLE_ID | urlEnc }}/overview.json
+                      sync: true
+                      disable: false
+                  documentationUrl: https://sandbox.recordedfuture.com/docs/cloud-api/samples/#get-samplessampleidoverviewjson
+                  manifestId: 28052f88-35ec-4145-83b3-dd3b687e5d1b
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - collector:
+                    id: get_final_summary
+                    uuid: 01523ebb-e45b-4935-98eb-eecfc7c327f5
+                    pretty_name: Get Final Summary
+                    expression: '{{ $.sample_overview.api_object }} '
+              uuid: 7499cbde-1a86-4c46-80d5-e42ec28d2df3
+              pretty_name: Loop trough Analysis IDs
+              run_in_parallel: true
+          - parallel:
+              uuid: 65f3a115-4ab9-40a5-8a9b-ab3ac97b1ecd
+              pretty_name: Parallel Executions
+              threads:
+                - uuid: f3510d16-9434-495f-b5b6-ad50272c52da
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: ttps
+                      env:
+                        INPUT: '{{ $.get_final_summary.result}}'
+                        JSON_QUERY: '[.[] | .signatures[] | select(.ttp) | del(.label) ] | unique[] | { "ttps":.ttp, "rule":.name }'
+                      uuid: d240b0c1-0670-41ee-8997-5e8dc6fbfb0e
+                      pretty_name: ttps
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: iocs
+                      env:
+                        INPUT: '{{ $.get_final_summary.result}}'
+                        JSON_QUERY: '{ "domains":([.[] | .targets[].iocs.domains[] ] | unique),  "ips":([.[] | .targets[].iocs.ips[] ] | unique)}'
+                      uuid: 6fed0a86-f491-46fe-b4ec-f855ecb2e4af
+                      pretty_name: Iocs
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: hashes
+                      env:
+                        INPUT: '{{ $.get_final_summary.result.0}}'
+                        JSON_QUERY: .sample | {"md5":.md5, "sha1":.sha1,"sha256":.sha256,"sha512":.sha512,"ssdeep":.ssdeep}
+                      uuid: f7d6afe7-d3f6-49e4-92bf-4841739d993e
+                      pretty_name: hashes
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                - uuid: a733eac2-e397-4d2c-8949-1e230ba18991
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: tags
+                      env:
+                        INPUT: '{{ $.get_final_summary.result }}'
+                        JSON_QUERY: '[.[] | .analysis | select(.tags) | .tags[] ] | unique'
+                      uuid: 311d09ad-5b57-4e3e-8083-69354e0d9369
+                      pretty_name: Tags
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/defang-or-refang-entity:2.0.2
+                      id: defang_observable
+                      env:
+                        DO_NOT_PARSE_AS_FILE: "true"
+                        INPUT: '{{ $.event.file_url}}'
+                        OPERATION: Defang
+                      uuid: 41e6e021-e6d7-4355-ab08-996567c610e3
+                      pretty_name: Defang Observable
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_9_0
+                          env:
+                            COMMAND: defang_or_refang_entity
+                          sync: true
+                          disable: false
+                      manifestId: 1a14dde2-4ea3-5544-9534-1d81cb596c9a
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: fileproperties
+                      env:
+                        INPUT: '{{ $.get_final_summary.result.0}}'
+                        JSON_QUERY: .sample | {"size":.size, "filename":.target}
+                      uuid: b8ac97f1-5064-48ba-bb1d-4d9dec7cf582
+                      pretty_name: fileproperties
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                - uuid: 48de465d-7d28-4808-b0f8-3aad60ac188b
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+                      id: scores
+                      env:
+                        INPUT: '{{ $.get_final_summary.result }}'
+                        JSON_QUERY: '[.[] | .analysis.score ] | unique | sort | reverse'
+                      uuid: d352b89a-b0bd-4195-ad5c-769011ac54f9
+                      pretty_name: Scores
+                      options:
+                        executor:
+                          name: jq_infra_v_3_10_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - switch:
+                        uuid: 82898937-5643-4740-b911-e540210374b7
+                        pretty_name: Switch
+                        cases:
+                          - id: 46743830-c07a-4775-a463-485c88a767b7
+                            pretty_name: KnownBad
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.scores.output.0 }}'
+                                      operator: EQUALS
+                                      rvalue: "10"
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                                id: verdict
+                                env:
+                                  DATA_TYPE: string
+                                  VALUE_STRING: Known Bad
+                                  VARIABLE_NAME: reputation
+                                uuid: cb285b4f-a3b0-40d7-b7a6-a72b293d4539
+                                pretty_name: Verdict
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: set_variable
+                                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                    sync: true
+                                    disable: false
+                                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                          - id: 361cee1d-9235-43eb-9f9f-b4007f1f30de
+                            pretty_name: Likely Malicious
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.scores.output.0 }}'
+                                      operator: IN
+                                      rvalue: 8,9
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                                id: verdict
+                                env:
+                                  DATA_TYPE: string
+                                  VALUE_STRING: Likely Malicious
+                                  VARIABLE_NAME: reputation
+                                uuid: abaaa109-459c-45af-a5d5-92104af58bb9
+                                pretty_name: Verdict
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: set_variable
+                                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                    sync: true
+                                    disable: false
+                                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                          - id: 7fc316f0-077c-4b4f-8f39-d9906a5e2dfd
+                            pretty_name: Shows suspicious behavior
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.scores.output.0 }}'
+                                      operator: IN
+                                      rvalue: 6,7
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                                id: verdict
+                                env:
+                                  DATA_TYPE: string
+                                  VALUE_STRING: Shows suspicious behavior
+                                  VARIABLE_NAME: reputation
+                                uuid: 83c79248-4d7c-4b6a-82f6-cb8ebfe90125
+                                pretty_name: Verdict
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: set_variable
+                                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                    sync: true
+                                    disable: false
+                                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                          - id: 171279bf-3642-46ba-9654-d76cd611368a
+                            pretty_name: Likely Benign
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.scores.output.0 }}'
+                                      operator: IN
+                                      rvalue: 2,3,4,5
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                                id: verdict
+                                env:
+                                  DATA_TYPE: string
+                                  VALUE_STRING: Likely Benign
+                                  VARIABLE_NAME: reputation
+                                uuid: 14ec2998-584c-4302-9d43-71b3e56fcd2a
+                                pretty_name: Verdict
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: set_variable
+                                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                    sync: true
+                                    disable: false
+                                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                          - id: f38d6963-a0cc-443e-8be4-a47b039c6eeb
+                            pretty_name: Benign
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.scores.output.0 }}'
+                                      operator: EQUALS
+                                      rvalue: "1"
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                                id: verdict
+                                env:
+                                  DATA_TYPE: string
+                                  VALUE_STRING: Benign
+                                  VARIABLE_NAME: reputation
+                                uuid: 2a53674b-5d06-45e8-b824-9ca8d169500a
+                                pretty_name: Verdict
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: set_variable
+                                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                    sync: true
+                                    disable: false
+                                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                        default:
+                          id: 63c285af-fc6b-440e-b400-5afb6b2903e6
+                          steps:
+                            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                              id: verdict
+                              env:
+                                DATA_TYPE: string
+                                VALUE_STRING: Not Available
+                                VARIABLE_NAME: reputation
+                              uuid: 7d1d8598-347d-460d-b7b7-925a6d201f27
+                              pretty_name: Verdict
+                              options:
+                                executor:
+                                  name: utils_infrastructure_v_1_3_39
+                                  env:
+                                    COMMAND: set_variable
+                                    SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                  sync: true
+                                  disable: false
+                              manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                              skip: false
+                          pretty_name: Default
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+            id: enrichment_results
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: "{\n  \"raw_data\":{{ $.get_final_summary.result }},\n  \n  \"observable_value\":\"{{ $.sample_hash.data }}\",\n  \"observable_defanged_value\":\"{{ $.defang_observable.result }}\",\n  \"observable_type\":\"File Hash\",\n  \"observable_reputation\": \"{{ $.verdict.reputation }}\",\n  \"mitre\":{{ $.ttps.output }},\n  \"fileproperties\":{{ $.fileproperties.output }},\n  \"filehashes\":{{ $.hashes.output }},\n  \"iocs\":{{ $.iocs.output }},\n  \"tags\":{{ $.tags.output }}\n}"
+              VARIABLE_NAME: output
+            uuid: 2e347504-0fdc-47b0-a87f-5276ebf6cb42
+            pretty_name: Enrichment Results
+            options:
+              executor:
+                name: utils_infrastructure_v_1_9_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+            id: save_the_ioc_details_to_cache
+            env:
+              EXPIRES_IN: '{{ $.workflow_parameters.cache_ttl }}h'
+              KEY: '{{ $.metadata.workflow_id }}_{{ $.create_sha1_of_observable.result }}'
+              VALUE: '{{ $.enrichment_results.output }}'
+            envFrom:
+              integrationRef: '{{ $.event.torq_integration }}'
+            uuid: 26ecaf71-9643-4379-9436-4bd152bd3044
+            pretty_name: Save the IOC Details to Cache
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                    {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                    {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                        "value": {{ .VALUE }}
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                sync: true
+                disable: false
+            manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+            id: enrichment_results
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: '{{ $.read_ioc_cache.api_object.value }}'
+              VARIABLE_NAME: output
+            uuid: 5f8abc9c-c570-4c8e-b12a-88be1fd1c165
+            pretty_name: Enrichment Results
+            options:
+              executor:
+                name: utils_infrastructure_v_1_9_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: a2fb6135-3fdb-4b1a-8d92-922abac995ad
+        pretty_name: If IOC Cache is Empty
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.provide_raw_analysis_data }}'
+                  operator: EQUALS
+                  rvalue: "true"
+        then: []
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.10.0
+            id: enrichment_results
+            env:
+              INPUT: '{{ $.enrichment_results.output }}'
+              JSON_QUERY: del(.raw_data)
+            uuid: e1e5db9b-02e2-4165-add1-f329b95a01ec
+            pretty_name: Enrichment Results
+            options:
+              executor:
+                name: jq_infra_v_3_10_0
+                env:
+                  COMMAND: jq_command
+                sync: true
+                disable: false
+            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+            manifestId: 9448a487-cce7-55fa-9ae3-e5ec50ea19a6
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: bdaea9bc-c2c3-41a7-95e3-d19a9d1aeb30
+        pretty_name: If Add Raw Analysis
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "output": {{ $.enrichment_results.output }}
+          }
+        uuid: ecc8f92e-0223-4ac7-af49-846fe87c4add
+        use_schema: true
+  annotations:
+    - uuid: efca92f8-fb2a-4a84-98a7-b3dfc32d3d25
+      x: -813
+      "y": 42
+      width: 751
+      height: 309
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"                Recorded Future Sandbox - File Analysis with Cache"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Receives an URL of a file from a parent workflow and submits the file to Recorded Future Sandbox for its analysis."}]},{"type":"paragraph","content":[{"type":"text","text":"This workflow utilizes a global variable as a cache to temporarily store results and actively queries for enrichment only when the observable reputation is not found in the local cache."}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://clico.si/vendors/recorded-future/@@images/vendor_logo","alt":null,"title":null}}]}]}'
+    - uuid: f0fece33-e2c4-4a2b-9b2c-d5c93f4cf2bb
+      x: -152
+      "y": 1919
+      attachedStepId: 5f8abc9c-c570-4c8e-b12a-88be1fd1c165
+      attachedDistance:
+        x: 12
+        "y": -203
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Cached Results"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"By default results are cached 24 hrs."}]},{"type":"paragraph","content":[{"type":"text","text":"If reputation is found stored in a global value, then the cached result is returned to the parent workflow."}]}]}'
+    - uuid: fc524739-7eb5-4510-981d-080ffa724464
+      x: 336
+      "y": 201
+      width: 452
+      height: 151
+      attachedStepId: 66e433ac-0ea6-4524-91e1-c83d4c2ff150
+      attachedDistance:
+        x: -336
+        "y": -70
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Cache TTL"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Set expiration time for local cache on "},{"type":"text","marks":[{"type":"code"}],"text":"Cache TTL"},{"type":"text","text":" variable"}]}]}'
+    - uuid: b9376912-a070-4c0b-854e-79ff572569a1
+      x: 875
+      "y": 4305
+      width: 589
+      height: 219
+      attachedStepId: 65f3a115-4ab9-40a5-8a9b-ab3ac97b1ecd
+      attachedDistance:
+        x: -315
+        "y": -231
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Results Summary"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Output provides a summarized version of the analysis, although the original analysis information is available as optional."},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","text":"All data is stored on local cache using the "},{"type":"text","marks":[{"type":"code"}],"text":"workflow_id"},{"type":"text","text":" and the "},{"type":"text","marks":[{"type":"code"}],"text":"hash of the observable"},{"type":"text","text":" value as the key for retrieve it later."}]}]}'
+    - uuid: c3cf003d-1830-46da-9296-8c0af0c88cfa
+      x: 342
+      "y": 2298
+      width: 520
+      height: 235
+      attachedStepId: e1e5db9b-02e2-4165-add1-f329b95a01ec
+      attachedDistance:
+        x: -482
+        "y": -58
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Provide Original Analysis Output"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"When Provide "},{"type":"text","marks":[{"type":"code"}],"text":"Raw Analysis Data"},{"type":"text","text":" parameter is set to "},{"type":"text","marks":[{"type":"code"}],"text":"false"},{"type":"text","text":". Original JSON object returned by vendor API is deleted from output."}]},{"type":"paragraph","content":[{"type":"text","text":"When "},{"type":"text","marks":[{"type":"code"}],"text":"Provide Raw Analysis Data"},{"type":"text","text":" parameter is set to "},{"type":"text","marks":[{"type":"code"}],"text":"true"},{"type":"text","text":". Both, original API Response and Workflows Summary are returned to parent workflow."}]}]}'
+    - uuid: a23593e2-f8be-4b86-b7eb-9f06654df117
+      x: 136
+      "y": 3075
+      width: 367
+      height: 143
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Loop trough Analysis IDs to look for the status. Wait for reported status."}]},{"type":"paragraph","content":[{"type":"text","text":"Other status are: "},{"type":"text","marks":[{"type":"code"}],"text":"scheduled"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"code"}],"text":"running"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"code"}],"text":"reported"},{"type":"text","text":" "}]}]}'
+    - uuid: a29ca475-1e29-4894-a9f0-17955a10f61d
+      x: -242
+      "y": 535
+      attachedStepId: e2406382-b9f8-48c8-8fbc-09353a2cdae9
+      attachedDistance:
+        x: -318
+        "y": -129
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"File Hash missing"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"If no hash is provided a SHA256 hash is calculated from the file"}]}]}'
+    - uuid: 8648eb0b-164c-4058-9ad6-910cf5c7a3bb
+      x: 631
+      "y": 1786
+      width: 402
+      height: 168
+      attachedStepId: 2223b6fe-5053-4e6a-aa56-77961c842e42
+      attachedDistance:
+        x: -351
+        "y": -70
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Recorded Future Sandbox Lookup"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Search for previous submissions using hash and hashtype values."}]}]}'
+  output_schema: |-
+    {
+        "output": {
+            "type": 10,
+            "prettyName": "output",
+            "description": ""
+        }
+    }
+root: true

@@ -1,0 +1,733 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 21c455ea-9093-4093-a924-9f8aa34541aa
+name: gha_log_activitie
+trigger:
+  integrationTrigger:
+    integration:
+      name: wolken
+      typeId: slack
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.text }}'
+                operator: OPERATOR_EQUALS
+                rvalue: log
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.1
+      id: generate_random_string
+      env:
+        LENGTH: "5"
+        STRING_FORMAT: Alphanumeric both lower and upper
+      uuid: 2351e844-f336-4f99-a894-3b7f015a2513
+      pretty_name: Generate Random String
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: generate_alphanumeric
+          sync: true
+          disable: false
+      manifestId: 0baf9f05-84fd-4874-90ed-9adcf6d8dccd
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+      id: get_a_variable
+      env:
+        KEY: gha_strains
+      envFrom:
+        integrationRef: torq_api
+      uuid: 7bfa73ad-edba-429d-a2a8-88b8ab9724db
+      pretty_name: Get a variable
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.11
+      id: get_strain_names_list
+      env:
+        INPUT: '{{ $.get_a_variable.api_object.value_array }}'
+        JSON_QUERY: '[.[] | .strain]'
+      uuid: b74ba5d0-e4d7-4dda-a000-cec072cfd88b
+      pretty_name: Get Strain Names List
+      options:
+        executor:
+          name: jq_infra_v_3_1_11
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 5818b575-f3bb-413b-a5a7-d7c808965d23
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/unique-on-array:1.1.2
+      id: unique_strains
+      env:
+        INPUT: '{{ $.get_strain_names_list.output }}'
+      uuid: 502bb2d6-25eb-4283-baf4-9ce8bc127d73
+      pretty_name: Unique Strains
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: unique_on_array
+          sync: true
+          disable: false
+      documentationUrl: https://docs.torq.io/getting-started/utilities#unique-on-array
+      manifestId: 5c205b0d-2529-4e7a-a3ba-f011d15089e0
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+      id: welche_sorte
+      env:
+        HEADER_MESSAGE: Choose Strain
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        QUESTION: 'Welche Sorte meinst du für diese Aktivität:'
+        RECIPIENT: '#{{ $.event.channel }}'
+        RESPONSES: '{{ $.unique_strains.result }}'
+        SELECTOR_TYPE: BUTTONS_SELECT
+        TIMEOUT: 5m
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: 9f149f4d-bb74-48a3-9e10-04cbb6c53686
+      pretty_name: Welche Sorte
+      options:
+        executor:
+          name: slack_message_async-ask-a-question_v_3_1_3
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        in: '{{ $.get_a_variable.api_object.value_array }}'
+        key: loop_key
+        value: loop_value
+        steps:
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.loop_value.strain }}'
+                        operator: EQUALS
+                        rvalue: '{{ $.welche_sorte.slack_response }}'
+              then:
+                - collector:
+                    id: collect
+                    uuid: a8ce763d-113a-43c6-98fd-f6986bb14578
+                    pretty_name: Collect
+                    expression: '"{{ $.loop_value.clonid }}"'
+                    flatten: true
+              else: []
+              uuid: ae69fbd6-09a9-4144-abff-446fa1b2424f
+              pretty_name: If
+        uuid: 242475d9-55d7-429f-8572-bde251d58a28
+        pretty_name: Loop
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.collect.length }}'
+                  operator: EQUALS
+                  rvalue: "1"
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+            id: clonid
+            env:
+              DATA_TYPE: string
+              VALUE_STRING: '{{ $.collect.result.0 }}'
+              VARIABLE_NAME: clonid
+            uuid: 6ea954a5-900a-4418-b8ce-18eabdc16d7d
+            pretty_name: ClonId
+            options:
+              executor:
+                name: utils_infrastructure_v_1_3_39
+                env:
+                  COMMAND: set_variable
+                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                sync: true
+                disable: false
+            manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+            id: which_clone
+            env:
+              HEADER_MESSAGE: Choose Clone ID
+              ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+              QUESTION: 'Choose the Clone:'
+              RECIPIENT: '#{{ $.event.channel }}'
+              RESPONSES: '{{ $.collect.result }}'
+              SELECTOR_TYPE: BUTTONS_SELECT
+              TIMEOUT: 5m
+              USERNAME: Grow High Automated
+            envFrom:
+              integrationRef: wolken
+            uuid: 51d2e78b-6d30-444d-83b2-f53cdf61e8fb
+            pretty_name: Which Clone
+            options:
+              executor:
+                name: slack_message_async-ask-a-question_v_3_1_3
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+            id: clonid
+            env:
+              DATA_TYPE: string
+              VALUE_STRING: '{{ $.which_clone.slack_response }}'
+              VARIABLE_NAME: clonid
+            uuid: 817b071f-5f21-464e-b482-1611aaa54d09
+            pretty_name: ClonId
+            options:
+              executor:
+                name: utils_infrastructure_v_1_3_39
+                env:
+                  COMMAND: set_variable
+                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                sync: true
+                disable: false
+            manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        uuid: 92efc3a9-8aae-46f6-a47a-d9aa6b047a5b
+        pretty_name: If
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+      id: ask_a_question
+      env:
+        HEADER_MESSAGE: Log a New activity
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        QUESTION: What kind of activity would you like to log?
+        RECIPIENT: '#{{ $.event.channel }}'
+        RESPONSES: Fertilize,Prune,Harvest,Clone,Germinate,FollowUp,Transplant
+        SELECTOR_TYPE: BUTTONS_SELECT
+        TIMEOUT: 5m
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: 462751f2-4cd1-42cc-b88c-ddbcf17dedfd
+      pretty_name: Ask a Question
+      options:
+        executor:
+          name: slack_message_async-ask-a-question_v_3_1_3
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - switch:
+        uuid: 8003526f-80d6-450d-8b7e-1e962bc710a6
+        pretty_name: Switch
+        cases:
+          - id: cbaf3f75-fcee-45bc-8213-6591240d57ba
+            pretty_name: Add Fertilizer
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.ask_a_question.slack_response }}'
+                      operator: EQUALS
+                      rvalue: Fertilize
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+                id: what_kind_of_fertilizer
+                env:
+                  HEADER_MESSAGE: Add Fertilizer
+                  ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+                  QUESTION: What kind of Fertilizing are you adding?
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: Harina de Pescado,Riego con Melaza, Riego Melaza & Platano,ZeoFert, Tierra de Diatomeas, Sales de Epsom, Haria de Hueso
+                  SELECTOR_TYPE: MULTI_SELECT
+                  TIMEOUT: 5m
+                  USERNAME: Grow High Automated
+                envFrom:
+                  integrationRef: wolken
+                uuid: 7330df7e-0f8f-4bce-a0b9-3356e60e855f
+                pretty_name: What Kind of Fertilizer
+                options:
+                  executor:
+                    name: slack_message_async-ask-a-question_v_3_1_3
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.1
+                id: join_strings
+                env:
+                  DELIMITER: Comma
+                  INPUT: '{{ $.what_kind_of_fertilizer.selected_responses }}'
+                uuid: 9a998401-6063-4892-9a27-ddb148895b1b
+                pretty_name: Join Strings
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.torq.io/getting-started/utilities#join-strings
+                manifestId: 0140f5bd-e83d-4336-ac2a-49706013af72
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+                id: additional_comment
+                env:
+                  HEADER_MESSAGE: Add a Comment to this entry
+                  ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+                  NOTE_DESCRIPTION: d-commenr
+                  NOTE_TITLE: Comments
+                  QUESTION: Add a Comment
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: SI,NO
+                  RESPONSES_REQUIRING_NOTE: SI
+                  SELECTOR_TYPE: BUTTONS_SELECT
+                  TIMEOUT: 5m
+                  USERNAME: Grow High Automated
+                envFrom:
+                  integrationRef: wolken
+                uuid: 9222b7bf-5ad0-4ee4-b65f-67eb70f18294
+                pretty_name: Additional Comment?
+                options:
+                  executor:
+                    name: slack_message_async-ask-a-question_v_3_1_3
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: comment
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: '{{ $.join_strings.output }}. {{ $.additional_comment.note_response }}'
+                  VARIABLE_NAME: data
+                uuid: d9211117-3fb8-47b8-8c06-24881a86bdeb
+                pretty_name: Comment
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: ee7286d3-dddb-4abb-aca5-756ab419475a
+            pretty_name: branch b
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.ask_a_question.slack_response }}'
+                      operator: EQUALS
+                      rvalue: Prune
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+                id: send_message
+                env:
+                  ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+                  MESSAGE_TEXT: 'Utiliza este ejemplo para ejemplo para tu planta: https://www.youtube.com/watch?v=bUUUa2xFhGM'
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  USERNAME: Grow High Automated
+                envFrom:
+                  integrationRef: wolken
+                uuid: 6cac7b33-673b-44c1-9637-e8ca71aca884
+                pretty_name: Send Message
+                options:
+                  executor:
+                    name: slack_message_message_v_2_0_5
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+                id: additional_comment
+                env:
+                  HEADER_MESSAGE: Add a Comment to this entry
+                  ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+                  NOTE_DESCRIPTION: d-commenr
+                  NOTE_TITLE: Comments
+                  QUESTION: Add a Comment
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  RESPONSES: SI,NO
+                  RESPONSES_REQUIRING_NOTE: SI
+                  SELECTOR_TYPE: BUTTONS_SELECT
+                  TIMEOUT: 5m
+                  USERNAME: Grow High Automated
+                envFrom:
+                  integrationRef: wolken
+                uuid: b9b7633a-381c-4080-9f8d-b584a0be0013
+                pretty_name: Additional Comment?
+                options:
+                  executor:
+                    name: slack_message_async-ask-a-question_v_3_1_3
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: comment
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: '{{ $.additional_comment.note_response }}'
+                  VARIABLE_NAME: data
+                uuid: 6f97613b-9182-488c-8a21-24dc7b4a73d2
+                pretty_name: Comment
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+        default:
+          id: 85b3e446-8fd8-4ed4-872f-91ef03140c17
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+              id: comment_2
+              env:
+                DATA_TYPE: string
+                VALUE_STRING: '{{ $.what_kind_of_fertilizer.slack_response }}. {{ $.additional_comment.note_response }}'
+                VARIABLE_NAME: data
+              uuid: b5d4e7a2-8c04-46a0-a6ce-3fb6da3d098c
+              pretty_name: Comment 2
+              options:
+                executor:
+                  name: utils_infrastructure_v_1_3_39
+                  env:
+                    COMMAND: set_variable
+                    SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                  sync: true
+                  disable: false
+              manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+              isPrivate: false
+              mock_output:
+                enabled: false
+                payload: '{}'
+              skip: false
+            - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.3
+              id: additional_comment
+              env:
+                HEADER_MESSAGE: Add a Comment to this entry
+                ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+                NOTE_DESCRIPTION: d-commenr
+                NOTE_TITLE: Comments
+                QUESTION: Add a Comment
+                RECIPIENT: '#{{ $.event.channel }}'
+                RESPONSES: SI,NO
+                RESPONSES_REQUIRING_NOTE: SI
+                SELECTOR_TYPE: BUTTONS_SELECT
+                TIMEOUT: 5m
+                USERNAME: Grow High Automated
+              envFrom:
+                integrationRef: wolken
+              uuid: ef5e011b-3e96-4f23-a5ab-702d3241b417
+              pretty_name: Additional Comment?
+              options:
+                executor:
+                  name: slack_message_async-ask-a-question_v_3_1_3
+                  env: {}
+                  sync: true
+                  disable: false
+              manifestId: 86db70a6-f658-4bc5-b9fe-c04c31d12e8e
+              isPrivate: false
+              mock_output:
+                enabled: false
+                payload: '{}'
+              skip: false
+            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+              id: comment
+              env:
+                DATA_TYPE: string
+                VALUE_STRING: '{{ $.additional_comment.note_response }}'
+                VARIABLE_NAME: data
+              uuid: 9d8f3ba0-9d16-4f6b-bec0-d6ca61f08fb1
+              pretty_name: Comment
+              options:
+                executor:
+                  name: utils_infrastructure_v_1_3_39
+                  env:
+                    COMMAND: set_variable
+                    SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                  sync: true
+                  disable: false
+              manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+              isPrivate: false
+              mock_output:
+                enabled: false
+                payload: '{}'
+              skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.0.2
+      id: set_a_variable
+      env:
+        EXPIRES_IN: 5m
+        KEY: last_activity
+        VALUE: |-
+          {"id":"{{ $.generate_random_string.result }}",
+          "status":"waiting_photos"}
+      envFrom:
+        integrationRef: torq_api
+      uuid: d30ae66d-4558-4758-bb90-44bd57c95fb7
+      pretty_name: Set a variable
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+              {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+              {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                  "value": {{ .VALUE }}
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: 5121bbab-7064-4377-9c87-b9d739a28165
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - parallel:
+        uuid: 78615e86-f422-4076-8226-c0211fb7bccd
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 15e16cd5-f69d-4db5-9303-5db8322e4814
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+                id: get_date_now
+                env:
+                  DATE: ""
+                  DATE_FORMAT_LAYOUT: "1136214245"
+                  TIME_AGO: ""
+                uuid: 9b60abe2-3580-46f4-b7af-b7d29c3ed9a2
+                pretty_name: 'Get Date Now '
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: get_date
+                    sync: true
+                    disable: false
+                documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: 03e99ac4-e850-4f0a-808c-3c56699cbd51
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+                id: get_date_cst
+                env:
+                  DATE: ""
+                  DATE_FORMAT_LAYOUT: 02 Jan 06 15:04 MST
+                  TIME_AGO: ""
+                  TIME_ZONE: America/Mexico_City
+                uuid: c611c498-493c-494b-9ef1-c02f041ec742
+                pretty_name: Get Date CST
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: get_date
+                    sync: true
+                    disable: false
+                documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: send_an_http_request
+      env:
+        AUTHORIZATION: None
+        BODY: |-
+          {
+                "dataSource": "Cluster0",
+                "database": "grow_controllers",
+                "collection": "growlog",
+                "document": {
+                  "activity_id":"{{ $.generate_random_string.result }}",
+                  "activity_type":"{{ $.ask_a_question.slack_response }}",
+                  "cepa":"{{ $.welche_sorte.slack_response }}",
+                  "clonid":"{{ $.clonid.clonid }}",
+                  "time":"{{ $.get_date_cst.result }}",
+                  "comment": "{{ $.comment.data }}",
+                  "timestamp":{{ $.get_date_now.result }}
+                }
+          }
+        CONTENT_TYPE: application/json; charset=utf-8
+        HEADERS: '{"api-key":"0NpCOUYBMhqfuauT5lS9D0Kb447Cvge7H4Ch6qZyoAZNVtqkXvZ82B7zn2m2UfJP","Content-Type":"application/json"}'
+        METHOD: POST
+        URL: https://data.mongodb-api.com/app/data-onouu/endpoint/data/v1/action/insertOne
+      uuid: a3afe11d-8d1d-4e67-9d9f-be6f3de60dcd
+      pretty_name: Send an HTTP request
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: ack_note_admin
+      env:
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        MESSAGE_TEXT: |-
+          Se registro Actividad `{{ $.generate_random_string.result }}`
+          - Las fotografías que se adjunten en los próximos `5 min`, se ligaran a ésta actividad.
+        RECIPIENT: '#{{ $.event.channel }}'
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: 78c2b534-aa47-4f6d-9bed-ca3c1609c92a
+      pretty_name: ACK Note Admin
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: ack_note_strain_channel
+      env:
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        MESSAGE_TEXT: |-
+          Se registro la siguiente Actividad:
+          Cepa:`{{ $.welche_sorte.slack_response }}`
+          Actividad: `{{ $.ask_a_question.slack_response }}`
+        RECIPIENT: '#strain-{{ $.welche_sorte.slack_response }}'
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: 9684b3de-71ed-4699-9e9d-f13f84905d0f
+      pretty_name: ACK Note Strain Channel
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+  annotations:
+    - uuid: 0780874a-37b6-4efb-8c01-de545e03ec06
+      x: 337
+      "y": 235
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The Activitie Log shoudl be continuous. for testing we use now random, to make reference to this event and Link the Photos"}]}]}'
+  output_schema: '{}'
+root: true

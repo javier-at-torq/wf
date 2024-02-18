@@ -1,0 +1,88 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: fe8acb26-54d1-425f-a222-ff4407a6e614
+name: SandBox
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: sandbox_actions
+          required: true
+          prettyName: SandBox Actions
+          singleSelect:
+            options:
+              - Scan SandBox Network
+            defaultValue: ""
+playbook:
+  steps:
+    - switch:
+        uuid: e1bfe92f-8998-4c2c-895e-f8cdf8a667d5
+        pretty_name: SandBox Menu
+        cases:
+          - id: 4322e438-470e-4c64-9782-7556e0b8d326
+            pretty_name: Branch A
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.sandbox_actions }}'
+                      operator: EQUALS
+                      rvalue: Scan SandBox Network
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/nmap/scan:1.0.1
+                id: run_scan
+                env:
+                  COMMAND: nmap 192.168.1.0/24
+                  OUTPUT_FORMAT: json
+                runner: sandbox_runner
+                uuid: 19b1ebf5-d3c5-42eb-b7f6-46571e03350d
+                pretty_name: Run Scan
+                options:
+                  runner_required: true
+                manifestId: c0a7da4e-fc72-42ca-83d7-039434cc4f03
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.5
+                id: create_ascii_table
+                env:
+                  INPUT: '{{ $.run_scan.Host }}'
+                  MARKDOWN: "true"
+                uuid: a806514a-6894-407f-8144-b54060f21684
+                pretty_name: Create ASCII table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_5
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b4f68e61-22f9-58d9-90dd-3541b8b4e606
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.11
+                id: send_snippet
+                env:
+                  CONTENT: '{{ $.create_ascii_table.tabulate_output }}'
+                  RECIPIENT: '#devnull'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 4881e2be-ad0b-4bd8-be33-81a06dc6e4d7
+                pretty_name: Send Snippet
+                options:
+                  executor:
+                    name: slack_message_snippet_v_1_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: cff2c750-24fe-502d-a15e-1c3e169fda90
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: c17ca3a1-54ab-430d-a755-a5f8abf3d137
+          steps: []
+  output_schema: '{}'
+root: true

@@ -1,0 +1,27 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 725478aa-201b-4e04-a657-9b7f0f5631e8
+name: interact
+trigger:
+  interaction:
+    finish_strategy: END
+    flow_timeout: 24h
+    form_group:
+      name: Interaction Flow
+      workflow_id: 3b228352-93f2-4f4b-bf2b-b13945a9edd9
+    form_schema:
+      parameters:
+        - name: information
+          pretty_name: Information
+          type: MARKDOWN_TEXT
+          value: |-
+            ##  Acceps any name and look for options in the list
+             > Look up a computer.
+        - name: user_input
+          pretty_name: Lookup for a Computer
+          type: SHORT_TEXT
+    form_title: Windows Defender Menu
+playbook:
+  steps: []
+  output_schema: '{}'
+root: true

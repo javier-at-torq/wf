@@ -1,0 +1,120 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 725478aa-201b-4e04-a657-9b7f0f5631e8
+name: interact
+trigger:
+  interaction:
+    expose_in_cases: true
+    finish_strategy: CONTINUE
+    flow_timeout: 24h
+    form_group:
+      name: Interaction Flow 01
+      workflow_id: 5e5a6564-8b04-4133-92f3-035e6099007d
+    form_schema:
+      parameters:
+        - name: information
+          pretty_name: Information
+          type: MARKDOWN_TEXT
+          value: |-
+            ##  Acceps any name and look for options in the list
+             > Look up a computer.
+        - name: user_input
+          pretty_name: Lookup for a Computer
+          type: SHORT_TEXT
+    form_title: Windows Defender Menu
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.1
+      id: interaction
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow 01","openToOrgSso":false}'
+        FORM_SCHEMA: "{\"parameters\":[{\"name\":\"information\",\"type\":\"MARKDOWN_TEXT\",\"prettyName\":\"Information\",\"value\":\"## \U0001F4DD Output Information\\n > You can use markdown format here.\"},{\"name\":\"user_input\",\"type\":\"SHORT_TEXT\",\"prettyName\":\"A question that requires some user input\",\"value\":\"\"}]}"
+        FORM_TITLE: Title of the Interaction
+        HAS_NEXT: "true"
+        TIMEOUT: 24h
+      uuid: a646d795-997b-4aa6-a263-116cc4b15fc5
+      pretty_name: Interaction
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_1
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 12e47e90-2163-535f-a6b5-50e1d8ad9698
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.1
+      id: interaction_3
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow 01","openToOrgSso":false}'
+        FORM_SCHEMA: "{\"parameters\":[{\"name\":\"information\",\"type\":\"MARKDOWN_TEXT\",\"prettyName\":\"Information\",\"value\":\"## \U0001F4DD Output Information\\n > You can use markdown format here.\"},{\"name\":\"user_input\",\"type\":\"SHORT_TEXT\",\"prettyName\":\"A question that requires some user input\",\"value\":\"\"}]}"
+        FORM_TITLE: Title of the Interaction
+        HAS_NEXT: "true"
+        TIMEOUT: 24h
+      uuid: f355c4f4-4885-4461-9d65-c32dd4f31984
+      pretty_name: Interaction 3
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_1
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 12e47e90-2163-535f-a6b5-50e1d8ad9698
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.1
+      id: interaction_2
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow 01","openToOrgSso":false}'
+        FORM_SCHEMA: "{\"parameters\":[{\"name\":\"information\",\"type\":\"MARKDOWN_TEXT\",\"prettyName\":\"Information\",\"value\":\"## \U0001F4DD Output Information\\n > You can use markdown format here.\"},{\"name\":\"user_input\",\"type\":\"SHORT_TEXT\",\"prettyName\":\"A question that requires some user input\",\"value\":\"\"}]}"
+        FORM_TITLE: Title of the Interaction
+        HAS_NEXT: "true"
+        TIMEOUT: 24h
+      uuid: 70de3038-b57c-4e74-a9dd-b0a887778a46
+      pretty_name: Interaction 2
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_1
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 12e47e90-2163-535f-a6b5-50e1d8ad9698
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.1
+      id: interaction_1
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow 01","openToOrgSso":false}'
+        FORM_SCHEMA: "{\"parameters\":[{\"name\":\"information\",\"type\":\"MARKDOWN_TEXT\",\"prettyName\":\"Information\",\"value\":\"## \U0001F4DD Output Information\\n > You can use markdown format here.\"},{\"name\":\"user_input\",\"type\":\"SHORT_TEXT\",\"prettyName\":\"A question that requires some user input\",\"value\":\"\"}]}"
+        FORM_TITLE: Title of the Interaction
+        HAS_NEXT: "false"
+        TIMEOUT: 24h
+      uuid: ee83909a-490b-4e33-9abd-fd8fb2449039
+      pretty_name: Interaction 1
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_1
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 12e47e90-2163-535f-a6b5-50e1d8ad9698
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

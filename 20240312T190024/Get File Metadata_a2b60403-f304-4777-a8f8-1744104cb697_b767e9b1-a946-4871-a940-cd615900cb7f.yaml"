@@ -1,0 +1,29 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: a2b60403-f304-4777-a8f8-1744104cb697
+name: Get File Metadata
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: a_file
+          required: true
+          prettyName: A File
+          file: {}
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/bash:1.1.0
+      id: run_an_inline_bash_script
+      env:
+        BASH_SCRIPT: ""
+      uuid: 9547f96d-75e3-4056-a413-c328d3178492
+      pretty_name: Run an inline Bash script
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/bash.svg
+      manifestId: ece0b996-6e5b-53a4-bc6b-0c6a8474eeaf
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+  output_schema: '{}'
+root: true

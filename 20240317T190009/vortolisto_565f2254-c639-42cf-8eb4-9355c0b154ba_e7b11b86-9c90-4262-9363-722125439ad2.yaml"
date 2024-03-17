@@ -1,0 +1,119 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 565f2254-c639-42cf-8eb4-9355c0b154ba
+name: vortolisto
+trigger:
+  scheduledTrigger:
+    integrationId: 76437c16-02f0-43e6-a8d7-e9dcd0ea30ee
+    scheduledTriggerParameters:
+      cronTab: 0 0 */6 * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: '{"mongo_key":"U6gSigqEDh35ORvwNlSG912LrXqnzsmCiP7LVfWJ95b2VuYWmhFQScdC6poOozg6"}'
+        VARIABLE_NAME: datumoj
+      uuid: 67bc0700-aa40-4e57-b512-6e4f9920e9c8
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-number:2.1.1
+      id: generate_random_number
+      env:
+        MAX_VALUE: "63787"
+        MIN_VALUE: "1"
+      uuid: a08c92e9-dbdc-4534-8b08-8d021889c356
+      pretty_name: Generate Random Number
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: generate_number
+          sync: true
+          disable: false
+      manifestId: 5af4687d-8b7f-4893-8700-f990ec3bcc59
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: get_random_word
+      env:
+        AUTHORIZATION: None
+        BODY: |-
+          {
+            "dataSource": "Cluster0",
+            "database": "esperanto",
+            "collection": "espdic",
+            "filter": {
+                  "idx": {{ $.generate_random_number.result }}
+                }
+            }
+        CONTENT_TYPE: application/json; charset=utf-8
+        HEADERS: '{"api-key":"{{ $.workflow_context.datumoj.mongo_key }}","Content-Type":"application/json"}'
+        METHOD: POST
+        URL: https://us-east-2.aws.data.mongodb-api.com/app/data-jjryo/endpoint/data/v1/action/findOne
+      uuid: 1fcc8afe-5a1a-478c-80d4-b7255b07c27b
+      pretty_name: Get Random Word
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: send_message
+      env:
+        ICON_URL: https://b.thumbs.redditmedia.com/DjaGPcIxLZykh9Mt25ro6HDFL09ejMtlja9nP4vpi3U.png
+        MESSAGE_TEXT: |-
+          *ESP: {{ $.get_random_word.api_object.document.esp }}*
+
+          :flag-us: {{ $.get_random_word.api_object.document.en }}
+
+          https://eo.wikipedia.org/wiki/{{ $.get_random_word.api_object.document.esp }}
+        RECIPIENT: '#esperanto'
+        USERNAME: EsperantoBot
+      envFrom:
+        integrationRef: wolken
+      uuid: cdcdae96-00ed-4e2c-ba33-ba841395e9cb
+      pretty_name: Send Message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+  output_schema: '{}'
+root: true

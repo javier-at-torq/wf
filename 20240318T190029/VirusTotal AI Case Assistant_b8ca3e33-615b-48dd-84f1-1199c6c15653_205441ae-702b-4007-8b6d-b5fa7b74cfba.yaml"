@@ -1,0 +1,1415 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: b8ca3e33-615b-48dd-84f1-1199c6c15653
+name: VirusTotal AI Case Assistant
+trigger:
+  internalEventTrigger:
+    scenarioId: ASSOCIATED_OBSERVABLE_CREATED
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "virustotal_integration": "virustotal",
+            "openai_integration": "ryanopenai",
+            "count_for_malicious": 3
+          }
+        VARIABLE_NAME: data
+      uuid: 7a25b9d2-51e1-4a97-9f1b-a4020a63bce7
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: b982de73-24f2-4715-bb91-ac633b886d29
+        pretty_name: Switch
+        cases:
+          - id: 793c19f6-5c37-4004-b725-e34342aa58c4
+            pretty_name: Hash
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.associatedObservables.current.observable.type.name }}'
+                      operator: EQUALS
+                      rvalue: FILE_HASH
+            steps:
+              - parallel:
+                  uuid: 61268979-acc3-411e-9e32-bb142587aae0
+                  pretty_name: Find IOC Type
+                  threads:
+                    - uuid: 203228ee-25aa-4afd-b995-6776e045cca6
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-sha1-hash:1.1.2
+                          id: extract_the_first_sha1_hash
+                          env:
+                            INPUT: '{{ $.event.associatedObservables.current.observable.value.fileHash }}'
+                          uuid: 5be5d87f-0480-49d8-9b1f-991270990fb0
+                          pretty_name: Extract the first SHA1 hash
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_44
+                              env:
+                                COMMAND: extract_first_sha1_hash
+                              sync: true
+                              disable: false
+                          manifestId: d7554b59-9fb7-4a82-b12e-a7a8b08bc2cf
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - uuid: 6752ee5e-b084-4c36-aa15-46857b2779fc
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-sha256-hash:1.1.2
+                          id: extract_the_first_sha256_hash
+                          env:
+                            INPUT: '{{ $.event.associatedObservables.current.observable.value.fileHash }}'
+                          uuid: 145a1bcc-3337-401c-a11f-9ef553e063d4
+                          pretty_name: Extract the first SHA256 hash
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_44
+                              env:
+                                COMMAND: extract_first_sha256_hash
+                              sync: true
+                              disable: false
+                          manifestId: 004270aa-7983-45a0-97e1-5b56a78b0193
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - uuid: 95d081ac-6a2a-4eb0-9970-00717872e0f2
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-md5-hash:1.1.2
+                          id: extract_the_first_md5_hash
+                          env:
+                            INPUT: '{{ $.event.associatedObservables.current.observable.value.fileHash }}'
+                          uuid: 5b80dc2f-c7b4-4d3f-8a99-a479562033d3
+                          pretty_name: Extract the first MD5 hash
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_44
+                              env:
+                                COMMAND: extract_first_md5_hash
+                              sync: true
+                              disable: false
+                          manifestId: 9094b451-39ff-4ec3-9ea3-f2db3e7b1c89
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+          - id: 2447b469-205d-4982-b3e3-b3056f0ea909
+            pretty_name: IP
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.associatedObservables.current.observable.type.name }}'
+                      operator: EQUALS
+                      rvalue: IP_ADDRESS
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-ipv4-address:1.1.2
+                id: extract_the_first_ipv4_address
+                env:
+                  INPUT: '{{ $.event.associated_observables.current.observable.value.ip }}'
+                uuid: 3406277f-b98a-4fe8-ab7f-f53179bdbe29
+                pretty_name: Extract the first IPv4 address
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: extract_first_ipv4_address
+                    sync: true
+                    disable: false
+                manifestId: 4a513869-2819-430c-8d99-341c6310e640
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: bbc402fc-8176-4656-b2de-97b1382aa6ab
+            pretty_name: Hostname
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.associatedObservables.current.observable.type.name }}'
+                      operator: EQUALS
+                      rvalue: HOSTNAME
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-domain:1.1.3
+                id: extract_first_domain
+                env:
+                  INPUT: '{{ $.event.associated_observables.current.observable.value.hostname }}'
+                uuid: da534635-60e2-4da5-8f91-d68d926520fb
+                pretty_name: Extract first domain
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: extract_first_domain
+                    sync: true
+                    disable: false
+                manifestId: 01473f82-d2f0-49ea-89e8-2ccc9f5a693e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: 77041bf7-4613-46c7-a05f-32dd212d81df
+          steps: []
+    - switch:
+        uuid: 49d1cc4e-af8b-4bd0-a8ca-5dca9772a4dd
+        pretty_name: IOC Action
+        cases:
+          - id: 4c0cfb7c-c5fc-4dd6-a38e-67cd114e17ac
+            pretty_name: IPv4
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.extract_the_first_ipv4_address.found }}'
+                      operator: EQUALS
+                      rvalue: "true"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-ip-information:3.0.3
+                id: get_ip_information
+                env:
+                  IP_ADDRESS: '{{ $.extract_the_first_ipv4_address.result }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.virustotal_integration }}'
+                ignoreFailure: true
+                uuid: 8bcf008b-f0dd-48d9-998e-6290e41a0fd8
+                pretty_name: Get IP Information
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      HEADERS: |-
+                        {
+                            "Accept": "application/json",
+                            "x-apikey": "{{ .VT_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["VT_API_KEY", "IP_ADDRESS"]'
+                      TIMEOUT: "30"
+                      URL: https://www.virustotal.com/api/v3/ip_addresses/{{ .IP_ADDRESS | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.virustotal.com/reference/ip-info
+                manifestId: 99302464-2bd3-4d3d-9cf1-a6886d262946
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_ip_information.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/openai/create-chat-completion:3.0.0
+                      id: create_chat_completion
+                      env:
+                        MESSAGES: |-
+                          [
+                            {
+                              "content": "You are a helpful assistant that reads vulnerability information and provides a summary of the results in less than 300 characters. Do not provide the engine names in the summary.",
+                              "role": "system"
+                            },
+                            {
+                              "content": "Summarize the following JSON data provided by VirusTotal for the ip address {{ $.extract_the_first_ipv4_address.result }} and try to understand if there is a security incident to be handled.  Consider the results malicious if the malicious count is greater than {{ $.workflow_context.data.count_for_malicious }}.  This is the data to analyize : {{ jsonEscape $.get_ip_information.api_object.data.attributes.last_analysis_stats }} and {{ jsonEscape $.get_ip_information.api_object.data.attributes.last_analysis_results }}",
+                              "role": "user"
+                            }
+                          ]
+                        MODEL_ID: gpt-3.5-turbo
+                        TIMEOUT: "120"
+                      envFrom:
+                        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+                      uuid: 103b2040-0099-4156-a283-28ebdb373011
+                      pretty_name: Create Chat Completion
+                      options: {}
+                      documentationUrl: https://platform.openai.com/docs/api-reference/chat/create
+                      manifestId: 1c60957a-fa63-4e71-9178-6b173814a425
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_stats
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"ip\", \n \"ioc\": \"{{ $.extract_the_first_ipv4_address.result }}\",\n \"stats\": {{ $.get_ip_information.api_object.data.attributes.last_analysis_stats }}\n}"
+                        VARIABLE_NAME: stats
+                      uuid: 0fa9f447-4ff0-420e-ab3e-09a1e79aaf18
+                      pretty_name: VirusTotal Stats
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_error
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"ip\", \n \"ioc\": \"{{ $.extract_the_first_ipv4_address.result }}\",\n \"error\": $.get_ip_information.api_object.error\n}"
+                        VARIABLE_NAME: message
+                      uuid: a00b1962-7b3e-4ce5-af1b-555a56603709
+                      pretty_name: VirusTotal Error
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: c0bc98c1-3d54-4eaa-8d1f-001c9dd98ca8
+                  pretty_name: If IP Is Found
+          - id: f4c76669-4fbe-4000-af44-b7de8436eedc
+            pretty_name: Domain
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.extract_first_domain.found }}'
+                      operator: EQUALS
+                      rvalue: "true"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-domain-information:3.0.3
+                id: get_domain_information
+                env:
+                  DOMAIN: '{{ $.extract_first_domain.result }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.virustotal_integration }}'
+                ignoreFailure: true
+                uuid: 24d90f51-7e12-416b-8eb9-6667775e00ad
+                pretty_name: Get Domain Information
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      HEADERS: |-
+                        {
+                            "Accept": "application/json",
+                            "x-apikey": "{{ .VT_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["VT_API_KEY", "DOMAIN"]'
+                      TIMEOUT: "30"
+                      URL: https://www.virustotal.com/api/v3/domains/{{ .DOMAIN | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.virustotal.com/reference/domain-info
+                manifestId: bc51a148-be8f-4082-8223-acac52e4c257
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_domain_information.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/defang-or-refang-entity:2.0.1
+                      id: defang_or_refang_entity
+                      env:
+                        DO_NOT_PARSE_AS_FILE: "true"
+                        INPUT: '{{ $.extract_first_domain.result }}'
+                        OPERATION: Defang
+                      uuid: 9883b089-3540-4efe-a3d6-4c4ccc434ba1
+                      pretty_name: Defang or refang entity
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: defang_or_refang_entity
+                          sync: true
+                          disable: false
+                      manifestId: abe0d5f2-0dd2-4083-a7d5-bd3611bd71fe
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/openai/create-chat-completion:3.0.0
+                      id: create_chat_completion
+                      env:
+                        MESSAGES: |-
+                          [
+                            {
+                              "content": "You are a helpful assistant that reads vulnerability information and provides a summary of the results in less than 300 characters. Do not provide the engine names in the summary.",
+                              "role": "system"
+                            },
+                            {
+                              "content": "Summarize the following JSON data provided by VirusTotal for the internet domain name {{ $.defang_or_refang_entity.result }} and try to understand if there is a security incident to be handled.  Consider the results malicious if the malicious count is greater than {{ $.workflow_context.data.count_for_malicious }}.  This is the data to analyize : {{ jsonEscape $.get_domain_information.api_object.data.attributes.last_analysis_stats }} and {{ jsonEscape $.get_domain_information.api_object.data.attributes.last_analysis_results }}",
+                              "role": "user"
+                            }
+                          ]
+                        MODEL_ID: gpt-3.5-turbo
+                        TIMEOUT: "120"
+                      envFrom:
+                        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+                      uuid: 38d60a7a-8451-4b7a-a70d-e82ee6556a4c
+                      pretty_name: Create Chat Completion
+                      options: {}
+                      documentationUrl: https://platform.openai.com/docs/api-reference/chat/create
+                      manifestId: 1c60957a-fa63-4e71-9178-6b173814a425
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_stats
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"domain\", \n \"ioc\": \"{{ $.defang_or_refang_entity.result }}\",\n \"stats\": {{ $.get_domain_information.api_object.data.attributes.last_analysis_stats }}\n}"
+                        VARIABLE_NAME: stats
+                      uuid: 0d874cd0-c372-42b8-935f-7efbe63bf921
+                      pretty_name: VirusTotal Stats
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_error
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"domain\", \n \"ioc\": \"{{ $.extract_first_domain.result }}\",\n \"error\": {{ $.get_domain_information.api_object.error }}\n}"
+                        VARIABLE_NAME: message
+                      uuid: 5b63133b-279a-41d7-9c25-72becd7fec50
+                      pretty_name: VirusTotal Error
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 5a072889-8f6c-40e0-948a-33648232746f
+                  pretty_name: If Domain is Found
+          - id: 0221bf12-0a69-4267-8375-b06fc281cd3d
+            pretty_name: SHA1
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.extract_the_first_sha1_hash.found }}'
+                      operator: EQUALS
+                      rvalue: "true"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-file-report-by-hash:3.0.3
+                id: get_file_report_by_hash
+                env:
+                  FILE_HASH: '{{ $.extract_the_first_sha1_hash.result }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.virustotal_integration }}'
+                ignoreFailure: true
+                uuid: 68bafd8d-13b4-4c95-9fda-fd29485909b0
+                pretty_name: Get File Report by Hash
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      HEADERS: |-
+                        {
+                            "x-apikey": "{{ .VT_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["VT_API_KEY", "FILE_HASH"]'
+                      TIMEOUT: "30"
+                      URL: https://www.virustotal.com/api/v3/files/{{ .FILE_HASH | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.virustotal.com/reference/file-info
+                manifestId: 192f8b13-669d-414a-9992-b29ceff385fa
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_file_report_by_hash.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/openai/create-chat-completion:3.0.0
+                      id: create_chat_completion
+                      env:
+                        MESSAGES: |-
+                          [
+                            {
+                              "content": "You are a helpful assistant that reads vulnerability information and provides a summary of the results in less than 300 characters. Do not provide the engine names in the summary.",
+                              "role": "system"
+                            },
+                            {
+                              "content": "Summarize the following JSON data provided by VirusTotal for the sha1 file hash {{ $.extract_first_domain.result }} and try to understand if there is a security incident to be handled.  Consider the results malicious if the malicious count is greater than {{ $.workflow_context.data.count_for_malicious }}.  This is the data to analyize : {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }} and {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_results }}",
+                              "role": "user"
+                            }
+                          ]
+                        MODEL_ID: gpt-3.5-turbo
+                        TIMEOUT: "120"
+                      envFrom:
+                        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+                      uuid: 4bb3a46d-1ed0-4442-a445-51ca882d06d3
+                      pretty_name: Create Chat Completion
+                      options: {}
+                      documentationUrl: https://platform.openai.com/docs/api-reference/chat/create
+                      manifestId: 1c60957a-fa63-4e71-9178-6b173814a425
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_stats
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"sha1\", \n \"ioc\": \"{{ $.extract_the_first_sha1_hash.result }}\",\n \"stats\": {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }}\n}"
+                        VARIABLE_NAME: stats
+                      uuid: f85dd637-1d2d-49c1-9f1b-9dd69f448e6f
+                      pretty_name: VirusTotal Stats
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_error
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"sha1\", \n \"ioc\": \"{{ $.extract_the_first_sha1_hash.result }}\",\n \"error\": {{ $.get_file_report_by_hash.api_object.error }}\n}"
+                        VARIABLE_NAME: message
+                      uuid: b7e22f0e-0b27-4a7e-975a-cd8d493c7307
+                      pretty_name: VirusTotal Error
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: be4443e7-7461-4fab-a3ed-d96205dcd390
+                  pretty_name: If SHA1 is Found
+          - id: 387ace92-fe8c-4197-bbaf-665484ab3178
+            pretty_name: SHA256
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.extract_the_first_sha256_hash.found }}'
+                      operator: EQUALS
+                      rvalue: "true"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-file-report-by-hash:3.0.3
+                id: get_file_report_by_hash
+                env:
+                  FILE_HASH: '{{ $.extract_the_first_sha256_hash.result }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.virustotal_integration }}'
+                ignoreFailure: true
+                uuid: 032a5d8e-d67f-4027-90ee-362507ff7fdf
+                pretty_name: Get File Report by Hash
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      HEADERS: |-
+                        {
+                            "x-apikey": "{{ .VT_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["VT_API_KEY", "FILE_HASH"]'
+                      TIMEOUT: "30"
+                      URL: https://www.virustotal.com/api/v3/files/{{ .FILE_HASH | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.virustotal.com/reference/file-info
+                manifestId: 192f8b13-669d-414a-9992-b29ceff385fa
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_file_report_by_hash.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/openai/create-chat-completion:3.0.0
+                      id: create_chat_completion
+                      env:
+                        MESSAGES: |-
+                          [
+                            {
+                              "content": "You are a helpful assistant that reads vulnerability information and provides a summary of the results in less than 300 characters. Do not provide the engine names in the summary.",
+                              "role": "system"
+                            },
+                            {
+                              "content": "Summarize the following JSON data provided by VirusTotal for the sha256 file hash {{ $.extract_first_domain.result }} and try to understand if there is a security incident to be handled.  Consider the results malicious if the malicious count is greater than {{ $.workflow_context.data.count_for_malicious }}.  This is the data to analyize : {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }} and {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_results }}",
+                              "role": "user"
+                            }
+                          ]
+                        MODEL_ID: gpt-3.5-turbo
+                        TIMEOUT: "120"
+                      envFrom:
+                        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+                      uuid: 5e91357f-d445-4179-9e55-41032bb3672d
+                      pretty_name: Create Chat Completion
+                      options: {}
+                      documentationUrl: https://platform.openai.com/docs/api-reference/chat/create
+                      manifestId: 1c60957a-fa63-4e71-9178-6b173814a425
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_stats
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"sha256\", \n \"ioc\": \"{{ $.extract_the_first_sha256_hash.result }}\",\n \"stats\": {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }}\n}"
+                        VARIABLE_NAME: stats
+                      uuid: f85a2d1a-d2bb-4d45-b0a6-ff8b92c8b821
+                      pretty_name: VirusTotal Stats
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_error
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"sha256\", \n \"ioc\": \"{{ $.extract_the_first_sha256_hash.result }}\",\n \"error\": {{ $.get_file_report_by_hash.api_object.error }}\n}"
+                        VARIABLE_NAME: message
+                      uuid: f642f1be-7b86-4e0d-ae7b-b0ff1173534a
+                      pretty_name: VirusTotal Error
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: a5015763-b40e-40cb-85cb-aa0f229c7ea3
+                  pretty_name: If SHA256 is Found
+          - id: f9f7cffc-4328-41f3-8229-52726f0fa6ba
+            pretty_name: MD5
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.extract_the_first_md5_hash.found }}'
+                      operator: EQUALS
+                      rvalue: "true"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-file-report-by-hash:3.0.3
+                id: get_file_report_by_hash
+                env:
+                  FILE_HASH: '{{ $.extract_the_first_md5_hash.result }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.virustotal_integration }}'
+                ignoreFailure: true
+                uuid: fff9d7c5-2faf-4a0f-8884-aec188ac82e1
+                pretty_name: Get File Report by Hash
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      HEADERS: |-
+                        {
+                            "x-apikey": "{{ .VT_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["VT_API_KEY", "FILE_HASH"]'
+                      TIMEOUT: "30"
+                      URL: https://www.virustotal.com/api/v3/files/{{ .FILE_HASH | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.virustotal.com/reference/file-info
+                manifestId: 192f8b13-669d-414a-9992-b29ceff385fa
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_file_report_by_hash.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/openai/create-chat-completion:3.0.0
+                      id: create_chat_completion
+                      env:
+                        MESSAGES: |-
+                          [
+                            {
+                              "content": "You are a helpful assistant that reads vulnerability information and provides a summary of the results in less than 300 characters. Do not provide the engine names in the summary.",
+                              "role": "system"
+                            },
+                            {
+                              "content": "Summarize the following JSON data provided by VirusTotal for the md5 file hash {{ $.extract_first_domain.result }} and try to understand if there is a security incident to be handled.  Consider the results malicious if the malicious count is greater than {{ $.workflow_context.data.count_for_malicious }}.  This is the data to analyize : {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }} and {{ jsonEscape $.get_file_report_by_hash.api_object.data.attributes.last_analysis_results }}",
+                              "role": "user"
+                            }
+                          ]
+                        MODEL_ID: gpt-3.5-turbo
+                        TIMEOUT: "120"
+                      envFrom:
+                        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+                      uuid: ef8d2aa2-71f5-4af5-b641-ddfffa15c4cc
+                      pretty_name: Create Chat Completion
+                      options: {}
+                      documentationUrl: https://platform.openai.com/docs/api-reference/chat/create
+                      manifestId: 1c60957a-fa63-4e71-9178-6b173814a425
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_stats
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"md5\", \n \"ioc\": \"{{ $.extract_the_first_md5_hash.result }}\",\n \"stats\": {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }}\n}"
+                        VARIABLE_NAME: stats
+                      uuid: 5704b6f0-502c-4da7-857c-6beeff0ce326
+                      pretty_name: VirusTotal Stats
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                      id: virustotal_error
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: "{\n \"type\": \"md5\", \n \"ioc\": \"{{ $.extract_the_first_md5_hash.result }}\",\n \"error\": {{ $.get_file_report_by_hash.api_object.error }}\n}"
+                        VARIABLE_NAME: message
+                      uuid: 9cc6d959-e3b4-487e-9257-647983ee81ee
+                      pretty_name: VirusTotal Error
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: c76317f9-77fa-4165-812b-78cd1acc2ae3
+                  pretty_name: If MD5 is Found
+        default:
+          id: 28957f00-6f74-4d95-81e9-71a161283d5d
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+              id: virustotal_error
+              env:
+                DATA_TYPE: JSON
+                VALUE_JSON: "{\n \"type\": \"unknown\", \n \"error\": \"No IP, Domain or Hash was discovered in the input of {{ $.event.ioc }}\" \n}"
+                VARIABLE_NAME: message
+              uuid: 69174555-a958-46f6-9df3-30c656502df4
+              pretty_name: VirusTotal Error
+              options:
+                executor:
+                  name: utils_infrastructure_v_1_3_44
+                  env:
+                    COMMAND: set_variable
+                    SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                  sync: true
+                  disable: false
+              manifestId: aff12938-d053-4518-abc0-0a947c43da01
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.virustotal_stats.stats }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+                - lvalue: '{{ $.create_chat_completion.api_object.choices.0.message.content }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-comment-to-case:3.0.1
+            id: add_comment_to_case
+            env:
+              CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+              TEXT_COMMENT: |-
+                #### {{ upper $.virustotal_stats.stats.type }} - {{ $.virustotal_stats.stats.ioc }}
+
+                >{{ jsonEscape $.create_chat_completion.api_object.choices.0.message.content }}
+            uuid: 16f4784f-2cc8-48be-ae50-723a07ec671a
+            pretty_name: Add comment to case
+            options:
+              executor:
+                name: torq_cases_infra_v_3_0_1
+                env:
+                  COMMAND: add_comment_to_case
+                sync: true
+                disable: false
+            manifestId: 4c019837-6565-5725-8d8f-745066b7bc99
+            isPrivate: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.virustotal_stats.stats.stats.malicious }}'
+                        operator: GREATER_EQUAL
+                        rvalue: '{{ $.workflow_context.data.count_for_malicious }}'
+                  - and:
+                      - lvalue: '{{ $.virustotal_stats.stats.stats.suspicious }}'
+                        operator: GREATER_EQUAL
+                        rvalue: '{{ $.workflow_context.data.count_for_malicious }}'
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.1
+                  id: update_observable_reputation_score
+                  env:
+                    OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                    OBSERVABLE_REPUTATION_SCORE: Possibly Malicious
+                  uuid: df2f020e-8732-4fba-a2a8-8c40c2659186
+                  pretty_name: Update observable reputation score
+                  options:
+                    executor:
+                      name: torq_cases_infra_v_3_0_1
+                      env:
+                        COMMAND: update_observable
+                        MASKED_FIELDS: reputation
+                      sync: true
+                      disable: false
+                  manifestId: 5d40c1e2-6b11-5165-a8c3-23b6a48c7156
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.1
+                  id: update_observable_reputation_score_2
+                  env:
+                    OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                    OBSERVABLE_REPUTATION_SCORE: Probably Safe
+                  uuid: bf31b1a9-3775-4fb5-83b7-55ff1168827e
+                  pretty_name: Update observable reputation score 2
+                  options:
+                    executor:
+                      name: torq_cases_infra_v_3_0_1
+                      env:
+                        COMMAND: update_observable
+                        MASKED_FIELDS: reputation
+                      sync: true
+                      disable: false
+                  manifestId: 5d40c1e2-6b11-5165-a8c3-23b6a48c7156
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              uuid: 3ccb3f1c-9259-48d5-8edf-48055a9102fd
+              pretty_name: If Malicious or Suspicious
+        else: []
+        uuid: d6e022d0-3099-45c2-a047-296b14fedbf4
+        pretty_name: If IOC is Found and Chat Info
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-case:3.2.0
+      id: get_case_details
+      env:
+        CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+      uuid: 5c103f64-72ed-44e0-bb8d-d640585408c6
+      pretty_name: Get case details
+      options:
+        executor:
+          name: torq_cases_get-case_v_3_2_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: f1534c0a-434a-56d5-b30b-46cab67698c4
+      isPrivate: false
+      skip: false
+    - switch:
+        uuid: 35d85a87-9253-41f7-a3d6-5980519a6490
+        pretty_name: Observable Score
+        cases:
+          - id: 7ec55ed4-bccf-490c-9f1b-aa2cd6c02cef
+            pretty_name: Malicious 4+
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.malicious }}'
+                      operator: GREATER_EQUAL
+                      rvalue: "4"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associated_observables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Malicious
+                uuid: 387b976f-3b5e-4362-a5a5-7e60cbe5a938
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-title:3.0.0
+                id: change_case_title
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TITLE: MALICIOUS Observable! {{ $.get_case_details.case.title }}
+                uuid: 8a7fd709-995f-475a-80e9-e4c81184ca6e
+                pretty_name: Change case title
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: title
+                    sync: true
+                    disable: false
+                manifestId: 85c330ab-a9c6-4f78-8855-15feac8cb54e
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: in_progress
+                  VARIABLE_NAME: value
+                uuid: 990db16a-bb18-45ce-b49c-5c10e7d2a0c9
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-severity:3.0.0
+                id: change_case_severity
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_SEVERITY: Critical
+                uuid: 2c16afae-f2e6-4c4d-a9f2-6de6e08e3af4
+                pretty_name: Change case severity
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: severity
+                    sync: true
+                    disable: false
+                manifestId: 4df3bddc-3da4-4ea0-83bc-cbc57373cbbc
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-tags:3.2.0
+                id: add_tags_to_a_case
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TAGS: Malicious Observables
+                uuid: 10b7e277-d4a1-4eea-8bc6-6e4a9498de25
+                pretty_name: Add tags to a case
+                options:
+                  executor:
+                    name: torq_cases_add_tags_v_3_2_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e465b647-d8ff-5f22-b04f-848751b9fba6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: cfe5631c-4944-4527-84eb-8d8c66416ceb
+            pretty_name: Malicous 2+
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.malicious }}'
+                      operator: GREATER_EQUAL
+                      rvalue: "2"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Probably Malicious
+                uuid: d0721b1b-4def-44bc-8e3c-27e41f31056d
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-title:3.0.0
+                id: change_case_title
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TITLE: PROBABLY MALICIOUS Observable! {{ $.get_case_details.case.title }}
+                uuid: d10a63ce-33f1-4d5c-b14b-0c3892209c8f
+                pretty_name: Change case title
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: title
+                    sync: true
+                    disable: false
+                manifestId: 85c330ab-a9c6-4f78-8855-15feac8cb54e
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: in_progress
+                  VARIABLE_NAME: value
+                uuid: 4c85d21e-7f95-4521-8f4d-cfe501fbd9fe
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-severity:3.0.0
+                id: change_case_severity
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_SEVERITY: High
+                uuid: 899064b7-9f2f-42aa-a774-a4a2f4c27f49
+                pretty_name: Change case severity
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: severity
+                    sync: true
+                    disable: false
+                manifestId: 4df3bddc-3da4-4ea0-83bc-cbc57373cbbc
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-tags:3.2.0
+                id: add_tags_to_a_case
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TAGS: D
+                uuid: 9cad7d1b-4f53-4bd1-bf1c-529da966ba61
+                pretty_name: Add tags to a case
+                options:
+                  executor:
+                    name: torq_cases_add_tags_v_3_2_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: e465b647-d8ff-5f22-b04f-848751b9fba6
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 8713332f-9b5d-4146-bce0-78a9d76a71a0
+            pretty_name: Suspicious 4+
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.suspicious }}'
+                      operator: GREATER_EQUAL
+                      rvalue: "4"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Possibly Malicious
+                uuid: 14d6b336-674e-4a13-88d7-fb47a2e60e14
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-title:3.0.0
+                id: change_case_title
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TITLE: POSSIBLY MALICIOUS Observable! {{ $.get_case_details.case.title }}
+                uuid: c97b6f1b-9afb-4539-8f77-274c93ecf776
+                pretty_name: Change case title
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: title
+                    sync: true
+                    disable: false
+                manifestId: 85c330ab-a9c6-4f78-8855-15feac8cb54e
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: in_progress
+                  VARIABLE_NAME: value
+                uuid: f6596ede-d930-48a5-b0b8-bd7da8edce16
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-severity:3.0.0
+                id: change_case_severity
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_SEVERITY: Medium
+                uuid: f2e20391-ce52-4ec3-865f-b22f5f9dfe87
+                pretty_name: Change case severity
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: severity
+                    sync: true
+                    disable: false
+                manifestId: 4df3bddc-3da4-4ea0-83bc-cbc57373cbbc
+                isPrivate: false
+                skip: false
+          - id: fa5e8a39-f08b-4c23-96c6-25b977140ed7
+            pretty_name: Suspicious 2+
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.suspicious }}'
+                      operator: GREATER_EQUAL
+                      rvalue: "2"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Exercise Caution
+                uuid: 5abd7121-7035-470c-9387-068b351e4931
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-title:3.0.0
+                id: change_case_title
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_TITLE: Suspicious Observable! {{ $.get_case_details.case.title }}
+                uuid: 177dfe3d-9776-4383-b829-33605b06ecda
+                pretty_name: Change case title
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: title
+                    sync: true
+                    disable: false
+                manifestId: 85c330ab-a9c6-4f78-8855-15feac8cb54e
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: in_progress
+                  VARIABLE_NAME: value
+                uuid: df748ee4-e56f-4035-8499-9dcd7da22362
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-severity:3.0.0
+                id: change_case_severity
+                env:
+                  CASE_ID: '{{ $.event.associatedObservables.current.caseId}}'
+                  CASE_SEVERITY: Medium
+                uuid: 3d913ffd-ab51-487a-8ff7-a3611e6f2a13
+                pretty_name: Change case severity
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_case
+                      MASKED_FIELDS: severity
+                    sync: true
+                    disable: false
+                manifestId: 4df3bddc-3da4-4ea0-83bc-cbc57373cbbc
+                isPrivate: false
+                skip: false
+          - id: 4c80ed93-5b1c-4b41-994d-714bff16e02c
+            pretty_name: Greater than 0
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.malicious }}'
+                      operator: GREATER
+                      rvalue: "0"
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.suspicious }}'
+                      operator: GREATER
+                      rvalue: "0"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: May Not Be Safe
+                uuid: 3fcb16cd-1486-4c87-8af7-942aca4450e7
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: in_progress
+                  VARIABLE_NAME: value
+                uuid: ca0ba94f-a236-4509-83da-5c8ba311f9b0
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 3f7f4df5-770b-4a7d-8166-fd5dac85fbd2
+            pretty_name: "0"
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.malicious }}'
+                      operator: EQUALS
+                      rvalue: "0"
+                    - lvalue: '{{ $.virustotal_stats.stats.stats.suspicious }}'
+                      operator: EQUALS
+                      rvalue: "0"
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.0.0
+                id: update_observable_reputation_score
+                env:
+                  OBSERVABLE_ID: '{{ $.event.associatedObservables.current.observable.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Leans Safe
+                uuid: 2bddc8a7-d683-435c-a29b-99923c0cc611
+                pretty_name: Update observable reputation score
+                options:
+                  executor:
+                    name: torq_cases_infra_v_3_0_0
+                    env:
+                      COMMAND: update_observable
+                      MASKED_FIELDS: reputation
+                    sync: true
+                    disable: false
+                manifestId: fbbca7bc-14b9-47b7-a555-33a288375287
+                isPrivate: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: state
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: resolved
+                  VARIABLE_NAME: value
+                uuid: 29a951ee-39f7-4ccf-ad21-7ab1e88017f8
+                pretty_name: state
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: 0644a91b-31be-478e-8d58-2371be3311fc
+          steps: []
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 3267f97d-2e90-458a-b909-23bc63e0b0cb
+  output_schema: '{}'
+root: true

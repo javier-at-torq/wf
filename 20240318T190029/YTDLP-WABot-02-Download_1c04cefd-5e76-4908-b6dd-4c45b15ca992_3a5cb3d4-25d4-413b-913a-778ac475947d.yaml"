@@ -1,0 +1,74 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 1c04cefd-5e76-4908-b6dd-4c45b15ca992
+name: YTDLP-WABot-02-Download
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: media_type
+          required: true
+          prettyName: media_type
+          singleSelect:
+            options:
+              - audio
+              - video
+            defaultValue: audio
+        - name: url
+          required: true
+          prettyName: url
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: wfctxt
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {"hosts":"80.240.17.138",
+          "image":"dwldr5",
+          "vultr_bucket":"https://sjc1.vultrobjects.com/ytautomation/"
+          }
+        VARIABLE_NAME: data
+      uuid: e9022813-b20f-49a1-abce-6354545a6c85
+      pretty_name: wfctxt
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: ozikox/ytdwld:0.0.7
+      id: ytdl
+      env:
+        ACCESSKEY: XFOTGOXZ2QUFYTXEK0C0
+        BUCKET: ytautomation
+        FORMAT: '{{ $.event.media_type }}'
+        HOSTNAME: sjc1.vultrobjects.com
+        SECRETKEY: zNrbO5Z8ZCCSf5SHtbihEKAEkkQCVeHV2K0oulUx
+        URL: '{{ $.event.url }}'
+      runner: stockolm
+      ignoreFailure: true
+      uuid: 74cc2cb2-3b68-4685-a875-3ebc27ffc573
+      pretty_name: YTDL
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.ytdl }}'
+        uuid: debf2659-2321-478d-a497-0b9df89ec2bd
+  output_schema: '{}'
+root: true

@@ -1,0 +1,972 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3158bc24-4459-45b1-91f8-a6c720749ed3
+name: Get YT Feed Content
+trigger:
+  scheduledTrigger:
+    integrationId: 70dcc7e7-0095-4195-aabf-5823b51da39c
+    scheduledTriggerParameters:
+      cronTab: 0 0 */1 * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "channel_list": {
+                  "type": 10,
+                  "prettyName": "Channel List",
+                  "description": "",
+                  "uiPlaceholder": ""
+              }
+          }
+        VALUES: |-
+          {
+            "channel_list": [
+              {
+                "topic": "portugues",
+                "channels": [
+                  "UCthbIFAxbXTTQEC7EcQvP1Q"
+                ]
+              },
+              {
+                "topic": "deutsch",
+                "channels": [
+                  "UCMIgOXM2JEQ2Pv2d0_PVfcg",
+                  "UC1w6pNGiiLdZgyNpXUnA4Zw",
+                  "UC1XrG1M_hw8103zO2x-oivg "
+                ]
+              },
+              {
+                "topic": "the-channel",
+                "channels": [
+                  "UCYJ7QKwyBDKdxuEFkEf8kug",
+                  "UCI-J4v2v6qUCq2oOkELFejQ"
+                ]
+              },
+              {
+                "topic": "no-code",
+                "channels": [
+                  "UCrJrY9gMcbRL2APnFCXiuBQ"
+                ]
+              },
+              {
+                "topic": "new-musik",
+                "channels": [
+                  "UCzCWehBejA23yEz3zp7jlcg",
+                  "UC7eKF0lPY8LNwfczq9UFlxg",
+                  "UC5ulFfNeWSJuzeKJFY-hUvQ"
+                ]
+              },
+              {
+                "topic": "microsoft",
+                "channels": [
+                  "UCtUYj6As_XFkOooUFnsJbYg",
+                  "UCXZCJLdBC09xxGZ6gcdrc6A"
+                ]
+              },
+              {
+                "topic": "google",
+                "channels": [
+                  "UCJS9pqu9BzkAMNTmzNMNhvg"
+                ]
+              }
+            ]
+          }
+      uuid: 6f966c1c-e332-48c5-b828-047ade157b4b
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: wfctxt
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {"slack_ytdefault_channel":"dwl-youtube",
+           "slack_ytmusik_channel":"dwl-musik",
+           "slack_ytdevel_channel":"dwl-tech",
+           "slack_ytdeutsch_channel":"dwl-deutsch",
+           "slack_ytcn_channel":"dwl-cannabis",
+          "image":"dwldr5",
+          "vultr_bucket":"https://sjc1.vultrobjects.com/ytautomation/",
+          "services":[
+              {"service_name":"tl-labs.a2hosted.com",
+              "service_smtp":"az1-ss104.a2hosting.com",
+              "service_smtp_port":465,
+              "service_username":"engine@tl-labs.a2hosted.com",
+              "service_passwd":"zEdMkAFqv6XZ"},
+              {"service_name":"tl-labs.a2hosted.com",
+              "service_smtp":"az1-ss104.a2hosting.com",
+              "service_smtp_port":465,
+              "service_username":"marketing_advisor@tl-labs.a2hosted.com",
+              "service_passwd":"chjqxsVcLBM0"}]
+          }
+        VARIABLE_NAME: data
+      uuid: 3fa4a411-ef6b-4a53-aaad-bb7d333240b3
+      pretty_name: wfctxt
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.5
+      id: get_date
+      env:
+        DATE_FORMAT_LAYOUT: "1136214245"
+        TIME_AGO: 60m
+      uuid: 9472e739-046e-4426-87a6-32540993a54d
+      pretty_name: Get Date
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: 681058f5-9dc9-42ff-864d-1aefe505816f
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - loop:
+        in: '{{ $.workflow_parameters.channel_list }}'
+        key: topics_key
+        value: topics_value
+        steps:
+          - loop:
+              in: '{{ $.topics_value.channels }}'
+              key: channel_key
+              value: channel_value
+              steps:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                  id: yturl
+                  env:
+                    DATA_TYPE: string
+                    VALUE_STRING: https://www.youtube.com/feeds/videos.xml?channel_id={{ $.channel_value }}
+                    VARIABLE_NAME: url
+                  uuid: d169b49f-aa09-4ac3-8d42-e99edba78d31
+                  pretty_name: yturl
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_3_44
+                      env:
+                        COMMAND: set_variable
+                        SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                      sync: true
+                      disable: false
+                  manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+                  id: get_feed
+                  env:
+                    PYTHON_CODE: |-
+                      import feedparser
+                      import json
+
+                      Feed = feedparser.parse('{{ $.yturl.url }}')
+                      pointer = Feed.entries
+                      print(json.dumps(pointer))
+                    REQUIREMENTS: feedparser
+                  runner: local_torq_academy_vm
+                  uuid: 31db4821-440a-4852-9323-bc9ec86c9238
+                  pretty_name: Get Feed
+                  options: {}
+                  icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                  manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.12
+                  id: filter_latest_videos
+                  env:
+                    INPUT: '{{ $.get_feed.output }}'
+                    JSON_QUERY: '[.[] | select ( .published | strptime("%Y-%m-%dT%H:%M:%S%z") |todate | fromdateiso8601 > {{ $.get_date.result }})]'
+                  uuid: 4451f83d-8bb6-42ee-887c-d020f866667e
+                  pretty_name: Filter Latest Videos
+                  options:
+                    executor:
+                      name: jq_infra_v_3_1_12
+                      env:
+                        COMMAND: jq_command
+                      sync: true
+                      disable: false
+                  documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                  manifestId: 93dbb0bc-985e-43a8-9c6b-5fca8b7e9e9e
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ len $.filter_latest_videos.output }}'
+                              operator: GREATER
+                              rvalue: "0"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                        id: send_slack_message_blocks
+                        env:
+                          BLOCKS: |-
+                            {
+                              "blocks": [
+                                {
+                                  "type": "header",
+                                  "text": {
+                                    "type": "plain_text",
+                                    "text": "{{ $.get_feed.output.0.author }}",
+                                    "emoji": true
+                                  }
+                                },
+                                {
+                                  "type": "section",
+                                  "text": {
+                                    "type": "mrkdwn",
+                                    "text": "{{ len $.filter_latest_videos.output }} New Videos "
+                                  }
+                                }
+                              ]
+                            }
+                          ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                          MESSAGE_TYPE: blocks
+                          RECIPIENT: '#musik'
+                          THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+                          USERNAME: YouTube-Dwldr
+                        envFrom:
+                          integrationRef: wolken
+                        uuid: bc3080ad-fefc-446d-97b5-7b09672830c4
+                        pretty_name: Send Slack Message Blocks
+                        options:
+                          executor:
+                            name: slack_message_blocks_v_2_3_11
+                            env: {}
+                            sync: true
+                            disable: false
+                        documentationUrl: https://app.slack.com/block-kit-builder
+                        manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: true
+                      - loop:
+                          in: '{{ $.filter_latest_videos.output }}'
+                          key: video_key
+                          value: video_value
+                          steps:
+                            - name: us-docker.pkg.dev/stackpulse/public/http/request:4.9.1
+                              id: get_video_metadata
+                              env:
+                                AUTHORIZATION: None
+                                HEADERS: ""
+                                METHOD: GET
+                                URL: https://www.youtube.com/get_video_info?video_id={{ $.video_value.yt_videoid }}
+                              runner: vultrwarsaw
+                              ignoreFailure: true
+                              uuid: 7596c0a5-f34e-4d8b-b3db-3964b30ab5ae
+                              pretty_name: Get Video Metadata
+                              options:
+                                executor:
+                                  name: http_request_v_4_9_1
+                                  env:
+                                    FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                    GO_TEMPLATE_BODY_PARSING: "false"
+                                    RESPONSE_API_OBJECT_ONLY: "false"
+                                  sync: true
+                                  disable: false
+                              manifestId: 698c3c8e-2ca9-5803-9040-ffff0a5c74df
+                              isPrivate: false
+                              isPrivateUrl: true
+                              mock_output:
+                                enabled: false
+                              skip: true
+                            - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-by-regex:3.1.3
+                              id: filterout_by_regex
+                              env:
+                                INPUT: '{{ $.video_value.title }}'
+                                REGEX: |+
+                                  #Shorts|#milenioshorts|ENCERRADOS PERO INFORMADOS|Radio de la República|Conferencia matutina de AMLO|Tragaluz|SE DICE Y NO PASA NADA|Christian Martinoli|Santiago Giménez|Epigmenio Ibarra|#shorts|Enrique Burak|Jorge Pietrasanta|Luis Miguel|#LatinusDiario|#Loret|SÚBALE A SU RADITO|en entrevista con María Scherer|Carolina Hernández|From Takedowns To Breakdowns|Official Music Video
+
+                              ignoreFailure: true
+                              uuid: 3b215732-c292-43b3-9ab0-18b7e27b0d67
+                              pretty_name: FilterOut by Regex
+                              options:
+                                executor:
+                                  name: utils_infrastructure_v_1_3_44
+                                  env:
+                                    COMMAND: extract_all_by_regex
+                                  sync: true
+                                  disable: false
+                              manifestId: f6ac99a4-1713-45ba-89d1-890957727c9a
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                              skip: false
+                            - if:
+                                conditions:
+                                  or:
+                                    - and:
+                                        - lvalue: '{{ $.filterout_by_regex.count }}'
+                                          operator: GREATER_EQUAL
+                                          rvalue: "1"
+                                then:
+                                  - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                    id: send_slack_filetered_out
+                                    env:
+                                      BLOCKS: |-
+                                        {
+                                        	"blocks": [
+                                            {
+                                        			"type": "header",
+                                        			"text": {
+                                        				"type": "plain_text",
+                                        				"text": "{{ $.get_feed.output.0.author }}",
+                                        				"emoji": true
+                                        			}
+                                        		},
+                                        		{
+                                        			"type": "section",
+                                        			"text": {
+                                        				"type": "mrkdwn",
+                                        				"text": "This video is Detected as unwanted and can be removed: {{ $.video_value.title }} "
+                                        			}
+                                        		}
+                                        	]
+                                        }
+                                      ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                                      MESSAGE_TYPE: blocks
+                                      RECIPIENT: '#musik'
+                                      THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+                                      USERNAME: YouTube-Dwldr
+                                    envFrom:
+                                      integrationRef: wolken
+                                    ignoreFailure: true
+                                    uuid: d2c2bbc3-dea2-4f5d-80b6-af1b0f810b6b
+                                    pretty_name: Send Slack Filetered Out
+                                    options:
+                                      executor:
+                                        name: slack_message_blocks_v_2_3_11
+                                        env: {}
+                                        sync: true
+                                        disable: false
+                                    documentationUrl: https://app.slack.com/block-kit-builder
+                                    manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                    isPrivate: false
+                                    mock_output:
+                                      enabled: false
+                                      payload: '{}'
+                                    skip: true
+                                else:
+                                  - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.0.2
+                                    id: audiocache
+                                    env:
+                                      KEY: feed_cache
+                                    envFrom:
+                                      integrationRef: torq_api
+                                    uuid: 0bda4923-7d6c-4396-856b-3140ba9b88aa
+                                    pretty_name: AudioCache
+                                    options:
+                                      executor:
+                                        name: http_request_v_4_2_8
+                                        env:
+                                          AUTHORIZATION: Bearer
+                                          HEADERS: '{}'
+                                          METHOD: GET
+                                          PARSE_HJSON: "true"
+                                          REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                                          TIMEOUT: "30"
+                                          TOKEN: '{{ .ACCESS_TOKEN }}'
+                                          URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+                                        sync: true
+                                        disable: false
+                                    manifestId: b57e5da3-de57-4003-978c-82e299c6e20e
+                                    isPrivate: false
+                                    mock_output:
+                                      enabled: false
+                                    skip: false
+                                  - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.12
+                                    id: list_of_cacheditems
+                                    env:
+                                      INPUT: '{{ $.audiocache.api_object.value_array }}'
+                                      JSON_QUERY: '[.[][]]'
+                                    ignoreFailure: true
+                                    uuid: 7ad12ad3-32ba-4bb9-a157-e977f664c840
+                                    pretty_name: List of CachedItems
+                                    options:
+                                      executor:
+                                        name: jq_infra_v_3_1_12
+                                        env:
+                                          COMMAND: jq_command
+                                        sync: true
+                                        disable: false
+                                    documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                                    manifestId: 93dbb0bc-985e-43a8-9c6b-5fca8b7e9e9e
+                                    isPrivate: false
+                                    isPrivateUrl: true
+                                    mock_output:
+                                      enabled: false
+                                    skip: false
+                                  - if:
+                                      conditions:
+                                        or:
+                                          - and:
+                                              - lvalue: '{{ $.video_value.yt_videoid }}'
+                                                operator: IN
+                                                rvalue: '{{ $.list_of_cacheditems.output }}'
+                                      then:
+                                        - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                          id: send_cache_notification
+                                          env:
+                                            BLOCKS: |-
+                                              {
+                                              	"blocks": [
+                                                  {
+                                              			"type": "header",
+                                              			"text": {
+                                              				"type": "plain_text",
+                                              				"text": "{{ $.get_feed.output.0.author }}",
+                                              				"emoji": true
+                                              			}
+                                              		},
+                                              		{
+                                              			"type": "section",
+                                              			"text": {
+                                              				"type": "mrkdwn"v,
+                                              				"text": "This video is already Cached: {{ $.video_value.title }}"
+                                              			}
+                                              		}
+                                              	]
+                                              }
+                                            ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                                            MESSAGE_TYPE: blocks
+                                            RECIPIENT: '#{{ $.wfctxt.data.slack_yt_channel }}'
+                                            THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+                                            USERNAME: YouTube-Dwldr
+                                          envFrom:
+                                            integrationRef: wolken
+                                          ignoreFailure: true
+                                          uuid: 8d365106-dd36-4156-b678-c867c19768ec
+                                          pretty_name: Send Cache Notification
+                                          options:
+                                            executor:
+                                              name: slack_message_blocks_v_2_3_11
+                                              env: {}
+                                              sync: true
+                                              disable: false
+                                          documentationUrl: https://app.slack.com/block-kit-builder
+                                          manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                          isPrivate: false
+                                          mock_output:
+                                            enabled: false
+                                            payload: '{}'
+                                          skip: true
+                                      else:
+                                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                                          id: mediablock
+                                          env:
+                                            DATA_TYPE: JSON
+                                            VALUE_JSON: |-
+                                              {
+                                                "blocks": [
+                                                  {
+                                                    "type": "header",
+                                                    "text": {
+                                                      "type": "plain_text",
+                                                      "text": "{{ jsonEscape $.video_value.title }}",
+                                                      "emoji": true
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "section",
+                                                    "text": {
+                                                      "type": "mrkdwn",
+                                                      "text": "Length: `{{ $.video_value.media_statistics.views}}`"
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "section",
+                                                    "text": {
+                                                      "type": "mrkdwn",
+                                                      "text": "Media: {{ $.video_value.link }}"
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "section",
+                                                    "text": {
+                                                      "type": "mrkdwn",
+                                                      "text": "Playlist: tbd.m3u"
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            VARIABLE_NAME: data
+                                          uuid: ab9a5ac3-1d94-49b0-850f-2e09fcc844c6
+                                          pretty_name: MediaBlock
+                                          options:
+                                            executor:
+                                              name: utils_infrastructure_v_1_3_44
+                                              env:
+                                                COMMAND: set_variable
+                                                SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                                              sync: true
+                                              disable: false
+                                          manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                                          isPrivate: false
+                                          mock_output:
+                                            enabled: false
+                                          skip: false
+                                        - name: us-docker.pkg.dev/stackpulse/public/torq/append-to-a-variable:8.0.2
+                                          id: append_yt_id_to_cache
+                                          env:
+                                            EXPIRES_IN: 24h
+                                            KEY: feed_cache
+                                            VALUE: '["{{ $.video_value.yt_videoid }}"]'
+                                          envFrom:
+                                            integrationRef: torq_api
+                                          uuid: d1adf6be-0c96-4b97-a38b-97365e9cf17a
+                                          pretty_name: Append YT ID to Cache
+                                          options:
+                                            executor:
+                                              name: http_request_v_4_2_8
+                                              env:
+                                                AUTHORIZATION: Bearer
+                                                BODY: |-
+                                                  {
+                                                      "key": "{{ .KEY | jsonEscape }}",
+                                                  {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                                                  {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                                                      "value": {{ .VALUE }}
+                                                  }
+                                                CONTENT_TYPE: application/json
+                                                HEADERS: '{}'
+                                                METHOD: POST
+                                                PARSE_HJSON: "true"
+                                                REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                                                TIMEOUT: "30"
+                                                TOKEN: '{{ .ACCESS_TOKEN }}'
+                                                URL: https://api.torq.io/public/v2alpha/variables
+                                              sync: true
+                                              disable: false
+                                          manifestId: 550b262c-f525-43bc-a498-33104369e38f
+                                          isPrivate: false
+                                          mock_output:
+                                            enabled: false
+                                          skip: false
+                                        - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                          id: video_block
+                                          env:
+                                            BLOCKS: '{{ $.mediablock.data }}'
+                                            ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                                            MESSAGE_TYPE: blocks
+                                            RECIPIENT: '#{{ $.topics_value.topic }}'
+                                            USERNAME: '{{ $.video_value.author }}'
+                                          envFrom:
+                                            integrationRef: wolken
+                                          ignoreFailure: true
+                                          uuid: fd877e79-9912-48ee-ad07-0fbd7a61cec6
+                                          pretty_name: Video Block
+                                          options:
+                                            executor:
+                                              name: slack_message_blocks_v_2_3_11
+                                              env: {}
+                                              sync: true
+                                              disable: false
+                                          documentationUrl: https://app.slack.com/block-kit-builder
+                                          manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                          isPrivate: false
+                                          mock_output:
+                                            enabled: false
+                                            payload: '{}'
+                                          skip: false
+                                        - if:
+                                            conditions:
+                                              or:
+                                                - and:
+                                                    - lvalue: '{{ len $.video_value.summary_detail.value }}'
+                                                      operator: GREATER
+                                                      rvalue: "0"
+                                            then:
+                                              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                                id: summary_block
+                                                env:
+                                                  BLOCKS: |-
+                                                    {
+                                                      "blocks": [
+                                                        {
+                                                          "type": "section",
+                                                          "text": {
+                                                            "type": "mrkdwn",
+                                                            "text": "{{ jsonEscape $.video_value.summary_detail.value }}"
+                                                          }
+                                                        }
+                                                      ]
+                                                    }
+                                                  ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                                                  MESSAGE_TYPE: blocks
+                                                  RECIPIENT: '#{{ $.topics_value.topic }}'
+                                                  THREAD_TS: '{{ $.video_block.api_object.ts }}'
+                                                  USERNAME: '{{ $.video_value.author }}'
+                                                envFrom:
+                                                  integrationRef: wolken
+                                                ignoreFailure: true
+                                                uuid: e1d38b0f-ffe6-40c1-9e4a-316d34d7c60a
+                                                pretty_name: Summary Block
+                                                options:
+                                                  executor:
+                                                    name: slack_message_blocks_v_2_3_11
+                                                    env: {}
+                                                    sync: true
+                                                    disable: false
+                                                documentationUrl: https://app.slack.com/block-kit-builder
+                                                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                                isPrivate: false
+                                                mock_output:
+                                                  enabled: false
+                                                  payload: '{}'
+                                                skip: false
+                                            else: []
+                                            uuid: a1a593e5-8564-4b74-a438-5df2cd76b4f7
+                                            pretty_name: If There is a Summary
+                                      uuid: 4aa77173-0113-49b0-8bb3-0bbc0d56cdb0
+                                      pretty_name: If Cached
+                                uuid: f4e7c5a8-165b-4460-9507-0e5032f6f1fe
+                                pretty_name: If Video is dumped
+                          uuid: ade94f88-5020-47fb-bd2d-97e0c6b68b6a
+                          pretty_name: Videos
+                    else: []
+                    uuid: 18318afb-3957-41b4-a0fd-67fe3ce3cbca
+                    pretty_name: If No Videos
+              uuid: 0a91bfb6-20f1-4d4a-b758-765631f141ab
+              pretty_name: Channels
+        uuid: 3ba2f929-194b-4104-89a3-e2fb5e2e6d45
+        pretty_name: Topics
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: a417bcad-558f-48c4-bbb4-c3d5221def6a
+    - name: us-docker.pkg.dev/stackpulse/public/torq/delete-a-variable:8.0.2
+      id: delete_a_variable
+      env:
+        KEY: feed_cache
+      envFrom:
+        integrationRef: torq_api
+      uuid: 8a640de0-536b-4988-a6fa-1e8599c431d8
+      pretty_name: Delete a variable
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: DELETE
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.torq.io/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: 2da44551-d746-49fe-aa7d-b11cef71282e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+      id: today
+      env:
+        DATE: ""
+        DATE_FORMAT_LAYOUT: Mon Jan 2 15:04:05 2006
+        TIME_ZONE: America/Mexico_City
+      uuid: b898018c-fae1-48b6-ad80-51c7f0367e11
+      pretty_name: Today
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: welcome_msg
+      env:
+        BLOCKS: |-
+          {
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Hallo!* Nachrichten für {{ $.today.result }} "
+                }
+              }
+            ]
+          }
+        ICON_URL: https://i.pinimg.com/280x280_RS/25/0d/c4/250dc4e8e4b3b18fac7cb588d8841b2b.jpg
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#musik'
+        USERNAME: Verbal Chatbot
+      envFrom:
+        integrationRef: wolken
+      uuid: 33bad76d-afef-4407-a8cf-8c3fa832cd8d
+      pretty_name: Welcome Msg
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+      id: get_latest_feed_dw
+      env:
+        PYTHON_CODE: |-
+          import feedparser
+          import json
+
+          Feed = feedparser.parse('https://rss.dw.com/xml/DKpodcast_lgn_de')
+          pointer = Feed.entries[0]
+          print(json.dumps(pointer))
+        REQUIREMENTS: feedparser
+      uuid: eb9fb8d3-c1ec-483e-ac97-365efcce3763
+      pretty_name: Get Latest Feed DW
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: send_an_http_request
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.get_latest_feed_dw.link }}'
+      uuid: 89d79969-be77-4c54-87c9-34c815178f19
+      pretty_name: Send an HTTP request
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-urls:2.1.4
+      id: extract_all_urls
+      env:
+        INPUT: '{{ $.send_an_http_request.api_object }}'
+      uuid: 3f5c357a-a1d0-403b-8f60-411cc0e252f0
+      pretty_name: Extract all URLs
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: extract_all_urls
+          sync: true
+          disable: false
+      manifestId: dadf4e56-718b-4fd0-844e-8ef24c2e2f7b
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+      id: get_date
+      env:
+        CUSTOM_DATE_FORMAT: '%d%m%Y'
+        DATE: ""
+        DATE_FORMAT_LAYOUT: Custom
+        TIME_ZONE: America/Mexico_City
+      uuid: 63f58042-3438-4dbe-82eb-dddd5fbc1b11
+      pretty_name: Get Date
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.11
+      id: directdownload
+      env:
+        INPUT: '{{ $.extract_all_urls.results }}'
+        JSON_QUERY: .[] | select(. | contains("learngerman.dw.com/de/{{ $.get_date.result }}-langsam-gesprochene-nachrichten"))
+      uuid: 1209b1ec-171f-412e-8279-cb2753c177c0
+      pretty_name: DirectDownload
+      options:
+        executor:
+          name: jq_infra_v_3_1_11
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 5818b575-f3bb-413b-a5a7-d7c808965d23
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: send_dw_langsam_gesprochen
+      env:
+        BLOCKS: |-
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "Langsam Gesprochene Nachrichten",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":earth_americas: <{{ $.directdownload.output }}|{{ $.get_latest_feed_dw.title }}>"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":headphones: <{{ $.get_latest_feed_dw.links.1.href }}|Langsam Gesprochene Audio>"
+                }
+              }
+            ]
+          }
+        ICON_URL: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYkV2_YK_6f_QLvYg1QqJotA0IIQVo1IXNsA&usqp=CAU
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#deutsch'
+        THREAD_TS: '{{ $.welcome_msg.api_object.ts }}'
+        USERNAME: Deutsche Welle
+      envFrom:
+        integrationRef: wolken
+      uuid: 95a1c4f1-f87e-4c3b-8772-d7b8223152a6
+      pretty_name: Send DW Langsam Gesprochen
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: get_nachrichten_text
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.directdownload.output }}'
+      uuid: 65a36993-5d36-4560-be50-eac381153d0f
+      pretty_name: Get Nachrichten Text
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/strip-html-tags:1.0.4
+      id: strip_html_tags
+      env:
+        INPUT: '{{ $.get_nachrichten_text.api_object }}'
+        SANITIZE_MODE: strict
+      uuid: 1844dee0-a0d7-4f24-8166-07edfe3893db
+      pretty_name: Strip HTML Tags
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: strip_html_tags
+          sync: true
+          disable: false
+      manifestId: 7336986f-844f-460e-87f7-9e335c754143
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 5ef375a5-2828-459f-bde5-010b19aeb7f7
+  output_schema: '{}'
+root: true

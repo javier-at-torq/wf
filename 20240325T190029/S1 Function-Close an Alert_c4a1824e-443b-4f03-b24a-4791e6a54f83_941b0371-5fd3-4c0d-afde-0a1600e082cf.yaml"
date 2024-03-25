@@ -1,0 +1,220 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: c4a1824e-443b-4f03-b24a-4791e6a54f83
+name: S1 Function-Close an Alert
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: threat_id
+          description: 'The ID of the Threat Incident '
+          required: true
+          prettyName: threat_id
+          shortText:
+            defaultValue: ""
+        - name: sentinelone_integration_name
+          required: true
+          prettyName: sentinelone_integration_name
+          shortText:
+            defaultValue: ""
+        - name: analyst_verdict
+          description: 'Choose between True Positve & False Positive, '
+          required: true
+          prettyName: analyst_verdict
+          singleSelect:
+            options:
+              - false_positive
+              - true_positive
+            defaultValue: ""
+        - name: closing_reason
+          description: Why is this alert closing?
+          required: true
+          prettyName: closing_reason
+          longText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-threats:2.0.7
+      id: get_threat_id_details
+      env:
+        THREAT_IDS: '"{{ $.event.threat_id }}"'
+      envFrom:
+        integrationRef: sentinelone
+      uuid: 552189c4-2165-4a4a-b6da-3122bb55f4da
+      pretty_name: Get Threat ID details
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            HEADERS: |-
+              {
+                  "Authorization": "ApiToken {{ .S1_API_KEY }}"
+              }
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL"]'
+            TIMEOUT: "30"
+            URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats?{{ if or .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if or .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if or .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if or .AGENT_IDS }}&agentIds={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if or .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if or .CREATED_AFTER }}&createdAt__gte={{ .CREATED_AFTER | urlEnc }}{{ end }}{{ if or .CREATED_BEFORE }}&createdAt__lte={{ .CREATED_BEFORE | urlEnc }}{{ end }}{{ if or .THREAT_IDS }}&ids={{ .THREAT_IDS | urlEnc }}{{ end }}{{ if or .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if or .CONTENT_HASH }}&contentHash__contains={{ .CONTENT_HASH | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      manifestId: 30843836-8da7-4dfb-ba90-40c3bf496726
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.get_threat_id_details.api_object.data.0.threatInfo.incidentStatus }}'
+                  operator: NOT_EQUALS
+                  rvalue: resolved
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/add-note-to-threats:2.0.7
+            id: add_note_to_threats
+            env:
+              NOTE_CONTENT: '{{ $.event.closing_reason }}'
+              THREAT_IDS: '["{{ $.event.threat_id }}"]'
+            envFrom:
+              integrationRef: sentinelone
+            uuid: f6f8a965-1103-40d2-b031-15f12d544ff0
+            pretty_name: Add Note to Threats
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  BODY: |-
+                    {
+                        "filter": {
+                            "ids": {{ .THREAT_IDS }}
+                        },
+                        "data": {
+                            "text": "{{ .NOTE_CONTENT | jsonEscape }}"
+                        }
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: |-
+                    {
+                        "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "THREAT_IDS", "NOTE_CONTENT"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats/notes
+                sync: true
+                disable: false
+            manifestId: c5fa7c8e-8193-4375-9a5a-e65b4fd8f325
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/update-threat-incident:2.0.7
+            id: update_threat_incident
+            env:
+              ANALYST_VERDICT: false_positive
+              INCIDENT_STATUS: resolved
+              THREAT_ID: '{{ $.event.threat_id }}'
+            envFrom:
+              integrationRef: sentinelone
+            uuid: 69e4311d-75fc-4787-bd72-56a0c76057d2
+            pretty_name: 'Update Threat Incident '
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  BODY: |-
+                    {
+                        "filter": {
+                            "ids": [
+                                "{{ .THREAT_ID | jsonEscape }}"
+                            ]
+                        },
+                        "data": {
+                            "incidentStatus": "{{ .INCIDENT_STATUS | jsonEscape }}",
+                    {{ if or .ANALYST_VERDICT }}        "analystVerdict": "{{ .ANALYST_VERDICT | jsonEscape }}"{{ end }}
+                        }
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: |-
+                    {
+                        "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["THREAT_ID", "S1_API_KEY", "S1_MGMT_URL", "INCIDENT_STATUS"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats/incident
+                sync: true
+                disable: false
+            manifestId: fbf1a033-8beb-4165-9807-ceabc5ea9cb6
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+            id: closing_message
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: |-
+                {"result":"Success",
+                "message":"This incident is now closed,"}
+              VARIABLE_NAME: result
+            uuid: 4586910f-6124-4f7e-9a70-1dcfb0f3a83f
+            pretty_name: Closing Message
+            options:
+              executor:
+                name: utils_infrastructure_v_1_0_43
+                env:
+                  COMMAND: set_variable
+                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                sync: true
+                disable: false
+            manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+            id: closing_message
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: |-
+                {"result":"Error",
+                "message":"Threat Incident was already closed."}
+              VARIABLE_NAME: result
+            uuid: da7a4406-3eb9-4f64-9e71-892d83af4487
+            pretty_name: Closing Message
+            options:
+              executor:
+                name: utils_infrastructure_v_1_0_43
+                env:
+                  COMMAND: set_variable
+                  SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                sync: true
+                disable: false
+            manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        uuid: ee3c74e1-1923-4670-9eb0-ed016c170668
+        pretty_name: If
+    - exit:
+        success: "true"
+        output: '{{ $.closing_message.result }}'
+        uuid: 99b342c2-1016-4169-8f57-1278acfc1469
+        use_schema: true
+  annotations:
+    - uuid: 16e9d95a-7ee0-465f-902d-31a2a6b3813b
+      x: -469
+      "y": 112
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Close an Alert"}]},{"type":"paragraph","content":[{"type":"text","text":"For closing an alert the following steps need to be done."}]},{"type":"orderedList","attrs":{"start":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Receives the ID of the threat to close"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Update a Note in the threat of why it is closed"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Set Analyst Verdict True or False Positive"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Set incident status to Resolved"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Return Json with status"}]}]}]}]}'
+  output_schema: '{}'
+root: true

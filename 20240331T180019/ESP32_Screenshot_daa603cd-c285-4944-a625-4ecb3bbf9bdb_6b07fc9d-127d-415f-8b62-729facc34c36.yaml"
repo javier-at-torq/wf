@@ -1,0 +1,84 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: daa603cd-c285-4944-a625-4ecb3bbf9bdb
+name: ESP32_Screenshot
+trigger:
+  scheduledTrigger:
+    integrationId: c2c7d288-17fb-4122-8892-8e5c25f04c34
+    scheduledTriggerParameters:
+      cronTab: 0 00 7 * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.8.1
+      id: send_an_http_request
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: http://172.20.22.3/
+      runner: local_torq_academy_vm
+      uuid: 681455f5-8656-4f94-9467-9a70a217465a
+      pretty_name: Send an HTTP request
+      options:
+        executor:
+          name: http_request_v_4_8_1
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: ac90c438-1dfe-5412-9549-ef18902491dd
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: ozikox/html2img:latest
+      id: take_screenshot_from_html
+      env:
+        HTML: '{{ $.send_an_http_request.api_object }}'
+      runner: local_torq_academy_vm
+      uuid: ec591607-1940-43e2-bd5b-388170a4b438
+      pretty_name: Take Screenshot from HTML
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: 3d8b3cda-d483-5117-a241-235e5c0bf281
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+      id: upload_file
+      env:
+        CHANNEL_ID: '#the-channel'
+        FILE_CONTENT: '{{ $.take_screenshot_from_html.result.encoded_image }}'
+        FILE_NAME: dashboard.jpg
+      envFrom:
+        integrationRef: wolken
+      uuid: 30e38322-d4e3-48e5-8b4f-97e3ac96dc0a
+      pretty_name: Upload File
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+            CONTENT_TYPE: multipart/form-data; charset=utf-8
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+            URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+          sync: true
+          disable: false
+      documentationUrl: https://api.slack.com/methods/files.upload
+      manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+  output_schema: '{}'
+root: true

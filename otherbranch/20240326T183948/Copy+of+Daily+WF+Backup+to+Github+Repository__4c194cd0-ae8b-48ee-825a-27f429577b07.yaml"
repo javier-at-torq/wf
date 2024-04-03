@@ -1,0 +1,349 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 99a8e166-dc77-4a23-abe8-192e67e19bd1
+name: Copy of Daily WF Backup to Github Repository
+trigger:
+  scheduledTrigger:
+    integrationId: ""
+    scheduledTriggerParameters:
+      cronTab: 0 00 20 * * *
+      timeZone: Europe/Madrid
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "torq_integrration": {
+                  "type": 17,
+                  "prettyName": "Torq Integrration",
+                  "description": "",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "torq_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "torq_integrration": "torq_api"
+          }
+      uuid: 5e5eacee-3015-4af8-83a7-f76968946333
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_params
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "github_integration": "javier_at_torq",
+            "github_org": "javier-at-torq",
+            "github_repo": "wf"
+          }
+        VARIABLE_NAME: results
+      uuid: 37f13db7-411d-4a7e-9f4c-98cae4ec2156
+      pretty_name: Workflow Params
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        key: loop_key
+        value: loop_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/torq/list-workflows:1.0.0
+            id: list_workflows
+            env:
+              NEXT_PAGE_TOKEN: '{{ $.next_page.result }}'
+              ORDER_BY: name
+              PAGE_SIZE: "100"
+              SORT_ORDER: asc
+            envFrom:
+              integrationRef: '{{ $.workflow_parameters.torq_integrration }}'
+            uuid: 4ff6900b-8ba9-4871-a8a4-784bf025a1f0
+            pretty_name: List Workflows
+            options:
+              executor:
+                name: http_request_v_4_2_8
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: ""
+                  HEADERS: '{}'
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.torq.io/public/v1alpha/workflows?{{ if .WORKFLOW_NAME }}&name={{ .WORKFLOW_NAME | urlEnc }}{{ end }}{{ if .SORT_ORDER }}&order={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if .ORDER_BY }}&order_by={{ .ORDER_BY | urlEnc }}{{ end }}{{ if .PAGE_SIZE }}&page_size={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if .NEXT_PAGE_TOKEN }}&page_token={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://docs.torq.io/torq-public-api/ref#listworkflows
+            manifestId: 70ed69c5-514b-4270-9293-dec3978dceb1
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - collector:
+              id: collect_workflows
+              uuid: 5cecb027-e16e-472d-a723-57a3d3d6ae22
+              pretty_name: Collect Workflows
+              expression: '{{ $.list_workflows.api_object.workflows }}'
+              flatten: true
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.list_workflows.api_object.next_page_token }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                  id: next_page
+                  env:
+                    DATA_TYPE: string
+                    VALUE_STRING: '{{ $.list_workflows.api_object.next_page_token }}'
+                    VARIABLE_NAME: result
+                  uuid: 85071cba-5050-4b29-81d3-082bcd4c8798
+                  pretty_name: next_page
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_3_39
+                      env:
+                        COMMAND: set_variable
+                        SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                      sync: true
+                      disable: false
+                  manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+              else:
+                - break:
+                    pretty_name: Break
+                    uuid: 947c5539-89c7-427a-86fc-1483c45b33cc
+              uuid: f3ac20e2-9108-46f4-8978-6257aea59c0c
+              pretty_name: If pagination
+        uuid: 03f415ae-e9ec-4f80-a611-f5c24c245ae6
+        pretty_name: Retrive the complete list of workflows
+        range:
+          start: "1"
+          end: "25"
+          interval: "1"
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.collect_workflows.length }}'
+                  operator: GREATER
+                  rvalue: "0"
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+            id: get_date_for_directory_name
+            env:
+              CUSTOM_DATE_FORMAT: '%Y%m%dT%H%M%S'
+              DATE: ""
+              DATE_FORMAT_LAYOUT: Custom
+              TIME_AGO: ""
+            uuid: 5f93b08d-c066-4ed9-abb7-91319c168b11
+            pretty_name: Get Date for Directory Name
+            options:
+              executor:
+                name: utils_infrastructure_v_1_3_39
+                env:
+                  COMMAND: get_date
+                sync: true
+                disable: false
+            documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+            manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.0.4
+            id: get_date_for_commit_message
+            env:
+              DATE: ""
+              DATE_FORMAT_LAYOUT: 2006-01-02T15:04:05Z07:00
+              TIME_AGO: ""
+            uuid: a33e228a-df0a-4f42-b188-c11d352876dc
+            pretty_name: Get Date for Commit Message
+            options:
+              executor:
+                name: utils_infrastructure_v_1_3_39
+                env:
+                  COMMAND: get_date
+                sync: true
+                disable: false
+            documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+            manifestId: d81f678e-d200-4ca8-a4e4-3ee66c59b65b
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - loop:
+              in: '{{ $.collect_workflows.result }}'
+              key: wf_key
+              value: wf_value
+              steps:
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.wf_value.published_revision_id }}'
+                              operator: NOT_EMPTY
+                              rvalue: ""
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/torq/retrieve-a-revision:1.0.0
+                        id: retrieve_latest_published_workflow_revision
+                        env:
+                          REVISION_ID: published
+                          WORKFLOW_ID: '{{ $.wf_value.id }}'
+                        envFrom:
+                          integrationRef: '{{ $.workflow_parameters.torq_integrration }}'
+                        uuid: 15b9d2ab-c66e-4e57-bc50-2424263d1410
+                        pretty_name: Retrieve latest published workflow revision
+                        options:
+                          executor:
+                            name: http_request_v_4_2_7
+                            env:
+                              AUTHORIZATION: Bearer
+                              BODY: ""
+                              HEADERS: '{}'
+                              METHOD: GET
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["ACCESS_TOKEN","WORKFLOW_ID","REVISION_ID"]'
+                              TIMEOUT: "30"
+                              TOKEN: '{{ .ACCESS_TOKEN }}'
+                              URL: https://api.torq.io/public/v1alpha/workflows/{{ .WORKFLOW_ID | urlEnc }}/revision/{{ .REVISION_ID | urlEnc }}
+                            sync: true
+                            disable: false
+                        documentationUrl: https://docs.torq.io/torq-public-api/ref#getworkflowbyrevision
+                        manifestId: e44ab855-1bbf-4453-a7d1-beadf0cd20a1
+                        isPrivate: false
+                        isPrivateUrl: true
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                        id: path_in_repo
+                        env:
+                          DATA_TYPE: string
+                          VALUE_STRING: '{{ $.get_date_for_directory_name.result }}/{{ $.wf_value.name }}_{{ $.wf_value.id }}_{{ $.retrieve_latest_published_workflow_revision.api_object.id }}.yaml"'
+                          VARIABLE_NAME: results
+                        uuid: 8598af39-0cb9-4967-9805-45d872a002a1
+                        pretty_name: path_in_repo
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_3_39
+                            env:
+                              COMMAND: set_variable
+                              SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                            sync: true
+                            disable: false
+                        manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/encoding_utils/encode-base64:1.1.1
+                        id: encode_wf_in_base64
+                        env:
+                          INPUT: '{{ $.retrieve_latest_published_workflow_revision.api_object.yaml }}'
+                        uuid: e3a50a6c-aa28-4132-8a7e-9789168ee5ff
+                        pretty_name: Encode WF in base64
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_3_39
+                            env:
+                              COMMAND: encode_base64
+                            sync: true
+                            disable: false
+                        manifestId: 8f421e3e-c06b-4321-b913-ee7ce4a14e36
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                        id: create_or_update_file_contents
+                        env:
+                          AUTHORIZATION: Bearer
+                          BODY: |-
+                            {
+                              "message": "Automatic Workflow Backup on {{ $.get_date_for_commit_message.result }}",
+                              "content": "{{ $.encode_wf_in_base64.result }}"
+                            }
+                          CONTENT_TYPE: application/json; charset=utf-8
+                          HEADERS: '{"accept":"application/vnd.github+json","x-github-api-version":"2022-11-28"}'
+                          MAX_RETRIES: "3"
+                          METHOD: PUT
+                          RETRY_DELAY: "1"
+                          RETRY_ON_STATUS: 429,500-504
+                          TOKEN: '{{ $.integrations.javier_at_torq.api_key }}'
+                          URL: https://api.github.com/repos/{{ $.workflow_params.results.github_org }}/{{ $.workflow_params.results.github_repo }}/contents/{{ $.path_in_repo.results }}
+                        uuid: 5e34014e-b031-48b1-86ea-2da394454871
+                        pretty_name: Create or update file contents
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                              GO_TEMPLATE_BODY_PARSING: "false"
+                              RESPONSE_API_OBJECT_ONLY: "false"
+                            sync: true
+                            disable: false
+                        icon: https://cdn.torq.io/vendors/github.svg
+                        manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                        isPrivate: false
+                        isPrivateUrl: true
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                    else: []
+                    uuid: 50d302fb-5435-472e-99a6-c331c6c026b0
+                    pretty_name: If Published Workflow
+              uuid: 5e8ba5d5-f78d-4b25-8fe2-212702ca706c
+              pretty_name: Upload Published Workflows to GitHub
+              run_in_parallel: true
+        else: []
+        uuid: d3face4e-e056-4507-b10b-e1d36b307f3a
+        pretty_name: If Any workflows collected
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: e26d1703-e5c2-4af3-9807-8b45de90b816
+  output_schema: '{}'
+root: true

@@ -1,0 +1,174 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 62c5e039-7b3d-434c-ac40-970c53f2f1da
+name: Interaction Tests
+trigger:
+  interaction:
+    finish_strategy: CONTINUE
+    flow_timeout: 24h
+    form_group:
+      name: Main Flow
+      workflow_id: aad6622c-9f9a-4259-806b-5e9157e3eca9
+    form_schema:
+      parameters:
+        - name: information
+          pretty_name: Information
+          type: MARKDOWN_TEXT
+          value: |
+            Interaction's general information, **markdown** can be used here
+        - name: user_input
+          pretty_name: A question that requires some user input
+          type: SHORT_TEXT
+        - buttons:
+            - {}
+          name: buttons
+          type: BUTTONS
+    form_title: Add a TExt
+playbook:
+  steps:
+    - parallel:
+        uuid: b0918e89-e549-4967-ac48-d31c4bfcc63a
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 133224ef-f37d-488c-bd7a-2049efa90f31
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                id: interaction
+                env:
+                  CASE_ID: '{{ $.metadata.case.id }}'
+                  FLOW_SETTINGS: '{"name":"Main Flow","openToOrgSso":false}'
+                  FORM_SCHEMA: '{"parameters":[{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"},{"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""},{"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+                  FORM_TITLE: Title of the Interaction
+                  HAS_NEXT: "false"
+                  TIMEOUT: 24h
+                uuid: 9bf6c42e-32c5-4a37-a1e5-585ed45e23e3
+                pretty_name: Interaction
+                options:
+                  executor:
+                    name: interact_send_interaction_v_2_0_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: ccde9844-5c34-4bd4-b223-b08fe6370b64
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.6
+                id: send_message
+                env:
+                  MESSAGE_TEXT: User {{ interactionFlowURL "User Flow" }}
+                  RECIPIENT: '#devnull'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 3d584b8a-8d9b-495a-8a24-a9ed643266f4
+                pretty_name: Send Message
+                options:
+                  executor:
+                    name: slack_message_message_v_2_0_6
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3d36d573-3d64-5e78-85a8-e307fa70fd88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                id: user_interaction
+                env:
+                  CASE_ID: ""
+                  FLOW_SETTINGS: '{"name":"User Flow","openToOrgSso":false}'
+                  FORM_SCHEMA: '{"parameters":[{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"},{"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""},{"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+                  FORM_TITLE: Title of the Interaction
+                  HAS_NEXT: "false"
+                  TIMEOUT: 24h
+                uuid: b1a8efb8-cd23-4d14-90cf-11e94fc8b618
+                pretty_name: User Interaction
+                options:
+                  executor:
+                    name: interact_send_interaction_v_2_0_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: 8e8df2f6-b368-4333-b1a3-42b782cd8883
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.6
+                id: send_message
+                env:
+                  MESSAGE_TEXT: 'Admin : {{ interactionFlowURL "Admin Flow" }}'
+                  RECIPIENT: '#devnull'
+                envFrom:
+                  integrationRef: wolken
+                uuid: f6d3b96a-806c-49e7-af9e-54260bee6688
+                pretty_name: 'Send Message '
+                options:
+                  executor:
+                    name: slack_message_message_v_2_0_6
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3d36d573-3d64-5e78-85a8-e307fa70fd88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                id: admin_interaction
+                env:
+                  CASE_ID: ""
+                  FLOW_SETTINGS: '{"name":"Admin Flow","openToOrgSso":false}'
+                  FORM_SCHEMA: '{"parameters":[{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"},{"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""},{"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+                  FORM_TITLE: Title of the Interaction
+                  HAS_NEXT: "false"
+                  TIMEOUT: 24h
+                uuid: 38c6bb38-7465-46ab-abe8-86bb2bb004d4
+                pretty_name: Admin Interaction
+                options:
+                  executor:
+                    name: interact_send_interaction_v_2_0_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+      id: run_jq_command
+      env:
+        __TQ_FILE_ENV_PARSER__INPUT: plain-text
+        INPUT: '[{{ $.interaction.answers }},{{ $.user_interaction.answers }},{{ $.admin_interaction.answers }}]'
+        JSON_QUERY: .
+      uuid: d7e6e0b2-3a4c-471c-83a7-51ac7d6883d0
+      pretty_name: Run jq Command
+      options:
+        executor:
+          name: jq_infra_v_3_11_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

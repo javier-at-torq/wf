@@ -1,0 +1,1718 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: d3569daf-0bbf-4c3a-a8e3-61bdd67fe0d6
+name: Receive and Convert Docs and Images
+trigger:
+  integrationTrigger:
+    integration:
+      name: pcwahook
+      typeId: whatsapp_cloud_monitoring
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                operator: OPERATOR_EQUALS
+                rvalue: document
+          - expression:
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                operator: OPERATOR_EQUALS
+                rvalue: image
+          - expression:
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                operator: OPERATOR_EQUALS
+                rvalue: text
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/replace-text:2.0.2
+      id: number_fix
+      env:
+        INPUT: '{{ $.event.entry.0.changes.0.value.messages.0.from }}'
+        INSTANCES: "1"
+        NEW_TEXT: "52"
+        OLD_TEXT: "521"
+      uuid: ad3a541b-9a2b-4f38-9bef-e44fe6bb415b
+      pretty_name: Number Fix
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: replace_text
+          sync: true
+          disable: false
+      manifestId: 0fcc9b41-a46c-4405-923f-b5d30622a85d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "documents_mime_type": {
+                  "type": 10,
+                  "prettyName": "documents_mime_type",
+                  "description": "",
+                  "uiPlaceholder": ""
+              },
+              "labels": {
+                  "type": 10,
+                  "prettyName": "Labels",
+                  "description": "",
+                  "uiPlaceholder": ""
+              },
+              "wa_integration": {
+                  "type": 17,
+                  "prettyName": "WA Integration",
+                  "description": "",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "whatsapp_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "documents_mime_type": [
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "application/rtf"
+            ],
+            "labels": [
+              "whatsapp-bot"
+            ],
+            "wa_integration": "pcwa"
+          }
+      uuid: 4d696d70-16b8-413a-96d6-e8d83278aae7
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "openai_integration":"openaijrp",
+            "slack_integration":"wolken",
+            "slack_channel":"whatsapp",
+            "whatsapp_integration":"pcwa",
+            "customer_phone_number": "{{ $.number_fix.result }}",
+            "central_location":"19.558850755425006, -99.21671356946366"
+          }
+        VARIABLE_NAME: data
+      uuid: 63eb0625-010d-4b84-a560-4d44ead254eb
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/mark-message-as-read:1.0.0
+      id: mark_message_as_read
+      env:
+        MESSAGE_ID: '{{ $.event.entry.0.changes.0.value.messages.0.id }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_parameters.wa_integration }}'
+      uuid: 96fc9af7-7f46-4ce1-919c-ed63720fcf6b
+      pretty_name: Mark Message as Read
+      options:
+        executor:
+          name: http_request_v_4_2_11
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "message_id": "{{ .MESSAGE_ID | jsonEscape }}",
+                "messaging_product": "whatsapp",
+                "status": "read"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MESSAGE_ID","FACEBOOK_ACCESS_TOKEN","WHATSAPP_PHONE_NUMBER_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/mark-message-as-read
+      manifestId: eb08c6f7-3f74-4ab3-8f00-b1bfc92330b3
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: 2de759ef-5dd5-4891-858f-63903b8e48f7
+        pretty_name: Switch
+        cases:
+          - id: d14b01a3-6e18-4bca-84e6-96d287758ce6
+            pretty_name: Zip 2 PDF
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.document.mime_type }}'
+                      operator: EQUALS
+                      rvalue: application/x-zip-compressed
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.9.1
+                id: fetch_zip_file
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: '{}'
+                  METHOD: GET
+                  TIMEOUT: "30"
+                  TOKEN: '{{ $.integrations.{{ $.workflow_context.data.whatsapp_integration }}.facebook_access_token }}'
+                  URL: https://graph.facebook.com/v13.0/{{ $.event.entry.0.changes.0.value.messages.0.document.id }}
+                uuid: 480cf4bd-0d8c-4645-bce2-8ed899c29b38
+                pretty_name: Fetch Zip File
+                options:
+                  executor:
+                    name: http_request_v_4_9_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://cdn.torq.io/vendors/whatsapp.svg
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/mark-message-as-read
+                manifestId: 698c3c8e-2ca9-5803-9040-ffff0a5c74df
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python:3.2.0
+                id: download_file_from_mediaurl
+                env:
+                  PYTHON_CODE: "import json\nimport requests\nimport base64\n#encoded = base64.b64encode(b'data to be encoded')\n\nheaders = {'Authorization': f'Bearer {{ $.integrations.{{ $.workflow_context.data.whatsapp_integration }}.facebook_access_token }}'}\nresponse = requests.get(\"{{ $.fetch_zip_file.api_object.url }}\", headers=headers) \nencoded = base64.b64encode(response.content)\n\nprint(json.dumps({ \"file\": encoded.decode() }))\n#print(encoded.decode())"
+                uuid: c0ed138b-f4b4-488d-9b27-45ebf0fb8184
+                pretty_name: Download File from MediaURL
+                options: {}
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: 3d8b3cda-d483-5117-a241-235e5c0bf281
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - parallel:
+                  uuid: ada64350-9727-4326-8176-b5195e6cb333
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: c458f374-e1e8-4c4b-87a0-ec3a9f1e4e72
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/scripting/python-data-processing:1.0.0
+                          id: zipimg_2_pdf
+                          env:
+                            PYTHON_CODE: "###Generic Zip to PDF\nimport img2pdf\nfrom PIL import Image\nimport requests\nimport zipfile\nimport base64\nimport os\n\nextract_path = \"staging/\"\nzip_filename = \"zip_file.zip\"\n## Write ZIP File  \ntry:\n   file_content=base64.b64decode(\"{{ $.download_file_from_mediaurl.file }}\")\n   with open(zip_filename,\"wb+\") as f:\n        f.write(file_content)\nexcept Exception as e:\n   print(str(e))\n    \n## Extract File\nwith zipfile.ZipFile(zip_filename, 'r') as zip_ref:\n    zip_ref.extractall(extract_path)\n\n## List all Files\nimage_files = []\nfor filename in os.listdir(extract_path):\n    if filename.endswith(('jpg','png','jpeg','JPEG','jpeg')) == True:\n        image_file_name = extract_path + filename\n        img_file = Image.open(image_file_name)\n        image_files.append( img_file.filename )\n\n## Create PDF\nwith open(\"output.pdf\", \"wb\") as f:\n    f.write(img2pdf.convert(image_files))\n   \n## Base 64\npdf_file= open(\"output.pdf\",\"rb\")\npdf_data_binary = pdf_file.read()\npdf_data = (base64.b64encode(pdf_data_binary)).decode('ascii')\n# output\nprint(pdf_data)"
+                            REQUIREMENTS: img2pdf
+                          uuid: d1915b0b-cac2-437a-86da-bbee8fd0ed8b
+                          pretty_name: ZipImg 2 PDF
+                          options: {}
+                          icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                          manifestId: 9df460ec-bf05-5dfa-a1ef-ca1d1dbacd22
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: false
+                          retry: {}
+                    - uuid: 8cce2a53-c008-4c5d-9b5b-2669e4a93260
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                          id: filename
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: '{{  $.event.entry.0.changes.0.value.messages.0.document.filename }}.pdf'
+                            VARIABLE_NAME: name
+                          uuid: ad2529fd-57bb-4e97-bc0f-f2ed1ec7af91
+                          pretty_name: Filename
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_22_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                          retry: {}
+                        - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+                          id: upload_zipfile
+                          env:
+                            CHANNEL_ID: '#dokx-inbox'
+                            FILE_CONTENT: '{{ $.download_file_from_mediaurl.file}}'
+                            FILE_NAME: '{{ $.filename.name }}'
+                          envFrom:
+                            integrationRef: wolken
+                          uuid: 9a095421-aeb6-4b7a-b135-591d0b71ca73
+                          pretty_name: Upload Zipfile
+                          options:
+                            executor:
+                              name: http_request_v_4_6_0
+                              env:
+                                BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+                                CONTENT_TYPE: multipart/form-data; charset=utf-8
+                                HEADERS: '{}'
+                                METHOD: POST
+                                PARSE_HJSON: "true"
+                                REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+                                URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+                              sync: true
+                              disable: false
+                          documentationUrl: https://api.slack.com/methods/files.upload
+                          manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+                id: upload_pdf_file
+                env:
+                  CHANNEL_ID: '#dokx-inbox'
+                  FILE_CONTENT: '{{ $.zipimg_2_pdf.output }}'
+                  FILE_NAME: '{{ $.filename.name }}'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 40ce7967-4b49-4169-a2bc-9363b50b1cc6
+                pretty_name: Upload PDF File
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+                      CONTENT_TYPE: multipart/form-data; charset=utf-8
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+                      URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://api.slack.com/methods/files.upload
+                manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: '{}'
+                  uuid: caa45c35-7a55-47de-9c86-79a7b41c6575
+                  use_schema: true
+          - id: 4c8df4dd-71de-42f4-a19b-9c7f6a5da012
+            pretty_name: Doc
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                      operator: EQUALS
+                      rvalue: document
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.9.1
+                id: retrieve_media_url
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: '{}'
+                  METHOD: GET
+                  TIMEOUT: "30"
+                  TOKEN: '{{ $.integrations.{{ $.workflow_context.data.whatsapp_integration }}.facebook_access_token }}'
+                  URL: https://graph.facebook.com/v13.0/{{ $.event.entry.0.changes.0.value.messages.0.document.id }}
+                uuid: 835db19d-aa8a-4ed7-ae6b-0e682dc41d88
+                pretty_name: Retrieve Media URL
+                options:
+                  executor:
+                    name: http_request_v_4_9_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://cdn.torq.io/vendors/whatsapp.svg
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/mark-message-as-read
+                manifestId: 698c3c8e-2ca9-5803-9040-ffff0a5c74df
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: filename
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: '{{ $.event.entry.0.changes.0.value.messages.0.document.filename }}'
+                  VARIABLE_NAME: name
+                uuid: f2ba6e5c-7285-4d78-a7d8-e6bcdc26a8e5
+                pretty_name: Filename
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - id: 5b2082d7-d25a-47e6-91f6-7139bcc18daa
+            pretty_name: Image
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                      operator: EQUALS
+                      rvalue: image
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.9.1
+                id: retrieve_media_url
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: '{}'
+                  METHOD: GET
+                  TIMEOUT: "30"
+                  TOKEN: '{{ $.integrations.{{ $.workflow_context.data.whatsapp_integration }}.facebook_access_token }}'
+                  URL: https://graph.facebook.com/v13.0/{{ $.event.entry.0.changes.0.value.messages.0.image.id }}
+                uuid: c7b52f94-f25c-41e9-b597-f9fd7a4ebc1a
+                pretty_name: Retrieve Media URL
+                options:
+                  executor:
+                    name: http_request_v_4_9_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://cdn.torq.io/vendors/whatsapp.svg
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/mark-message-as-read
+                manifestId: 698c3c8e-2ca9-5803-9040-ffff0a5c74df
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - switch:
+                  uuid: 5f6ed577-bb92-4fd8-8be8-0e08f5dfb05f
+                  pretty_name: Switch
+                  cases:
+                    - id: 18d402c3-e988-4453-bdeb-a006c0b253ad
+                      pretty_name: jpeg
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.retrieve_media_url.api_object.mime_type }}'
+                                operator: EQUALS
+                                rvalue: image/jpeg
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                          id: filetype
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: jpeg
+                            VARIABLE_NAME: extension
+                          uuid: d50d48f1-32d9-4a1a-9e40-925c13e14882
+                          pretty_name: filetype
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_22_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                          retry: {}
+                    - id: 30574ae3-903d-4358-a5e2-5456b3c3492d
+                      pretty_name: png
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.retrieve_media_url.api_object.mime_type }}'
+                                operator: EQUALS
+                                rvalue: image/png
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                          id: filetype
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: png
+                            VARIABLE_NAME: extension
+                          uuid: 59b77517-3bbb-477a-97e1-1d1d89a976d5
+                          pretty_name: filetype
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_22_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                          retry: {}
+                  default:
+                    id: a7f44ee2-a70b-4682-ae83-9b3aa4566ba4
+                    steps: []
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: filename
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: '{{ $.event.entry.0.changes.0.value.messages.0.image.id }}.{{ $.filetype.extension }}'
+                  VARIABLE_NAME: name
+                uuid: f0f5a87f-6a81-43d4-b37d-13cf548f239b
+                pretty_name: Filename
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - id: 96d9b347-5bf0-4e93-a938-791d6c925e49
+            pretty_name: YT
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                      operator: REGEX
+                      rvalue: ^https:\/\/youtu\.be\/|^https:\/\/www\.youtube\.com\/|^video https:\/\/youtu\.be\/|^video https:\/\/www\.youtube\.com\/
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                            operator: REGEX
+                            rvalue: ^video https:\/\/youtu\.be\/|^video https:\/\/www\.youtube\.com\/
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: media
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: video
+                        VARIABLE_NAME: type
+                      uuid: e88ea8e1-2526-4856-b807-e6852c09ba99
+                      pretty_name: media
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/split-text:1.1.2
+                      id: strip_cmd
+                      env:
+                        INPUT: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                        SEPARATOR: ' '
+                      uuid: e6a68e3a-30fc-4ae5-8e22-064426102df1
+                      pretty_name: Strip cmd
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: split_text
+                          sync: true
+                          disable: false
+                      manifestId: 28047e6e-0866-4508-aa69-b60d18c9a593
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: download_link
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: '{{ $.strip_cmd.result.1 }}'
+                        VARIABLE_NAME: url
+                      uuid: f17ae6fa-ab05-405f-8f58-66bfe2d75b44
+                      pretty_name: download_link
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: media
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: audio
+                        VARIABLE_NAME: type
+                      uuid: c33dc01c-5a93-4e8d-b14c-6b4595fec3fe
+                      pretty_name: media
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                      id: download_link
+                      env:
+                        DATA_TYPE: string
+                        VALUE_STRING: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                        VARIABLE_NAME: url
+                      uuid: 181b13f8-4b3d-4489-ae81-66b2d555d2fb
+                      pretty_name: download_link
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_4_3
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: c50d496b-4300-4767-a59c-79aa00e1bd64
+                  pretty_name: If Video
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: '{}'
+                  uuid: e895d9b6-561d-42c2-b166-6cfd0176518e
+          - id: 4cc40a70-f582-4e26-92cb-473ba7292d51
+            pretty_name: URL
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                      operator: REGEX
+                      rvalue: (((https?|ftp|file)://|www\.)[-a-zA-Z0-9:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?::\d{2,5})?((?:[/+]|\?)[-a-zA-Z0-9()@%_\+\*'.~#?,;:!&\/=\-$]*)?\b)
+            steps:
+              - parallel:
+                  uuid: 544c92dd-0cbb-42ad-911f-a75123684c64
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: 707984fb-75be-4bdb-9d92-dbd8859f164e
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+                          id: url_verdict_1
+                          env:
+                            RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+                            TEXT: URL Analysis .... this will take a couple of minutes ...
+                          envFrom:
+                            integrationRef: pcwa
+                          ignoreFailure: true
+                          uuid: 84d12be2-e183-4717-beed-bdf01968a21d
+                          pretty_name: URL Verdict 1
+                          options:
+                            executor:
+                              name: http_request_v_4_0_2
+                              env:
+                                AUTHORIZATION: Bearer
+                                BODY: |-
+                                  {
+                                      "messaging_product": "whatsapp",
+                                      "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                                      "type": "text",
+                                      "text": {
+                                          "body": "{{ .TEXT | jsonEscape }}"
+                                      }
+                                  }
+                                CONTENT_TYPE: application/json
+                                HEADERS: '{}'
+                                METHOD: POST
+                                PARSE_HJSON: "true"
+                                REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                                TIMEOUT: "30"
+                                TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                                URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                              sync: true
+                              disable: false
+                          documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+                          manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - uuid: e551814b-acb3-4faf-9348-f18437ad55ab
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/opencti/search-observable:2.0.0
+                          id: search_observable
+                          env:
+                            OBSERVABLE: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                          envFrom:
+                            integrationRef: opencti_local
+                          ignoreFailure: true
+                          uuid: d8df24d3-c4a6-4f8e-91c3-a89d3a281ae7
+                          pretty_name: Search Observable
+                          options:
+                            executor:
+                              name: http_request_v_4_9_1
+                              env:
+                                AUTHORIZATION: Bearer
+                                BODY: |-
+                                  {
+                                    "query": "query StixCyberObservablesLinesPaginationQuery(\n  $types: [String]\n  $search: String\n  $count: Int!\n  $cursor: ID\n  $orderBy: StixCyberObservablesOrdering\n  $orderMode: OrderingMode\n  $filters: FilterGroup\n) {\n  ...StixCyberObservablesLines_data_4GmerJ\n}\n\nfragment StixCyberObservableLine_node on StixCyberObservable {\n  __isStixCyberObservable: __typename\n  id\n  entity_type\n  parent_types\n  observable_value\n  created_at\n  createdBy {\n    __typename\n    __isIdentity: __typename\n    id\n    name\n    entity_type\n  }\n  ... on IPv4Addr {\n    countries {\n      edges {\n        node {\n          name\n          x_opencti_aliases\n          id\n        }\n      }\n    }\n  }\n  ... on IPv6Addr {\n    countries {\n      edges {\n        node {\n          name\n          x_opencti_aliases\n          id\n        }\n      }\n    }\n  }\n  objectMarking {\n    edges {\n      node {\n        id\n        definition\n        x_opencti_order\n        x_opencti_color\n      }\n    }\n  }\n  objectLabel {\n    edges {\n      node {\n        id\n        value\n        color\n      }\n    }\n  }\n  creators {\n    id\n    name\n  }\n}\n\nfragment StixCyberObservablesLines_data_4GmerJ on Query {\n  stixCyberObservables(types: $types, search: $search, first: $count, after: $cursor, orderBy: $orderBy, orderMode: $orderMode, filters: $filters) {\n    edges {\n      node {\n        __typename\n        id\n        standard_id\n        entity_type\n        observable_value\n        created_at\n        objectMarking {\n          edges {\n            node {\n              id\n              definition\n              x_opencti_order\n              x_opencti_color\n            }\n          }\n        }\n        ...StixCyberObservableLine_node\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n      globalCount\n    }\n  }\n}",
+                                    "variables": {
+                                      "count": 25,
+                                      "cursor": null,
+                                      "filters": null,
+                                      "orderBy": "created_at",
+                                      "orderMode": "desc",
+                                      "search": "{{ .OBSERVABLE | jsonEscape }}",
+                                      "types": null
+                                    }
+                                  }
+                                CONTENT_TYPE: application/json; charset=utf-8
+                                HEADERS: ""
+                                METHOD: POST
+                                PARSE_HJSON: "true"
+                                REQUIRED_VARIABLES: '["OBSERVABLE","OPENCTI_API_KEY","OPENCTI_MANAGEMENT_URL"]'
+                                TOKEN: '{{ .OPENCTI_API_KEY }}'
+                                URL: '{{ .OPENCTI_MANAGEMENT_URL }}/graphql'
+                              sync: true
+                              disable: false
+                          documentationUrl: https://docs.opencti.io/5.12.X/
+                          manifestId: 19cb7933-1ea3-519d-9402-851d47e1a01f
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: false
+                          retry: {}
+                        - name: us-docker.pkg.dev/stackpulse/public/opencti/run-graphql-query:1.0.0
+                          id: run_graphql_query
+                          env:
+                            QUERY: ""
+                          envFrom:
+                            integrationRef: opencti_local
+                          uuid: b69b54aa-b590-4fca-8209-044282667121
+                          pretty_name: Run GraphQL Query
+                          options:
+                            executor:
+                              name: http_request_v_4_6_0
+                              env:
+                                AUTHORIZATION: Bearer
+                                BODY: |-
+                                  {
+                                    "query": "{{ .QUERY | jsonEscape }}",
+                                  {{ if .VARIABLES }}  "variables": {{ .VARIABLES }}{{ end }}
+                                  }
+                                CONTENT_TYPE: application/json; charset=utf-8
+                                HEADERS: ""
+                                METHOD: POST
+                                PARSE_HJSON: "true"
+                                REQUIRED_VARIABLES: '["QUERY","OPENCTI_API_KEY","OPENCTI_MANAGEMENT_URL"]'
+                                TOKEN: '{{ .OPENCTI_API_KEY }}'
+                                URL: '{{ .OPENCTI_MANAGEMENT_URL }}/graphql'
+                              sync: true
+                              disable: false
+                          documentationUrl: https://docs.opencti.io/
+                          manifestId: 166b2209-fb21-5220-92c9-e53c6996aea7
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: true
+                          retry: {}
+              - trigger:
+                  id: urlscan_url_enrichment_with_cache
+                  playbook_id: 0d176960-6925-4a82-9f74-6079a8ab1a2a
+                  pretty_name: URLScan URL Enrichment with Cache
+                  uuid: 432515dd-4cd8-4db1-8ca3-829662af8eb3
+                  input: |-
+                    {
+                      "url": "{{ $.event.entry.0.changes.0.value.messages.0.text.body }}",
+                      "urlscan_integration": "urlscan",
+                      "torq_integration": "torq_api",
+                      "scan_visibility": "public",
+                      "provide_raw_analysis_data": "false"
+                    }
+                  playbook_name: URLScan URL Enrichment with Cache
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+              - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+                id: url_verdict
+                env:
+                  RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+                  TEXT: |-
+                    *{{ $.urlscan_url_enrichment_with_cache.output.observable_defanged_value }}*
+
+                    _{{ $.urlscan_url_enrichment_with_cache.output.observable_reputation }}_
+
+                    Phishing: {{ $.urlscan_url_enrichment_with_cache.output.phishing }}
+                    Malicious: {{ $.urlscan_url_enrichment_with_cache.output.score.malicious }}
+                    Brands: {{ $.urlscan_url_enrichment_with_cache.output.score.brands }}
+                    Tags: {{ $.urlscan_url_enrichment_with_cache.output.score.tags }}
+                envFrom:
+                  integrationRef: pcwa
+                ignoreFailure: true
+                uuid: aa48590e-fcaf-4e03-a42f-dc052cef4fdb
+                pretty_name: URL Verdict
+                options:
+                  executor:
+                    name: http_request_v_4_0_2
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                            "messaging_product": "whatsapp",
+                            "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                            "type": "text",
+                            "text": {
+                                "body": "{{ .TEXT | jsonEscape }}"
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                      URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+                manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-image-message:1.0.0
+                id: send_screenshot
+                env:
+                  IMAGE_URL: '{{ $.urlscan_url_enrichment_with_cache.output.screenshot }}'
+                  RECIPIENT_PHONE_NUMBER: '{{ $.number_fix.result }}'
+                envFrom:
+                  integrationRef: pcwa
+                uuid: d087b215-4add-4815-b76c-a8a4f6d508aa
+                pretty_name: Send ScreenShot
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                          "image": {
+                            "link": "{{ .IMAGE_URL | jsonEscape }}"
+                          },
+                          "messaging_product": "whatsapp",
+                          "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                          "type": "image"
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: ""
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID","IMAGE_URL","RECIPIENT_PHONE_NUMBER","FACEBOOK_ACCESS_TOKEN"]'
+                      TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                      URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages
+                manifestId: 611a6bbe-a8c4-4e8d-95ce-b4e7c2501263
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/opencti/run-graphql-query:1.0.0
+                id: add_url_as_observable
+                env:
+                  QUERY: |
+                    mutation StixCyberObservableCreationMutation(
+                      $type: String!
+                      $x_opencti_score: Int
+                      $x_opencti_description: String
+                      $createIndicator: Boolean
+                      $createdBy: String
+                      $objectMarking: [String]
+                      $objectLabel: [String]
+                      $externalReferences: [String]
+                      $AutonomousSystem: AutonomousSystemAddInput
+                      $Directory: DirectoryAddInput
+                      $DomainName: DomainNameAddInput
+                      $EmailAddr: EmailAddrAddInput
+                      $EmailMessage: EmailMessageAddInput
+                      $EmailMimePartType: EmailMimePartTypeAddInput
+                      $Artifact: ArtifactAddInput
+                      $StixFile: StixFileAddInput
+                      $X509Certificate: X509CertificateAddInput
+                      $IPv4Addr: IPv4AddrAddInput
+                      $IPv6Addr: IPv6AddrAddInput
+                      $MacAddr: MacAddrAddInput
+                      $Mutex: MutexAddInput
+                      $NetworkTraffic: NetworkTrafficAddInput
+                      $Process: ProcessAddInput
+                      $Software: SoftwareAddInput
+                      $Url: UrlAddInput
+                      $UserAccount: UserAccountAddInput
+                      $WindowsRegistryKey: WindowsRegistryKeyAddInput
+                      $WindowsRegistryValueType: WindowsRegistryValueTypeAddInput
+                      $Hostname: HostnameAddInput
+                      $CryptographicKey: CryptographicKeyAddInput
+                      $CryptocurrencyWallet: CryptocurrencyWalletAddInput
+                      $Text: TextAddInput
+                      $UserAgent: UserAgentAddInput
+                      $BankAccount: BankAccountAddInput
+                      $PhoneNumber: PhoneNumberAddInput
+                      $PaymentCard: PaymentCardAddInput
+                      $MediaContent: MediaContentAddInput
+                    ) {
+                      stixCyberObservableAdd(type: $type, x_opencti_score: $x_opencti_score, x_opencti_description: $x_opencti_description, createIndicator: $createIndicator, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel, externalReferences: $externalReferences, AutonomousSystem: $AutonomousSystem, Directory: $Directory, DomainName: $DomainName, EmailAddr: $EmailAddr, EmailMessage: $EmailMessage, EmailMimePartType: $EmailMimePartType, Artifact: $Artifact, StixFile: $StixFile, X509Certificate: $X509Certificate, IPv4Addr: $IPv4Addr, IPv6Addr: $IPv6Addr, MacAddr: $MacAddr, Mutex: $Mutex, NetworkTraffic: $NetworkTraffic, Process: $Process, Software: $Software, Url: $Url, UserAccount: $UserAccount, WindowsRegistryKey: $WindowsRegistryKey, WindowsRegistryValueType: $WindowsRegistryValueType, Hostname: $Hostname, CryptographicKey: $CryptographicKey, CryptocurrencyWallet: $CryptocurrencyWallet, Text: $Text, UserAgent: $UserAgent, BankAccount: $BankAccount, PhoneNumber: $PhoneNumber, PaymentCard: $PaymentCard, MediaContent: $MediaContent) {
+                        __typename
+                        id
+                        entity_type
+                        parent_types
+                        observable_value
+                        x_opencti_description
+                        created_at
+                        createdBy {
+                          __typename
+                          __isIdentity: __typename
+                          id
+                          name
+                          entity_type
+                        }
+                        objectMarking {
+                          edges {
+                            node {
+                              id
+                              definition_type
+                              definition
+                              x_opencti_order
+                              x_opencti_color
+                            }
+                          }
+                        }
+                        objectLabel {
+                          edges {
+                            node {
+                              id
+                              value
+                              color
+                            }
+                          }
+                        }
+                      }
+                    }
+                  VARIABLES: |-
+                    {
+                      "type": "Url",
+                      "x_opencti_score": 50,
+                      "x_opencti_description": "Malicious URL",
+                      "createIndicator": false,
+                      "createdBy": null,
+                      "objectMarking": [],
+                      "objectLabel": [
+                        "whatsapp-bot"
+                      ],
+                      "externalReferences": [],
+                      "AutonomousSystem": null,
+                      "Directory": null,
+                      "DomainName": null,
+                      "EmailAddr": null,
+                      "EmailMessage": null,
+                      "EmailMimePartType": null,
+                      "Artifact": null,
+                      "StixFile": null,
+                      "X509Certificate": null,
+                      "IPv4Addr": null,
+                      "IPv6Addr": null,
+                      "MacAddr": null,
+                      "Mutex": null,
+                      "NetworkTraffic": null,
+                      "Process": null,
+                      "Software": null,
+                      "Url": {
+                        "value": "{{ $.event.entry.0.changes.0.value.messages.0.text.body }}"
+                      },
+                      "UserAccount": null,
+                      "WindowsRegistryKey": null,
+                      "WindowsRegistryValueType": null,
+                      "Hostname": null,
+                      "CryptographicKey": null,
+                      "CryptocurrencyWallet": null,
+                      "Text": null,
+                      "UserAgent": null,
+                      "BankAccount": null,
+                      "PhoneNumber": null,
+                      "PaymentCard": null,
+                      "MediaContent": null
+                    }
+                envFrom:
+                  integrationRef: opencti_local
+                uuid: 6672f7bb-fea8-4826-80ef-ae78d00c0e8c
+                pretty_name: Add URL as Observable
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                          "query": "{{ .QUERY | jsonEscape }}",
+                        {{ if .VARIABLES }}  "variables": {{ .VARIABLES }}{{ end }}
+                        }
+                      CONTENT_TYPE: application/json; charset=utf-8
+                      HEADERS: ""
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["QUERY","OPENCTI_API_KEY","OPENCTI_MANAGEMENT_URL"]'
+                      TOKEN: '{{ .OPENCTI_API_KEY }}'
+                      URL: '{{ .OPENCTI_MANAGEMENT_URL }}/graphql'
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.opencti.io/
+                manifestId: 166b2209-fb21-5220-92c9-e53c6996aea7
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: '{}'
+                  uuid: 2ceed746-8dba-4745-b980-0338128bd2ce
+        default:
+          id: 2879d7bb-14ed-4cb2-94c1-a4c33be1cd47
+          steps:
+            - exit:
+                success: "true"
+                pretty_name: Exit
+                output: '{}'
+                uuid: ed5ac445-67e7-46ce-8531-a6a25256e9d6
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:3.2.0
+      id: download_file_from_mediaurl
+      env:
+        PYTHON_CODE: "import json\nimport requests\nimport base64\n#encoded = base64.b64encode(b'data to be encoded')\n\nheaders = {'Authorization': f'Bearer {{ $.integrations.{{ $.workflow_context.data.whatsapp_integration }}.facebook_access_token }}'}\nresponse = requests.get(\"{{ $.retrieve_media_url.api_object.url }}\", headers=headers) \nencoded = base64.b64encode(response.content)\n\nprint(json.dumps({ \"file\": encoded.decode() }))\n#print(encoded.decode())"
+      uuid: b1864a40-0707-4251-b53e-f85041e4b138
+      pretty_name: Download File from MediaURL
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: 3d8b3cda-d483-5117-a241-235e5c0bf281
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 133d47b0-47e7-4238-bc31-cd9a4ced241a
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 61950f79-f99d-4dd6-8210-1259e160dba0
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+                id: upload_original_file
+                env:
+                  CHANNEL_ID: '#dokx-inbox'
+                  FILE_CONTENT: '{{ $.download_file_from_mediaurl.file}}'
+                  FILE_NAME: '{{ $.filename.name }}'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 5d5d199f-2733-4d5b-a89c-fef0842171e2
+                pretty_name: Upload Original File
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+                      CONTENT_TYPE: multipart/form-data; charset=utf-8
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+                      URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://api.slack.com/methods/files.upload
+                manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: d61cf8cd-9cd4-445d-8dc4-b1a8423d5a78
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: importquery
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: '{"query":"mutation ArtifactCreationMutation(\n  $file: Upload!\n  $x_opencti_description: String\n  $createdBy: String\n  $objectMarking: [String]\n  $objectLabel: [String]\n) {\n  artifactImport(file: $file, x_opencti_description: $x_opencti_description, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel) {\n    ...ArtifactLine_node\n    id\n  }\n}\n\nfragment ArtifactLine_node on Artifact {\n  id\n  entity_type\n  parent_types\n  observable_value\n  created_at\n  createdBy {\n    __typename\n    __isIdentity: __typename\n    id\n    name\n    entity_type\n  }\n  objectMarking {\n    edges {\n      node {\n        id\n        definition_type\n        definition\n        x_opencti_order\n        x_opencti_color\n      }\n    }\n  }\n  objectLabel {\n    edges {\n      node {\n        id\n        value\n        color\n      }\n    }\n  }\n  creators {\n    id\n    name\n  }\n  importFiles {\n    edges {\n      node {\n        id\n        name\n        size\n        metaData {\n          mimetype\n        }\n      }\n    }\n  }\n}\n","variables":{"file":null,"x_opencti_description":"ByTorq","createdBy":null,"objectMarking":[],"objectLabel":{{ $.workflow_parameters.labels}}'
+                  VARIABLE_NAME: data
+                uuid: bb0e1a14-dd04-4842-9344-711ce35ca367
+                pretty_name: ImportQuery
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+                id: import_artifact
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: '[{"key":"operations","value":"{\"query\":\"mutation ArtifactCreationMutation(\\n  $file: Upload!\\n  $x_opencti_description: String\\n  $createdBy: String\\n  $objectMarking: [String]\\n  $objectLabel: [String]\\n) {\\n  artifactImport(file: $file, x_opencti_description: $x_opencti_description, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel) {\\n    ...ArtifactLine_node\\n    id\\n  }\\n}\\n\\nfragment ArtifactLine_node on Artifact {\\n  id\\n  entity_type\\n  parent_types\\n  observable_value\\n  created_at\\n  createdBy {\\n    __typename\\n    __isIdentity: __typename\\n    id\\n    name\\n    entity_type\\n  }\\n  objectMarking {\\n    edges {\\n      node {\\n        id\\n        definition_type\\n        definition\\n        x_opencti_order\\n        x_opencti_color\\n      }\\n    }\\n  }\\n  objectLabel {\\n    edges {\\n      node {\\n        id\\n        value\\n        color\\n      }\\n    }\\n  }\\n  creators {\\n    id\\n    name\\n  }\\n  importFiles {\\n    edges {\\n      node {\\n        id\\n        name\\n        size\\n        metaData {\\n          mimetype\\n        }\\n      }\\n    }\\n  }\\n}\\n\",\"variables\":{\"file\":null,\"x_opencti_description\":\"ByTorq\",\"createdBy\":null,\"objectMarking\":[],\"objectLabel\":[\"whatsapp-bot\"]}}","filename":"","type":"text"},{"key":"map","value":"{\"1\":[\"variables.file\"]}","filename":"","type":"text"},{"key":"1","value":"{{ $.download_file_from_mediaurl.file }}","filename":"{{ $.event.entry.0.changes.0.value.messages.0.document.filename }}","type":"file"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: ""
+                  METHOD: POST
+                  TOKEN: 7ddd044f-1f25-408d-a6a0-058a72489b86
+                  URL: https://novel-chow-oriented.ngrok-free.app/graphql
+                uuid: b9cd4d79-f59a-40c9-b134-ad2bea27398c
+                pretty_name: Import Artifact
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://svgshare.com/i/tYn.svg
+                manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+                id: import_artifact_3
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: '[{"key":"operations","value":"{\"query\":\"mutation ArtifactCreationMutation(\\n  $file: Upload!\\n  $x_opencti_description: String\\n  $createdBy: String\\n  $objectMarking: [String]\\n  $objectLabel: [String]\\n) {\\n  artifactImport(file: $file, x_opencti_description: $x_opencti_description, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel) {\\n    ...ArtifactLine_node\\n    id\\n  }\\n}\\n\\nfragment ArtifactLine_node on Artifact {\\n  id\\n  entity_type\\n  parent_types\\n  observable_value\\n  created_at\\n  createdBy {\\n    __typename\\n    __isIdentity: __typename\\n    id\\n    name\\n    entity_type\\n  }\\n  objectMarking {\\n    edges {\\n      node {\\n        id\\n        definition_type\\n        definition\\n        x_opencti_order\\n        x_opencti_color\\n      }\\n    }\\n  }\\n  objectLabel {\\n    edges {\\n      node {\\n        id\\n        value\\n        color\\n      }\\n    }\\n  }\\n  creators {\\n    id\\n    name\\n  }\\n  importFiles {\\n    edges {\\n      node {\\n        id\\n        name\\n        size\\n        metaData {\\n          mimetype\\n        }\\n      }\\n    }\\n  }\\n}\\n\",\"variables\":{\"file\":null,\"x_opencti_description\":\"ByTorq\",\"createdBy\":null,\"objectMarking\":[],\"objectLabel\":[\"whatsapp-bot\"]}}","filename":"","type":"text"},{"key":"map","value":"{\"1\":[\"variables.file\"]}","filename":"","type":"text"},{"key":"1","value":"{{ $.download_file_from_mediaurl.file }}","filename":"{{ $.filename.name }}","type":"file"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: ""
+                  METHOD: POST
+                  TOKEN: 7ddd044f-1f25-408d-a6a0-058a72489b86
+                  URL: http://172.20.22.20:8080/graphql
+                runner: local_torq_academy_vm
+                ignoreFailure: true
+                uuid: cc89529f-901e-494e-b32b-dd678e12269b
+                pretty_name: Import Artifact 3
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://svgshare.com/i/tYn.svg
+                manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+                id: import_artifact_2
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: '[{"key":"operations","value":"{\"query\":\"mutation ArtifactCreationMutation(\\n  $file: Upload!\\n  $x_opencti_description: String\\n  $createdBy: String\\n  $objectMarking: [String]\\n  $objectLabel: [String]\\n) {\\n  artifactImport(file: $file, x_opencti_description: $x_opencti_description, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel) {\\n    ...ArtifactLine_node\\n    id\\n  }\\n}\\n\\nfragment ArtifactLine_node on Artifact {\\n  id\\n  entity_type\\n  parent_types\\n  observable_value\\n  created_at\\n  createdBy {\\n    __typename\\n    __isIdentity: __typename\\n    id\\n    name\\n    entity_type\\n  }\\n  objectMarking {\\n    edges {\\n      node {\\n        id\\n        definition_type\\n        definition\\n        x_opencti_order\\n        x_opencti_color\\n      }\\n    }\\n  }\\n  objectLabel {\\n    edges {\\n      node {\\n        id\\n        value\\n        color\\n      }\\n    }\\n  }\\n  creators {\\n    id\\n    name\\n  }\\n  importFiles {\\n    edges {\\n      node {\\n        id\\n        name\\n        size\\n        metaData {\\n          mimetype\\n        }\\n      }\\n    }\\n  }\\n}\\n\",\"variables\":{\"file\":null,\"x_opencti_description\":\"ByTorq\",\"createdBy\":null,\"objectMarking\":[],\"objectLabel\":[\"torq\"]}}","filename":"","type":"text"},{"key":"map","value":"{\"1\":[\"variables.file\"]}","filename":"","type":"text"},{"key":"1","value":"{{ $.download_file_from_mediaurl.file }}","filename":"{{ $.event.entry.0.changes.0.value.messages.0.document.filename }}","type":"file"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: ""
+                  METHOD: POST
+                  TOKEN: 7ddd044f-1f25-408d-a6a0-058a72489b86
+                  URL: https://novel-chow-oriented.ngrok-free.app/graphql
+                uuid: 5a65a60a-0dbd-4e0b-a972-e2dfdfad917b
+                pretty_name: Import Artifact 2
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://svgshare.com/i/tYn.svg
+                manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+                id: import_artifact_1
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: '[{"key":"operations","value":"{\"query\":\"mutation ArtifactCreationMutation(\\n  $file: Upload!\\n  $x_opencti_description: String\\n  $createdBy: String\\n  $objectMarking: [String]\\n  $objectLabel: [String]\\n) {\\n  artifactImport(file: $file, x_opencti_description: $x_opencti_description, createdBy: $createdBy, objectMarking: $objectMarking, objectLabel: $objectLabel) {\\n    ...ArtifactLine_node\\n    id\\n  }\\n}\\n\\nfragment ArtifactLine_node on Artifact {\\n  id\\n  entity_type\\n  parent_types\\n  observable_value\\n  created_at\\n  createdBy {\\n    __typename\\n    __isIdentity: __typename\\n    id\\n    name\\n    entity_type\\n  }\\n  objectMarking {\\n    edges {\\n      node {\\n        id\\n        definition_type\\n        definition\\n        x_opencti_order\\n        x_opencti_color\\n      }\\n    }\\n  }\\n  objectLabel {\\n    edges {\\n      node {\\n        id\\n        value\\n        color\\n      }\\n    }\\n  }\\n  creators {\\n    id\\n    name\\n  }\\n  importFiles {\\n    edges {\\n      node {\\n        id\\n        name\\n        size\\n        metaData {\\n          mimetype\\n        }\\n      }\\n    }\\n  }\\n}\\n\",\"variables\":{\"file\":null,\"x_opencti_description\":\"ByTorq\",\"createdBy\":null,\"objectMarking\":[],\"objectLabel\":[\"torq\"]}}","filename":"","type":"text"},{"key":"map","value":"{\"1\":[\"variables.file\"]}","filename":"","type":"text"},{"key":"1","value":"{{ $.download_file_from_mediaurl.file }}","filename":"{{ jsonEscape $.event.filename }}","type":"file"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: ""
+                  METHOD: POST
+                  TOKEN: '{{ $.integrations.localopencti.api_key }}'
+                  URL: '{{ $.integrations.localopencti.management_url }}/graphql'
+                uuid: f1e81a66-6bfe-485c-b6b5-99fe665a5f19
+                pretty_name: Import Artifact 1
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://svgshare.com/i/tYn.svg
+                manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: true
+    - switch:
+        uuid: 81a2c9b4-244d-4125-9318-eb0fecd92449
+        pretty_name: Switch
+        cases:
+          - id: 379c5863-b500-4174-82c4-2c9ee4ffde8d
+            pretty_name: Documents to PDF
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.document.mime_type }}'
+                      operator: IN
+                      rvalue: '{{ $.workflow_parameters.documents_mime_type }}'
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.9.1
+                id: convert_to_pdf
+                env:
+                  AUTHORIZATION: None
+                  BODY: '[{"key":"File","value":"{{ $.download_file_from_mediaurl.file }}","filename":"{{ $.event.entry.0.changes.0.value.messages.0.document.filename }}","type":"file"},{"key":"type","value":"{{ $.event.entry.0.changes.0.value.messages.0.document.mime_type }}","filename":"","type":"text"}]'
+                  CONTENT_TYPE: multipart/form-data; charset=utf-8
+                  HEADERS: '{}'
+                  METHOD: POST
+                  URL: https://v2.convertapi.com/convert/doc/to/pdf?Secret={{ secret "convertapi" }}
+                uuid: 11d5c5f8-91b5-49f4-a81e-a34fcb66aec1
+                pretty_name: Convert to PDF
+                options:
+                  executor:
+                    name: http_request_v_4_9_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                manifestId: 698c3c8e-2ca9-5803-9040-ffff0a5c74df
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+                id: upload_pdf
+                env:
+                  CHANNEL_ID: '#dokx-inbox'
+                  FILE_CONTENT: '{{ $.convert_to_pdf.api_object.Files.0.FileData }}'
+                  FILE_NAME: '{{ $.convert_to_pdf.api_object.Files.0.FileName }}'
+                envFrom:
+                  integrationRef: wolken
+                uuid: aeae1f4a-9f7a-4940-bda2-df98ae2e08f0
+                pretty_name: Upload PDF
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+                      CONTENT_TYPE: multipart/form-data; charset=utf-8
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+                      URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://api.slack.com/methods/files.upload
+                manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: aa5810aa-d304-4f35-be2a-486cc6cbe138
+            pretty_name: Image to PDF
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.document.mime_type }}'
+                      operator: IN
+                      rvalue: |-
+                        [
+                          "image/jpeg",
+                          "image/png"
+                        ]
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python-data-processing:1.0.0
+                id: image_to_pdf
+                env:
+                  PYTHON_CODE: "import img2pdf\nfrom PIL import Image\nimport os\nimport base64\n\nimg_path = \"image.{{ $.filetype.extension }}\"\n\ntry:\n   file_content=base64.b64decode(\"{{ $.download_file_from_mediaurl.file }}\")\n   with open(img_path,\"wb+\") as f:\n        f.write(file_content)\nexcept Exception as e:\n   print(str(e))\n\n \n# storing pdf path\npdf_path = \"{{ $.filename.name }}.pdf\"\n \n# opening image\nimage = Image.open(img_path)\n \n# converting into chunks using img2pdf\npdf_bytes = img2pdf.convert(image.filename)\n \n# opening or creating pdf file\nfile = open(pdf_path, \"wb\")\n \n# writing pdf files with chunks\nfile.write(pdf_bytes)\n \n# closing image file\nimage.close()\n \n# closing pdf file\nfile.close()\n\nimage_file= open(pdf_path,\"rb\")\nimage_data_binary = image_file.read()\nimage_data = (base64.b64encode(image_data_binary)).decode('ascii')\n# output\nprint(image_data)"
+                  REQUIREMENTS: img2pdf
+                uuid: ce9ae066-2988-4238-bde1-4a11b0dbe219
+                pretty_name: Image to PDF
+                options: {}
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: 9df460ec-bf05-5dfa-a1ef-ca1d1dbacd22
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/slack/upload-file:2.0.0
+                id: upload_pdf
+                env:
+                  CHANNEL_ID: '#dokx-inbox'
+                  FILE_CONTENT: '{{ $.image_to_pdf.output }}'
+                  FILE_NAME: '{{ $.filename.name }}.pdf'
+                envFrom:
+                  integrationRef: wolken
+                uuid: 91491879-7e89-4b20-83cc-4c4d22c319ba
+                pretty_name: Upload PDF
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      BODY: '[{"key":"file","type":"file","value":"{{ .FILE_CONTENT | jsonEscape }}","filename":"{{ .FILE_NAME | jsonEscape }}"},{"key":"initial_comment","type":"text","value":"{{ .INITIAL_COMMENT | jsonEscape }}","should_exists_var":"INITIAL_COMMENT"},{"key":"channels","type":"text","value":"{{ .CHANNEL_ID | jsonEscape }}"},{"key":"thread_ts","type":"text","value":"{{ .THREAT_TS | jsonEscape }}","should_exists_var":"THREAT_TS"},{"key":"title","type":"text","value":"{{ .TITLE_OF_FILE | jsonEscape }}","should_exists_var":"TITLE_OF_FILE"}]'
+                      CONTENT_TYPE: multipart/form-data; charset=utf-8
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["FILE_CONTENT","FILE_NAME","CHANNEL_ID","apikey"]'
+                      URL: https://slack.com/api/files.upload?token={{ .apikey | jsonEscape | rawB64Dec }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://api.slack.com/methods/files.upload
+                manifestId: 29719e06-6886-5fdc-ab98-a478f4db35ab
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: 7dc3c308-0fae-48ed-9b82-224af3c6addd
+          steps: []
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 7b69d569-f92e-40fb-bea2-cfcd498998b6
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+      id: get_profile
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.ytdlp_wabot_02_download.fileurl }}.json'
+      runner: vultrwarsaw
+      ignoreFailure: true
+      uuid: 0cc4b756-d32b-49c2-80f0-710e8d203d65
+      pretty_name: Get Profile
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+      id: send_ack_message
+      env:
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEXT: "\U0001F916 Fetching {{ $.media.type }} File for {{ $.download_link.url }}"
+      envFrom:
+        integrationRef: pcwa
+      uuid: 0d5e1884-4782-4b9c-9ffc-61b148d00525
+      pretty_name: Send ACK Message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "text",
+                  "text": {
+                      "body": "{{ .TEXT | jsonEscape }}"
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+      id: send_link
+      env:
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEXT: "\U0001F916 Enjoy! {{ $.ytdlp_wabot_02_download.result.media_url }}"
+      envFrom:
+        integrationRef: pcwa
+      uuid: c48d537f-1cf7-4829-8fae-a32d4f3e1fcc
+      pretty_name: Send Link
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "text",
+                  "text": {
+                      "body": "{{ .TEXT | jsonEscape }}"
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-image-message:1.0.0
+      id: send_image_message
+      env:
+        IMAGE_URL: https://i.ibb.co/RzbhwQ2/Maldiciones-Para-Un-Mundo-En-Decadencia-Wrack-and-Ruin-Bonus.png
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+      envFrom:
+        integrationRef: pcwa
+      ignoreFailure: true
+      uuid: 32f54e16-b18c-4303-85e7-ba129730b87e
+      pretty_name: Send Image Message
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "image": {
+                  "link": "{{ .IMAGE_URL | jsonEscape }}"
+                },
+                "messaging_product": "whatsapp",
+                "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                "type": "image"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: ""
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID","IMAGE_URL","RECIPIENT_PHONE_NUMBER","FACEBOOK_ACCESS_TOKEN"]'
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages
+      manifestId: 611a6bbe-a8c4-4e8d-95ce-b4e7c2501263
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-template-message:1.0.0
+      id: send_template_message
+      env:
+        LANGUAGE_CODE: en_US
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEMPLATE_NAME: welcome_service_request
+      envFrom:
+        integrationRef: socialmanager_wolken
+      uuid: a5e3ee9c-79c2-4afe-8a56-1e8db5e30b69
+      pretty_name: Send Template Message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "template",
+                  "template": {
+                      "name": "{{ .TEMPLATE_NAME | jsonEscape }}",
+                      "language": {
+                          "code": "{{ .LANGUAGE_CODE | jsonEscape }}"
+                      }
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEMPLATE_NAME", "LANGUAGE_CODE", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e363075e-094a-4918-908b-d5f33d9502be
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+      id: send_interactive_message
+      env:
+        AUTHORIZATION: Bearer
+        BODY: "{\n  \"messaging_product\": \"whatsapp\",\n  \"recipient_type\": \"individual\",\n  \"to\" : \"{{ $.workflow_context.data.customer_phone_number }}\",\n  \"type\": \"interactive\", \n  \"interactive\":{\n  \"type\": \"list\",\n  \"header\": {\n    \"type\": \"text\",\n    \"text\": \"Fetch from YT\"\n  },\n  \"body\": {\n    \"text\": \"Choose the format for conversion.\"\n  },\n  \"footer\": {\n    \"text\": \"...\"\n  },\n  \"action\": {\n    \"button\": \"Opciones\",\n    \"sections\":[\n      {\n        \"title\":\"Audio Conversion\",\n        \"rows\": [\n          {\n            \"id\":\"audio_convert\",\n            \"title\": \"Audio\",\n            \"description\": \"Converto to mp3 file.\",           \n          }\n        ]\n      },\n      {\n        \"title\":\"Video Conversion\",\n        \"rows\": [\n          {\n            \"id\":\"video_convert\",\n            \"title\": \"Video\",\n            \"description\": \"Converto to mp4 file.\",           \n          }\n        ]\n      }\n    ]\n  }\n}\n}\n"
+        CONTENT_TYPE: application/json
+        HEADERS: '{}'
+        METHOD: POST
+        TIMEOUT: "30"
+        TOKEN: '{{ $.integrations.''pcwa''.facebook_access_token }}'
+        URL: https://graph.facebook.com/v13.0/{{ $.integrations.'pcwa'.phone_number_id }}/messages
+      ignoreFailure: true
+      uuid: 3e5352fb-d04b-443e-a37a-c0467aceb7a6
+      pretty_name: Send Interactive Message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      icon: https://cdn.torq.io/vendors/whatsapp.svg
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-image-message:1.0.0
+      id: send_image_message
+      env:
+        IMAGE_URL: '{{ $.create_static_map.api_object.url }}'
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.whatsapp_integration }}'
+      uuid: a3fb8e1e-83c5-4d73-8942-9be7f0bddeda
+      pretty_name: Send Image Message
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "image": {
+                  "link": "{{ .IMAGE_URL | jsonEscape }}"
+                },
+                "messaging_product": "whatsapp",
+                "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                "type": "image"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: ""
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID","IMAGE_URL","RECIPIENT_PHONE_NUMBER","FACEBOOK_ACCESS_TOKEN"]'
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages
+      manifestId: 611a6bbe-a8c4-4e8d-95ce-b4e7c2501263
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+      id: send_form_url_in_a_text_message
+      env:
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEXT: '{{ $.metadata.form_url }}'
+      envFrom:
+        integrationRef: socialmanager_wolken
+      uuid: 45adb9d0-96de-402d-b418-3be32f77ad2b
+      pretty_name: Send Form URL in a Text message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "text",
+                  "text": {
+                      "body": "{{ .TEXT | jsonEscape }}"
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+      id: send_interactive_message_1
+      env:
+        AUTHORIZATION: Bearer
+        BODY: |-
+          {
+              "messaging_product": "whatsapp",
+              "text": {
+                  "body": "{{ $.create_image.api_object.error.message }}"
+              },
+              "to": "{{ $.workflow_context.data.customer_phone_number }}",
+              "type": "text"
+          }
+        CONTENT_TYPE: application/json
+        HEADERS: '{}'
+        METHOD: POST
+        TIMEOUT: "30"
+        TOKEN: '{{ $.integrations.''socialmanager_wolken''.facebook_access_token }}'
+        URL: https://graph.facebook.com/v13.0/{{ $.integrations.'socialmanager_wolken'.phone_number_id }}/messages
+      uuid: a0d4fafc-d85a-4366-88dd-457c166000ff
+      pretty_name: Send Interactive Message 1
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      icon: https://cdn.torq.io/vendors/whatsapp.svg
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+  annotations:
+    - uuid: 5e77c793-1837-4926-b8f3-f7d9ce3d33b0
+      x: 475
+      "y": 2211
+      attachedStepId: cc89529f-901e-494e-b32b-dd678e12269b
+      attachedDistance:
+        x: -335
+        "y": -102
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"<---"}]}]}'
+    - uuid: 89a4d0df-e1a3-42ec-b999-7920c1a5e639
+      x: -721
+      "y": 118
+      width: 569
+      height: 324
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"WABot Has many features:"}]},{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"File Conversion:"}]},{"type":"paragraph","content":[{"type":"text","text":"Receives a Document/Image by WA and:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Sends a copy to Slack"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Converts  Dockx to PDF"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Converts JPG/PNG to PDF"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Receives URL, Analize and Insert to OpenCTI"}]}]}]},{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true

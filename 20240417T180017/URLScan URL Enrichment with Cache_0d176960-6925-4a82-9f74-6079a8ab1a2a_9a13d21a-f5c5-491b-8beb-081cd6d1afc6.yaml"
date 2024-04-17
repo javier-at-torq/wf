@@ -1,0 +1,922 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 0d176960-6925-4a82-9f74-6079a8ab1a2a
+name: URLScan URL Enrichment with Cache
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: url
+          description: The URL to submit to URLScan
+          required: true
+          prettyName: URL
+          shortText:
+            defaultValue: ""
+        - name: urlscan_integration
+          description: The URLScan Integration to use.
+          required: true
+          prettyName: URLScan Integration
+          integration:
+            defaultValue: ""
+            vendor: urlscan_token
+        - name: torq_integration
+          description: The integration with Torq to use.
+          required: true
+          prettyName: Torq Integration
+          integration:
+            defaultValue: ""
+            vendor: torq_token
+        - name: scan_visibility
+          required: true
+          prettyName: scan_visibility
+          singleSelect:
+            options:
+              - public
+              - private
+              - unlisted
+            defaultValue: private
+        - name: provide_raw_analysis_data
+          required: true
+          prettyName: Provide Raw Analysis Data
+          boolean:
+            defaultValue: false
+playbook:
+  steps:
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.url }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/calculate-sha1:3.2.0
+            id: calculate_sha1_of_url_in_base64
+            env:
+              FILE: '{{ b64enc $.event.url }}'
+            uuid: 6a1a538f-fff9-4fed-869f-d24308a6a963
+            pretty_name: Calculate SHA1 of URL in base64
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: calculate_sha1
+                sync: true
+                disable: false
+            manifestId: 866e8617-bab4-55a1-abc8-584582714f5d
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.1.0
+            id: read_observable_from_cache
+            env:
+              KEY: urlscan_{{ $.calculate_sha1_of_url_in_base64.result }}
+            envFrom:
+              integrationRef: '{{ $.event.torq_integration }}'
+            uuid: 79912248-5aa2-40b3-a915-6f771e19c272
+            pretty_name: Read Observable from Cache
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: '{}'
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                sync: true
+                disable: false
+            manifestId: 113df204-5b8d-5be4-8f22-895f9e87a732
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.read_observable_from_cache.api_object }}'
+                        operator: IS_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/urlscan/get-a-list-of-scans:2.0.1
+                  id: get_a_list_of_scans
+                  env:
+                    QUERY: page.url:{{ replace "\\" "\\\\" $.event.url | replace "+" "\\+" | replace "-" "\\-" | replace "=" "\\=" | replace "&" "\\&" |replace "|" "\\|" |replace ">" "\\>" |replace "<" "\\<" | replace "!" "\\!" |replace "(" "\\(" |replace ")" "\\)" |replace "{" "\\{" |replace "}" "\\}" | replace "[" "\\[" |replace "]" "\\]" |replace "^" "\\^" | replace "\"" "\\\"" |replace "~" "\\~" |replace "*" "\\*" |replace "?" "\\?" | replace ":" "\\:" | replace "/" "\\/" }}
+                  envFrom:
+                    integrationRef: '{{ $.event.urlscan_integration }}'
+                  ignoreFailure: true
+                  uuid: 69d78db0-84c6-477f-850e-56b2e7850a50
+                  pretty_name: Get a List of Scans
+                  options:
+                    executor:
+                      name: http_request_v_4_2_8
+                      env:
+                        HEADERS: |-
+                          {
+                              "API-Key": "{{ .URLSCAN_API_KEY }}"
+                          }
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["URLSCAN_API_KEY", "QUERY"]'
+                        TIMEOUT: "30"
+                        URL: https://urlscan.io/api/v1/search?&q={{ .QUERY | urlEnc }}{{ if or .SIZE }}&size={{ .SIZE | urlEnc }}{{ end }}
+                      sync: true
+                      disable: false
+                  manifestId: 3ca24492-4dbd-4f38-9829-7ffb4de1b0c4
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.get_a_list_of_scans.api_object.results }}'
+                              operator: IS_EMPTY
+                              rvalue: ""
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/urlscan/get-information-for-a-url:2.0.1
+                        id: get_information_for_a_url
+                        env:
+                          MAX_RETRIES: "3"
+                          RETRY_DELAY: "5"
+                          RETRY_ON_STATUS: 429,500-504
+                          SCAN_URL: '{{ $.event.url }}'
+                          SCAN_VISIBILITY: '{{ $.event.scan_visibility }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.urlscan_integration }}'
+                        ignoreFailure: true
+                        uuid: 006194bc-97ee-4c16-bb1f-0f902b2e10fa
+                        pretty_name: Get information for a URL
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              BODY: |-
+                                {
+                                    "url": "{{ .SCAN_URL | jsonEscape }}",
+                                    "visibility": "{{ .SCAN_VISIBILITY | jsonEscape }}",
+                                {{ if or .SCAN_TAGS }}    "tags": {{ .SCAN_TAGS }}{{ end }}
+                                }
+                              CONTENT_TYPE: application/json
+                              HEADERS: |-
+                                {
+                                    "Content-Type": "application/json",
+                                    "API-Key": "{{ .URLSCAN_API_KEY }}"
+                                }
+                              METHOD: POST
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["URLSCAN_API_KEY", "SCAN_URL", "SCAN_VISIBILITY"]'
+                              TIMEOUT: "30"
+                              URL: https://urlscan.io/api/v1/scan
+                            sync: true
+                            disable: false
+                        manifestId: 23ffd499-1455-4c68-b300-5d7b79a5cb48
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - if:
+                          conditions:
+                            or:
+                              - and:
+                                  - lvalue: '{{ $.get_information_for_a_url.step_status.code }}'
+                                    operator: EQUALS
+                                    rvalue: "1"
+                          then:
+                            - wait:
+                                id: wait_15_seconds
+                                pretty_name: Wait 15 seconds
+                                uuid: 53b51dcb-3ab2-49f5-a5ff-a77ed22323ee
+                                time_unit: "1"
+                                duration: "15"
+                            - name: us-docker.pkg.dev/stackpulse/public/urlscan/get-results-of-a-scan:2.0.1
+                              id: get_results_of_a_scan
+                              env:
+                                UUID: '{{ $.get_information_for_a_url.api_object.uuid }}'
+                              envFrom:
+                                integrationRef: '{{ $.event.urlscan_integration }}'
+                              ignoreFailure: true
+                              uuid: 42e46808-5668-44b8-9469-2bba833e7ca4
+                              pretty_name: Get results of a scan
+                              options:
+                                executor:
+                                  name: http_request_v_4_2_8
+                                  env:
+                                    HEADERS: |-
+                                      {
+                                          "API-Key": "{{ .URLSCAN_API_KEY }}"
+                                      }
+                                    METHOD: GET
+                                    PARSE_HJSON: "true"
+                                    REQUIRED_VARIABLES: '["URLSCAN_API_KEY", "UUID"]'
+                                    TIMEOUT: "30"
+                                    URL: https://urlscan.io/api/v1/result/{{ .UUID | urlEnc }}
+                                  sync: true
+                                  disable: false
+                              manifestId: 57b40b29-fe16-4daf-9513-4f5bad20f573
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                              skip: false
+                              retry:
+                                type: 2
+                                max_retries: 10
+                                delay: 5
+                                conditions:
+                                  or:
+                                    - and:
+                                        - lvalue: '{{ $.get_results_of_a_scan.step_status.code }}'
+                                          operator: NOT_EQUALS
+                                          rvalue: "1"
+                          else:
+                            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                              id: url_failure
+                              env:
+                                DATA_TYPE: boolean
+                                VALUE_BOOLEAN: "true"
+                                VARIABLE_NAME: bool
+                              uuid: ec18c8e4-68a5-4e29-9603-0c424af1dc81
+                              pretty_name: URL Failure
+                              options:
+                                executor:
+                                  name: utils_infrastructure_v_1_22_0
+                                  env:
+                                    COMMAND: set_variable
+                                  sync: true
+                                  disable: false
+                              manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                              skip: false
+                          uuid: 28e8d208-e910-467f-98aa-7984d1f99428
+                          pretty_name: If Scan Submission Successful
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/urlscan/get-results-of-a-scan:2.0.1
+                        id: get_results_of_a_scan
+                        env:
+                          UUID: '{{ $.get_a_list_of_scans.api_object.results.0._id }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.urlscan_integration }}'
+                        ignoreFailure: true
+                        uuid: ac217983-0393-4a94-b037-689fac4d9301
+                        pretty_name: Get results of a scan
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              HEADERS: |-
+                                {
+                                    "API-Key": "{{ .URLSCAN_API_KEY }}"
+                                }
+                              METHOD: GET
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["URLSCAN_API_KEY", "UUID"]'
+                              TIMEOUT: "30"
+                              URL: https://urlscan.io/api/v1/result/{{ .UUID | urlEnc }}
+                            sync: true
+                            disable: false
+                        manifestId: 57b40b29-fe16-4daf-9513-4f5bad20f573
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    uuid: abde9b46-8b5e-4624-9861-19ab85b79f9d
+                    pretty_name: If URL is not Found
+                - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/defang-or-refang-entity:3.1.0
+                  id: defang_observable
+                  env:
+                    __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                    INPUT: '{{ $.event.url }}'
+                    OPERATION: Defang
+                  uuid: 2dd2cdb6-248b-49a6-96f7-79be5f5deb2f
+                  pretty_name: Defang Observable
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: defang_or_refang_entity
+                      sync: true
+                      disable: false
+                  manifestId: 16aacb5c-6cbf-5bfe-9008-1f60309083db
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.url_failure.bool }}'
+                              operator: EQUALS
+                              rvalue: "true"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                        id: verditcs
+                        env:
+                          DATA_TYPE: JSON
+                          VALUE_JSON: |-
+                            {
+                              "observable_value": "{{ $.event.url }}",
+                              "observable_defanged_value": "{{ $.defang_observable.result }}",
+                              "observable_type": "URL",
+                              "message": "{{ $.get_information_for_a_url.api_object.message }}",
+                              "description": "{{ $.get_information_for_a_url.api_object.description }}",
+                              "scan_failure": true
+                            }
+                          VARIABLE_NAME: data
+                        uuid: 5e05b923-c1e1-4a76-9ac5-dfbbb1f88d59
+                        pretty_name: Verditcs
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: set_variable
+                            sync: true
+                            disable: false
+                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    else:
+                      - parallel:
+                          uuid: 04c1fa3e-237f-4fc4-a719-c88e3d184854
+                          pretty_name: Parallel Executions
+                          threads:
+                            - uuid: 6075ac1b-89f4-4bca-b933-24a2b48bc30a
+                              steps:
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.get_results_of_a_scan.api_object.verdicts..malicious }}'
+                                              operator: CONTAINS
+                                              rvalue: "true"
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: malicious
+                                        env:
+                                          DATA_TYPE: boolean
+                                          VALUE_BOOLEAN: "true"
+                                          VARIABLE_NAME: verdict
+                                        uuid: 1e41c23e-8197-4abf-8c0a-5344eaf87cce
+                                        pretty_name: Malicious
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: malicious
+                                        env:
+                                          DATA_TYPE: boolean
+                                          VALUE_BOOLEAN: "false"
+                                          VARIABLE_NAME: verdict
+                                        uuid: 992db74f-a264-4d38-9e4c-e5a3440b2d71
+                                        pretty_name: Malicious
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    uuid: 85c9681a-bc08-400a-84b3-899f5425f78b
+                                    pretty_name: If Malicious Verdict is Found
+                            - uuid: ffea4883-bb08-4550-b7f9-d93b12df69ac
+                              steps:
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.get_results_of_a_scan.api_object.verdicts.overall.tags }}'
+                                              operator: CONTAINS
+                                              rvalue: phishing
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: phishing
+                                        env:
+                                          DATA_TYPE: boolean
+                                          VALUE_BOOLEAN: "true"
+                                          VARIABLE_NAME: verdict
+                                        uuid: fd26943d-c44b-4746-b249-dfce8e9f83f4
+                                        pretty_name: Phishing
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: phishing
+                                        env:
+                                          DATA_TYPE: boolean
+                                          VALUE_BOOLEAN: "false"
+                                          VARIABLE_NAME: verdict
+                                        uuid: 57033512-53ec-4c12-888d-c079d901a397
+                                        pretty_name: Phishing
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    uuid: 87bc81d8-a902-4d30-8152-915668b4633c
+                                    pretty_name: If Phishing Verdict is Found
+                            - uuid: a16026bf-f246-41fb-8a34-0abceb050105
+                              steps:
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.get_results_of_a_scan.api_object.task.screenshotURL }}'
+                                              operator: NOT_EMPTY
+                                              rvalue: ""
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: screenshot
+                                        env:
+                                          DATA_TYPE: string
+                                          VALUE_STRING: '{{ $.get_results_of_a_scan.api_object.task.screenshotURL }}'
+                                          VARIABLE_NAME: url
+                                        uuid: 0d655d54-8920-467e-9213-9d6491686e49
+                                        pretty_name: Screenshot
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: screenshot
+                                        env:
+                                          DATA_TYPE: string
+                                          VALUE_STRING: None
+                                          VARIABLE_NAME: url
+                                        uuid: 9dfdde57-b93c-442e-a724-f3a86f84b787
+                                        pretty_name: Screenshot
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    uuid: 9a6c94c2-6002-496f-adf3-6ae88d76b529
+                                    pretty_name: If ScreenShot Found
+                            - uuid: 5cc7587a-fbb0-461a-88a5-3b5762aecd7d
+                              steps:
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.get_results_of_a_scan.api_object.verdicts.overall }}'
+                                              operator: NOT_EMPTY
+                                              rvalue: ""
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: score
+                                        env:
+                                          DATA_TYPE: JSON
+                                          VALUE_JSON: '{{ $.get_results_of_a_scan.api_object.verdicts.overall }}'
+                                          VARIABLE_NAME: data
+                                        uuid: 7b89ebe6-407d-4912-a001-402275e3593c
+                                        pretty_name: Score
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: score
+                                        env:
+                                          DATA_TYPE: JSON
+                                          VALUE_JSON: '[]'
+                                          VARIABLE_NAME: data
+                                        uuid: ed77ddcf-4b07-48c1-8556-9f32c5ad87d2
+                                        pretty_name: Score
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                    uuid: c8d0fd19-37a3-4f49-b16a-2b59340cd624
+                                    pretty_name: If Score Found
+                      - switch:
+                          uuid: fb375941-226b-4c43-ab87-2ce7d9af42b4
+                          pretty_name: Set Reputation Output
+                          cases:
+                            - id: 72b567e4-84ce-454c-8fdb-c246d82c961e
+                              pretty_name: Malicious and Phishing
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.malicious.verdict }}'
+                                        operator: EQUALS
+                                        rvalue: "true"
+                                      - lvalue: '{{ $.phishing.verdict }}'
+                                        operator: EQUALS
+                                        rvalue: "true"
+                              steps:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                  id: observable_reputation
+                                  env:
+                                    DATA_TYPE: string
+                                    VALUE_STRING: Observable found to be Malicious and contains tags for Phishing
+                                    VARIABLE_NAME: output
+                                  uuid: 75652a1d-5547-4a8a-848d-b81d690a099a
+                                  pretty_name: Observable Reputation
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                            - id: d32f6638-c73b-42ca-8378-4efdd55d64b1
+                              pretty_name: Malicious
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.malicious.verdict }}'
+                                        operator: EQUALS
+                                        rvalue: "true"
+                              steps:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                  id: observable_reputation
+                                  env:
+                                    DATA_TYPE: string
+                                    VALUE_STRING: Observable found to be Malicious
+                                    VARIABLE_NAME: output
+                                  uuid: 1a987cdb-a2d4-492e-bc95-8dedfc300b01
+                                  pretty_name: Observable Reputation
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                            - id: 44aa9e08-adfa-44f1-b84c-c30e4febdb17
+                              pretty_name: Phishing
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.phishing.verdict }}'
+                                        operator: EQUALS
+                                        rvalue: "true"
+                              steps:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                  id: observable_reputation
+                                  env:
+                                    DATA_TYPE: string
+                                    VALUE_STRING: Observable found to contain tags for Phishing
+                                    VARIABLE_NAME: output
+                                  uuid: c5c219d4-3aca-49e6-94f6-596165a0298d
+                                  pretty_name: Observable Reputation
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                          default:
+                            id: 9d72b02e-8fa7-467e-9224-2dfda0f15496
+                            steps: []
+                      - if:
+                          conditions:
+                            or:
+                              - and:
+                                  - lvalue: '{{ $.event.provide_raw_analysis_data }}'
+                                    operator: EQUALS
+                                    rvalue: "true"
+                          then:
+                            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                              id: verditcs
+                              env:
+                                DATA_TYPE: JSON
+                                VALUE_JSON: "{\n      \"malicious\": {{ $.malicious.verdict }},\n      \"phishing\": {{ $.phishing.verdict }},\n      \"screenshot\": \"{{ $.screenshot.url }}\",\n      \"score\": {{ $.score.data }},\n      \"raw_analysis\" : {{ if $.get_information_for_a_url.step_status.message  }}{{ $.get_information_for_a_url.api_object }}{{else}}{{ $.get_results_of_a_scan.api_object }}{{ end }},\n      \"observable_value\": \"{{ $.event.url }}\",\n      \"observable_defanged_value\": \"{{ $.defang_observable.result }}\",\n  \"observable_type\": \"URL\",\n  \"observable_reputation\": \"{{ $.observable_reputation.output }}\"\n      \n}"
+                                VARIABLE_NAME: data
+                              ignoreFailure: true
+                              uuid: a6725da7-b4fa-4c12-81e6-422015895031
+                              pretty_name: Verditcs
+                              options:
+                                executor:
+                                  name: utils_infrastructure_v_1_22_0
+                                  env:
+                                    COMMAND: set_variable
+                                  sync: true
+                                  disable: false
+                              manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                              skip: false
+                          else:
+                            - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                              id: verditcs
+                              env:
+                                DATA_TYPE: JSON
+                                VALUE_JSON: |-
+                                  {
+                                        "malicious": {{ $.malicious.verdict }},
+                                        "phishing": {{ $.phishing.verdict }},
+                                        "screenshot": "{{ $.screenshot.url }}",
+                                        "score": {{ $.score.data }},
+                                        "observable_value": "{{ $.event.url }}",
+                                        "observable_defanged_value": "{{ $.defang_observable.result }}",
+                                        "observable_type": "URL",
+                                        "observable_reputation": "{{ $.observable_reputation.output }}"
+                                  }
+                                VARIABLE_NAME: data
+                              ignoreFailure: true
+                              uuid: 1be1ef03-7e55-42aa-a1e6-cf67d90417db
+                              pretty_name: Verditcs
+                              options:
+                                executor:
+                                  name: utils_infrastructure_v_1_22_0
+                                  env:
+                                    COMMAND: set_variable
+                                  sync: true
+                                  disable: false
+                              manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                              isPrivate: false
+                              mock_output:
+                                enabled: false
+                              skip: false
+                          uuid: fabfd407-b3f7-4392-8ba4-3a17d8550c7a
+                          pretty_name: If Add Raw Analysis
+                    uuid: def601be-5885-46a6-ab03-6ed5041ecb26
+                    pretty_name: If URL Failure is true
+                - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+                  id: save_the_observable_details_to_cache
+                  env:
+                    EXPIRES_IN: 24h
+                    KEY: urlscan_{{ $.calculate_sha1_of_url_in_base64.result }}
+                    VALUE: '{{ $.verditcs.data }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.torq_integration}}'
+                  uuid: 776f7102-df20-4ee0-91c3-81d26f10636b
+                  pretty_name: Save the Observable Details to Cache
+                  options:
+                    executor:
+                      name: http_request_v_4_6_0
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: |-
+                          {
+                          {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                          {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                              "value": {{ .VALUE }}
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: '{}'
+                        METHOD: POST
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .ACCESS_TOKEN }}'
+                        URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                      sync: true
+                      disable: false
+                  manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                  id: verditcs
+                  env:
+                    DATA_TYPE: JSON
+                    VALUE_JSON: '{{ $.read_observable_from_cache.api_object.value }}'
+                    VARIABLE_NAME: data
+                  ignoreFailure: true
+                  uuid: 480a3268-e410-427b-b370-9d264a44c930
+                  pretty_name: Verditcs
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: set_variable
+                      sync: true
+                      disable: false
+                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              uuid: eae3f0cd-c7c1-4a10-b179-b251ba3e6a7a
+              pretty_name: If Cache is Empty
+        else:
+          - exit:
+              success: "false"
+              pretty_name: Exit
+              output: |-
+                {
+                  "error": "URL was empty."
+                }
+              uuid: 5b4e885e-2b6c-4632-a59f-84f0917dbae8
+        uuid: 20e62279-20eb-450b-b97e-f9ac851382c6
+        pretty_name: If URL is not Empty
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "output": {{ $.verditcs.data }}
+          }
+        uuid: f532c115-d952-4142-876f-c788d93a8e7c
+  annotations:
+    - uuid: b5002683-10bf-4ebd-a882-ecb29443fed7
+      x: 2981
+      "y": 924
+      width: 484
+      height: 114
+      attachedStepId: 69d78db0-84c6-477f-850e-56b2e7850a50
+      attachedDistance:
+        x: -321
+        "y": -99
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"When checking for the URL it is required to escape the URL as defined in the URLScan docs - "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://urlscan.io/docs/search/","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"https://urlscan.io/docs/search/"}]}]}'
+    - uuid: b0697ab3-1717-46cd-8e0c-9a78f3de6bd4
+      x: -730
+      "y": 119
+      width: 432
+      height: 835
+      attachedStepId: 20e62279-20eb-450b-b97e-f9ac851382c6
+      attachedDistance:
+        x: 730
+        "y": 12
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"URLScan URL Enrichment with Cache"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow can be used as a nested workflow that will query URLScan for a URL and provide a summary of the analysis from URLScan."}]},{"type":"paragraph","content":[{"type":"text","text":"The workflow will first look for an existing scan of the URL for results and if none are found will submit the URL to be scanned."},{"type":"hardBreak"}]},{"type":"paragraph","content":[{"type":"text","text":"The URL will also be escaped based on the documentation from URLScan in the initial search of the URL."}]},{"type":"paragraph","content":[{"type":"text","text":"The summary will include if malicious is true in the verdicts, if a tag of phishing is set and the overall score of the URL.  If a screenshot is provided it will be included in the summary."}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/urlscan.svg","alt":null,"title":null}}]}]}'
+    - uuid: 95718bc0-a3d5-4986-92d6-26fba686de2d
+      x: -119
+      "y": 798
+      width: 372
+      height: 108
+      attachedStepId: ac217983-0393-4a94-b037-689fac4d9301
+      attachedDistance:
+        x: 399
+        "y": -104
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If the URL is found use the results of the scan."}]}]}'
+    - uuid: 9475af67-5736-4724-84f0-ec6dca76a16e
+      x: 3288
+      "y": 1208
+      width: 414
+      height: 92
+      attachedStepId: 006194bc-97ee-4c16-bb1f-0f902b2e10fa
+      attachedDistance:
+        x: -348
+        "y": -108
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If not found, submit the URL for analysis with URLScan"}]}]}'
+    - uuid: 0f97d557-ea9f-4792-85c3-5590e51c1093
+      x: 3391
+      "y": 1474
+      width: 399
+      height: 92
+      attachedStepId: 53b51dcb-3ab2-49f5-a5ff-a77ed22323ee
+      attachedDistance:
+        x: -311
+        "y": -99
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Wait for the Scan to complete and collect the results."}]}]}'
+    - uuid: f9524e3a-cb5b-44f8-a88a-a50cf028f37c
+      x: 1164
+      "y": 2721
+      attachedStepId: 04c1fa3e-237f-4fc4-a719-c88e3d184854
+      attachedDistance:
+        x: 375
+        "y": -49
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"For each scan set the verdict for Malicious, Phishing, and score.  If a screenshot is available provide it in the results."}]}]}'
+    - uuid: f46c663e-8d1e-430a-b54b-469672aa3008
+      x: 631
+      "y": 377
+      width: 366
+      height: 109
+      attachedStepId: 6a1a538f-fff9-4fed-869f-d24308a6a963
+      attachedDistance:
+        x: -351
+        "y": -102
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Create name for the Torq Global variable based on the SHA1 of the URL."}]}]}'
+    - uuid: 826a0916-e569-4906-b652-70b7292fe246
+      x: 446
+      "y": 792
+      attachedStepId: 480a3268-e410-427b-b370-9d264a44c930
+      attachedDistance:
+        x: -306
+        "y": -111
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If a cache entry exists, set the variable and send the output to the parent workflow."}]}]}'
+    - uuid: b3bbe3ff-edd1-42cd-b707-d7f1306ec031
+      x: 2871
+      "y": 2489
+      attachedStepId: 2dd2cdb6-248b-49a6-96f7-79be5f5deb2f
+      attachedDistance:
+        x: -351
+        "y": -105
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Create a defanged value of the observable to include in the output."}]}]}'
+    - uuid: 5dc0e0d3-f1a4-44b2-b081-beca544412dd
+      x: 3022
+      "y": 2753
+      width: 416
+      height: 109
+      attachedStepId: 5e05b923-c1e1-4a76-9ac5-dfbbb1f88d59
+      attachedDistance:
+        x: -362
+        "y": -94
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If an error occurred return a custom response back to the parent workflow."}]}]}'
+    - uuid: ad5a14c5-bd2f-48f8-ae19-0d25ecee04bb
+      x: 1948
+      "y": 3398
+      attachedStepId: fb375941-226b-4c43-ab87-2ce7d9af42b4
+      attachedDistance:
+        x: -548
+        "y": -84
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Based on findings set the reputation output."}]}]}'
+    - uuid: dff355c7-e2c4-4f6c-8f21-2cbe70591c8b
+      x: 2080
+      "y": 4325
+      width: 357
+      height: 92
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Save the observable information to the cache."}]}]}'
+    - uuid: 6fc60dc7-19b4-4be5-a599-d31207d7b921
+      x: 3253
+      "y": 1446
+      width: 404
+      height: 306
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Scan Results Lookup"}]},{"type":"heading","attrs":{"level":3},"content":[{"type":"text","marks":[{"type":"italic"}],"text":"Retry On Condition"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"Get results of a scan"},{"type":"text","text":" step uses feature "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://learn.torq.io/docs/retry-step?highlight=retry%20on%20condition","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"Retry Step on Condition"},{"type":"text","text":". It will retry the step until an specific condition is met."}]},{"type":"paragraph","content":[{"type":"text","text":"In order to wait for the completeness of the file analysis, the step will retry to query the sample analysis summary a maximum of 10 times with a 5 seconds delay until the analysis has finished."}]}]}'
+  output_schema: '{}'
+root: true

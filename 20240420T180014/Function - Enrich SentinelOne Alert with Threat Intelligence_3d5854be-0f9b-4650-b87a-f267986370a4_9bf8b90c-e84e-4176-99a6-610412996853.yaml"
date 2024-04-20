@@ -1,0 +1,674 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3d5854be-0f9b-4650-b87a-f267986370a4
+name: Function - Enrich SentinelOne Alert with Threat Intelligence
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: sentinelone_integration_name
+          description: Sentinel Integration
+          required: true
+          prettyName: sentinelone_integration_name
+          shortText:
+            defaultValue: ""
+        - name: virustotal_integration_name
+          description: If present enrichment will use VirusTotal
+          prettyName: virustotal_integration_name
+          shortText:
+            defaultValue: ""
+        - name: recordedfuture_integration_name
+          description: ' if present enrichment will use recorded future'
+          prettyName: recordedfuture_integration_name
+          shortText:
+            defaultValue: ""
+        - name: from_date
+          description: 2 weeks ago
+          required: true
+          prettyName: from _date
+          shortText:
+            defaultValue: ""
+        - name: to_date
+          description: today date
+          required: true
+          prettyName: to_date
+          shortText:
+            defaultValue: ""
+        - name: threat_info
+          required: true
+          prettyName: threat_info
+          json:
+            defaultValue: ""
+playbook:
+  steps:
+    - loop:
+        in: '{{ $.event.threat_info }}'
+        key: threat_key
+        value: threat_value
+        steps:
+          - parallel:
+              uuid: c8034761-162b-4a4b-953e-b0a9debe62c8
+              pretty_name: Enrich the Hash
+              threads:
+                - uuid: eb52876f-d218-47d1-bd3f-8e87077fb2c9
+                  steps:
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.event.virustotal_integration_name }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.virustotal_results.result..hash }}'
+                                        operator: CONTAINS
+                                        rvalue: '{{ $.threat_value.threatInfo.sha1 }}'
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.1
+                                  id: filter_for_hash_from_virustotal
+                                  env:
+                                    FIELD_PATH: hash
+                                    FILTER_ARG: '["{{ $.threat_value.threatInfo.sha1 }}"]'
+                                    FILTER_FUNC: Equals
+                                    INPUT: '{{ $.virustotal_results.result }}'
+                                  uuid: 1971a3d3-2c7e-401e-aff5-8c5766768003
+                                  pretty_name: 'Filter for Hash from VirusTotal '
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_3_5
+                                      env:
+                                        COMMAND: array_filter
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://docs.torq.io/getting-started/utilities#filter-array
+                                  manifestId: 029f2757-3ff6-4799-9a8e-6bf32a79f477
+                                  isPrivate: false
+                                  skip: false
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                  id: virustotal_data
+                                  env:
+                                    INPUT: "VirusTotal Analysis: \nMalicious: {{ $.filter_for_hash_from_virustotal.result.0.vt_result.malicious }}\nSuspicous: {{ $.filter_for_hash_from_virustotal.result.0.vt_result.suspicious }}"
+                                  uuid: 5b7cf38e-10fd-46df-b1dd-7046d6c0d359
+                                  pretty_name: VirusTotal Data
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_0_32
+                                      env:
+                                        COMMAND: print
+                                      sync: true
+                                      disable: false
+                                  manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                  isPrivate: false
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/virustotal/get-file-report-by-hash:3.0.2
+                                  id: get_file_report_by_hash
+                                  env:
+                                    FILE_HASH: '{{ $.threat_value.threatInfo.sha1 }}'
+                                  envFrom:
+                                    integrationRef: '{{ $.event.virustotal_integration_name }}'
+                                  ignoreFailure: true
+                                  uuid: 539e59cf-0f88-484f-b0cc-650e407d3820
+                                  pretty_name: Get File Report by Hash
+                                  options:
+                                    executor:
+                                      name: http_request_v_2_0_15
+                                      env:
+                                        HEADERS: |-
+                                          {
+                                              "x-apikey": "{{ .VT_API_KEY }}"
+                                          }
+                                        METHOD: GET
+                                        PARSE_HJSON: "true"
+                                        REQUIRED_VARIABLES: '["VT_API_KEY", "FILE_HASH"]'
+                                        TIMEOUT: "30"
+                                        URL: https://www.virustotal.com/api/v3/files/{{ .FILE_HASH | urlEnc }}
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://developers.virustotal.com/reference/file-info
+                                  manifestId: 476e3ab8-e3c1-4d0d-907d-d76e2992b7b6
+                                  isPrivate: false
+                                  skip: false
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.get_file_report_by_hash.step_status.code }}'
+                                              operator: EQUALS
+                                              rvalue: "1"
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/loop_utils/collect-loop-results:1.0.2
+                                        id: virustotal_results
+                                        env:
+                                          FLATTEN_RESULTS: "true"
+                                          PREVIOUS_ITERATION_RESULT: '{{ $.virustotal_results.result }}'
+                                          RESULT: '{"hash": "{{ $.threat_value.threatInfo.sha1 }}", "vt_result": {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats }} }'
+                                        uuid: 69341e08-86c0-46a2-9a87-ef787a7f00ec
+                                        pretty_name: VirusTotal Results
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_3_4
+                                            env:
+                                              COMMAND: collect_loop_results
+                                            sync: true
+                                            disable: false
+                                        manifestId: 209b748e-e72f-495e-8022-64cd74aadc57
+                                        isPrivate: false
+                                        skip: false
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                        id: virustotal_data
+                                        env:
+                                          INPUT: "VirusTotal Analysis: \nMalicious: {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats.malicious }}\nSuspicous: {{ $.get_file_report_by_hash.api_object.data.attributes.last_analysis_stats.suspicious }} "
+                                        uuid: cd00b0ec-687e-4f9c-93ad-584147cf59e1
+                                        pretty_name: VirusTotal Data
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_0_32
+                                            env:
+                                              COMMAND: print
+                                            sync: true
+                                            disable: false
+                                        manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                        isPrivate: false
+                                        skip: false
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                        id: virustotal_data
+                                        env:
+                                          INPUT: "VirusTotal Analysis: \nHash was not found in VirusTotal\n"
+                                        uuid: e824184e-8eeb-48f8-9412-30195f587ae7
+                                        pretty_name: VirusTotal Data
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_0_32
+                                            env:
+                                              COMMAND: print
+                                            sync: true
+                                            disable: false
+                                        manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                        isPrivate: false
+                                        skip: false
+                                    uuid: 387f2cc7-e2a9-4a83-96bd-6a342c819150
+                                    pretty_name: If VirusTotal Hash was Found
+                              uuid: 29033b7f-0ee1-42e3-85f2-70031bc74c93
+                              pretty_name: Check if Hash Result is in VT Cache
+                        else: []
+                        uuid: 7b4e8bfc-c6f4-4b89-bdd1-b8f48703f758
+                        pretty_name: If
+                - uuid: 5454e8b2-3809-47bf-a4c3-41ca03578dac
+                  steps:
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.recorded_future_results.result..hash }}'
+                                  operator: CONTAINS
+                                  rvalue: '{{ $.threat_value.threatInfo.sha1 }}'
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.1
+                            id: filter_for_hash_from_recorded_future
+                            env:
+                              FIELD_PATH: hash
+                              FILTER_ARG: '["{{ $.threat_value.threatInfo.sha1 }}"]'
+                              FILTER_FUNC: Equals
+                              INPUT: '{{ $.recorded_future_results.result }}'
+                            uuid: a3424f27-4274-436d-bf71-d27a5cf71342
+                            pretty_name: Filter for Hash from Recorded Future
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_5
+                                env:
+                                  COMMAND: array_filter
+                                sync: true
+                                disable: false
+                            documentationUrl: https://docs.torq.io/getting-started/utilities#filter-array
+                            manifestId: 029f2757-3ff6-4799-9a8e-6bf32a79f477
+                            isPrivate: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                            id: recorded_future_data
+                            env:
+                              INPUT: |-
+                                Recorded Future Analysis:
+                                Criticality Label: {{ $.filter_for_hash_from_recorded_future.result.0.rf_result.risk.criticalityLabel }}
+                                Risk Score: {{ $.filter_for_hash_from_recorded_future.result.0.rf_result.risk.score }}
+                            uuid: bf0d9443-5c9a-49e2-9323-af35b1888bac
+                            pretty_name: Recorded Future Data
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_0_32
+                                env:
+                                  COMMAND: print
+                                sync: true
+                                disable: false
+                            manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                            isPrivate: false
+                            skip: false
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/recorded_future/enrich-hash:3.0.1
+                            id: enrich_hash
+                            env:
+                              HASH_VALUE: '{{ $.threat_value.threatInfo.sha1 }}'
+                              RETURN_FIELDS: enterpriseLists,entity,fileHashes,hashAlgorithm,intelCard,risk,riskMapping,sightings,timestamps
+                            envFrom:
+                              integrationRef: '{{ $.workflow_context.data.recordedfuture_integration_name }}'
+                            ignoreFailure: true
+                            uuid: 8491b375-f4a3-4a0b-b885-11a6d559e51a
+                            pretty_name: Enrich Hash
+                            options:
+                              executor:
+                                name: http_request_v_4_1_1
+                                env:
+                                  HEADERS: |-
+                                    {
+                                        "X-RFToken": "{{ .RECORDED_FUTURE_API_TOKEN }}"
+                                    }
+                                  METHOD: GET
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["RETURN_FIELDS", "HASH_VALUE", "RECORDED_FUTURE_API_TOKEN"]'
+                                  TIMEOUT: "30"
+                                  URL: https://api.recordedfuture.com/v2/hash/{{ .HASH_VALUE | urlEnc }}?&fields={{ .RETURN_FIELDS | urlEnc }}{{ if or .INCLUDE_METADATA }}&metadata={{ .INCLUDE_METADATA | urlEnc }}{{ end }}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://api.recordedfuture.com/v2/#!/Hash/Hash_Lookup
+                            manifestId: 73dabee1-0d0e-4032-9525-a2d9112143cc
+                            isPrivate: false
+                            skip: false
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.enrich_hash.step_status.code }}'
+                                        operator: EQUALS
+                                        rvalue: "1"
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/loop_utils/collect-loop-results:1.0.2
+                                  id: recorded_future_results
+                                  env:
+                                    FLATTEN_RESULTS: "false"
+                                    PREVIOUS_ITERATION_RESULT: '{{ $.recorded_future_results.result }}'
+                                    RESULT: '{"hash": "{{ $.threat_value.threatInfo.sha1 }}", "rf_result": {{ $.enrich_hash.api_object.data }} }'
+                                  uuid: 51f5cb74-2757-4ec4-8d3f-792203ed661b
+                                  pretty_name: Recorded Future Results
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_3_4
+                                      env:
+                                        COMMAND: collect_loop_results
+                                      sync: true
+                                      disable: false
+                                  manifestId: 209b748e-e72f-495e-8022-64cd74aadc57
+                                  isPrivate: false
+                                  skip: false
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                  id: recorded_future_data
+                                  env:
+                                    INPUT: |-
+                                      Recorded Future Analysis:
+                                      Criticality Label: {{ $.enrich_hash.api_object.data.risk.criticalityLabel }}
+                                      Risk Score: {{ $.enrich_hash.api_object.data.risk.score }}
+                                  uuid: 0b77a69d-25d6-4c50-9949-2b30eff75232
+                                  pretty_name: Recorded Future Data
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_0_32
+                                      env:
+                                        COMMAND: print
+                                      sync: true
+                                      disable: false
+                                  manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                  isPrivate: false
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                  id: recorded_future_data
+                                  env:
+                                    INPUT: |-
+                                      Recorded Future Analysis:
+                                      Hash was not found in Recorded Future
+                                  uuid: 0640c125-51bf-4265-a519-30570f239dc4
+                                  pretty_name: Recorded Future Data
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_0_32
+                                      env:
+                                        COMMAND: print
+                                      sync: true
+                                      disable: false
+                                  manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                  isPrivate: false
+                                  skip: false
+                              uuid: 73c9da37-46aa-412c-ac51-844e567578c4
+                              pretty_name: If Recorded Future Hash was Found
+                        uuid: 94bbabb2-1ed8-49af-b6fc-03c6e1be685f
+                        pretty_name: Check if Hash Result is in RF Cache
+                - uuid: f3102f86-6878-4152-8c6b-4b3758f56c19
+                  steps:
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.query_for_dv.output }}'
+                                  operator: IS_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                            id: query_for_dv
+                            env:
+                              INPUT: 'TgtFileSha1 = "{{ $.threat_value.threatInfo.sha1 }}" '
+                            uuid: 68930cc3-52e5-4200-9433-e0323cfed3a9
+                            pretty_name: Query for DV
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_0_32
+                                env:
+                                  COMMAND: print
+                                sync: true
+                                disable: false
+                            manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                            isPrivate: false
+                            skip: false
+                        else:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.query_for_dv.output }} '
+                                        operator: NOT_CONTAINS
+                                        rvalue: '{{ $.threat_value.threatInfo.sha1 }}'
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.1.0
+                                  id: query_for_dv
+                                  env:
+                                    INPUT: '{{ $.query_for_dv.output }}or TgtFileSha1 = "{{ $.threat_value.threatInfo.sha1 }}" '
+                                  uuid: ff140b49-51c7-492c-b3fa-beafbb431109
+                                  pretty_name: Query for DV
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_0_32
+                                      env:
+                                        COMMAND: print
+                                      sync: true
+                                      disable: false
+                                  manifestId: e4bf52e7-715a-4a02-8186-138a09aa9320
+                                  isPrivate: false
+                                  skip: false
+                              else: []
+                              uuid: d38efa8d-4dc3-42bf-b8eb-58717e951136
+                              pretty_name: If Hash was Found in Query for DV
+                        uuid: cc355df9-6f21-4b8c-885b-01ca3fec0b4d
+                        pretty_name: If Query for DV is Empty
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/add-note-to-threats:2.0.7
+            id: add_note_to_threats
+            env:
+              NOTE_CONTENT: |-
+                {{ $.virustotal_data.output }}
+
+                {{ $.recorded_future_data.output }}
+
+                  - Enrichment by Torq -
+              THREAT_IDS: '"{{ $.threat_value.id }}"'
+            envFrom:
+              integrationRef: '{{ $.event.sentinelone_integration_name }}'
+            uuid: 5a6f9b8f-dd27-4a68-876f-183a8ced3dcf
+            pretty_name: Add Note to Threats
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  BODY: |-
+                    {
+                        "filter": {
+                            "ids": {{ .THREAT_IDS }}
+                        },
+                        "data": {
+                            "text": "{{ .NOTE_CONTENT | jsonEscape }}"
+                        }
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: |-
+                    {
+                        "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "THREAT_IDS", "NOTE_CONTENT"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats/notes
+                sync: true
+                disable: false
+            manifestId: c5fa7c8e-8193-4375-9a5a-e65b4fd8f325
+            isPrivate: false
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/create-deep-visibility-query:2.0.7
+            id: hunt_for_the_file_signature_in_past_14_days
+            env:
+              DEEP_VISIBILITY_QUERY: '{{ $.query_for_dv.output }}'
+              FROM_DATE: '{{ $.event.from_date }}'
+              TO_DATE: '{{ $.event.to_date }}'
+            envFrom:
+              integrationRef: '{{ $.event.sentinelone_integration_name }}'
+            uuid: 2cb589be-8b42-45e8-90f2-4c40d5efb3e5
+            pretty_name: Hunt for the File Signature in Past 14 days
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  BODY: |-
+                    {
+                        "query": "{{ .DEEP_VISIBILITY_QUERY | jsonEscape }}",
+                        "fromDate": "{{ .FROM_DATE | jsonEscape }}",
+                        "toDate": "{{ .TO_DATE | jsonEscape }}"
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: |-
+                    {
+                        "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "DEEP_VISIBILITY_QUERY", "FROM_DATE", "TO_DATE"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/dv/init-query
+                sync: true
+                disable: false
+            manifestId: ac561c47-8a45-4791-8b7c-4a4e808392eb
+            isPrivate: false
+            skip: false
+          - loop:
+              key: key
+              value: value
+              steps:
+                - wait:
+                    id: wait
+                    pretty_name: Wait
+                    uuid: e0e2b966-9e48-4f43-b5dc-e38ae537219a
+                    time_unit: "1"
+                    duration: "15"
+                - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-deep-visibility-query-status:2.0.7
+                  id: check_if_completed
+                  env:
+                    QUERY_ID: '{{ $.hunt_for_the_file_signature_in_past_14_days.api_object.data.queryId }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                  uuid: ba9ac11c-9835-4c22-b999-7f4173d2b6ba
+                  pretty_name: Check if Completed
+                  options:
+                    executor:
+                      name: http_request_v_4_2_3
+                      env:
+                        HEADERS: |-
+                          {
+                              "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                          }
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "QUERY_ID"]'
+                        TIMEOUT: "30"
+                        URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/dv/query-status?&queryId={{ .QUERY_ID | urlEnc }}
+                      sync: true
+                      disable: false
+                  manifestId: 714e804e-9113-4bc2-b539-273fc04af13e
+                  isPrivate: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.check_if_completed.api_object.data.responseState }}'
+                              operator: EQUALS
+                              rvalue: FINISHED
+                    then:
+                      - break:
+                          uuid: 8a13b91c-8c11-4fce-bb33-d4bebaaa259d
+                    else: []
+                    uuid: d359f31d-1ea3-484b-8761-dc19e2c49d41
+                    pretty_name: Check if Query is Complete
+              uuid: cd5c3c39-e874-4a7b-88ac-040002f58b70
+              pretty_name: Wait for the Query to Complete
+              range:
+                start: "1"
+                end: "50"
+                interval: "1"
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-deep-visibility-events:2.0.7
+            id: get_deep_visibility_events
+            env:
+              LIMIT: "500"
+              QUERY_ID: '{{ $.hunt_for_the_file_signature_in_past_14_days.api_object.data.queryId }}'
+            envFrom:
+              integrationRef: '{{ $.event.sentinelone_integration_name }}'
+            uuid: b1a4b16b-6e2f-4cb8-b10b-044e4e31b8a3
+            pretty_name: Get Deep Visibility Events
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  HEADERS: |-
+                    {
+                        "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "QUERY_ID"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/dv/events?{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if or .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if or .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}&queryId={{ .QUERY_ID | urlEnc }}
+                sync: true
+                disable: false
+            manifestId: 210e4ee0-a66d-4f4f-811b-610222210cdc
+            isPrivate: false
+            skip: false
+          - loop:
+              in: '{{ $.event.threat_info }}'
+              key: threat_dv_key
+              value: threat_dv_value
+              steps:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.1
+                  id: filter_for_hash_from_dv_query
+                  env:
+                    FIELD_PATH: fileSha1
+                    FILTER_ARG: '{{ $.threat_dv_value.threatInfo.sha1 }}'
+                    FILTER_FUNC: Equals
+                    INPUT: '{{ $.get_deep_visibility_events.api_object.data }}'
+                  uuid: 29bdee35-c875-4f35-adf9-b0184a95d169
+                  pretty_name: Filter for Hash from DV Query
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_3_5
+                      env:
+                        COMMAND: array_filter
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.torq.io/getting-started/utilities#filter-array
+                  manifestId: 029f2757-3ff6-4799-9a8e-6bf32a79f477
+                  isPrivate: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/sentinelone/add-note-to-threats:2.0.7
+                  id: add_deep_visibility_stats_to_threat
+                  env:
+                    NOTE_CONTENT: 'Total Deep Visibility Results Available: {{ $.filter_for_hash_from_dv_query.length }}'
+                    THREAT_IDS: '["{{ $.threat_dv_value.id }}"]'
+                  envFrom:
+                    integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                  uuid: af5b9d4c-189f-4848-9191-d7150623c23e
+                  pretty_name: Add Deep Visibility Stats to Threat
+                  options:
+                    executor:
+                      name: http_request_v_4_2_3
+                      env:
+                        BODY: |-
+                          {
+                              "filter": {
+                                  "ids": {{ .THREAT_IDS }}
+                              },
+                              "data": {
+                                  "text": "{{ .NOTE_CONTENT | jsonEscape }}"
+                              }
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: |-
+                          {
+                              "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                          }
+                        METHOD: POST
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "THREAT_IDS", "NOTE_CONTENT"]'
+                        TIMEOUT: "30"
+                        URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats/notes
+                      sync: true
+                      disable: false
+                  manifestId: c5fa7c8e-8193-4375-9a5a-e65b4fd8f325
+                  isPrivate: false
+                  skip: false
+              uuid: bbbf6243-f73c-4772-97a1-dde79e92a582
+              pretty_name: Loop  Over Threats and Update DV Data
+        uuid: 3656a783-fad1-40c4-86ee-838ca2bf7c91
+        pretty_name: Loop Over all Recent Threats
+    - exit:
+        success: "true"
+        uuid: e820ba29-e5ac-4621-9baa-e722eea663d6
+  annotations:
+    - uuid: c4d8a3a3-2d2a-4f65-807f-c177954a2e01
+      x: -645
+      "y": 119
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","marks":[{"type":"bold"}],"text":"Enrich SentinelOne Threat Incidents  "}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow will receive a list of threats, loop over them and lookup for extra details on different reputation clouds."}]},{"type":"paragraph","content":[{"type":"text","text":"For each file, query VirusTotal and RecordedFuture for analysis.  Update the notes on the threat in SentinelOne with the results."}]},{"type":"paragraph","content":[{"type":"text","text":"Run a deep visibility query on SentinelOne for other results for the same file hash."}]},{"type":"paragraph","content":[{"type":"text","text":"Add the deep visibility count to the notes for the threat in SentinelOne. "}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/sentinelone.svg","alt":null,"title":null}}]}]}'
+    - uuid: 5cb94d4c-f9b0-4de8-a227-080e58b04185
+      x: 377
+      "y": 117
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Function Input Values"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"threat_info"},{"type":"text","text":" = {{ $.get_recent_threats.api_object.data }}, this is the list of threats under the array \"data\""}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"to_date"},{"type":"text","text":" & "},{"type":"text","marks":[{"type":"bold"}],"text":"from_date"},{"type":"text","text":" = Today and the period back for querying Deep Visibility"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"sentinelone_integration_name"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"virustotal_integration_name"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"recordedfuture_integraion_name"}]},{"type":"paragraph"}]}'
+    - uuid: d629e9b5-4ea1-4fe4-9a44-0b1f751a1d8a
+      x: 2087
+      "y": 1961
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Run a Deep Visibility Query in SentinelOne for the recently found threat file signatures in the past 14 days. "}]}]}'
+    - uuid: 2b8636f4-d567-4da9-bb88-f4fc78201c47
+      x: 2092
+      "y": 1810
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Add notes to the Threats in SentinelOne with VirusTotal and Recorded future findings. "}]}]}'
+    - uuid: 638bf6e0-91bc-49ba-a803-3282e0b14e2b
+      x: 2345
+      "y": 2313
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Check if the Deep Visibility Query is completed. "}]}]}'
+    - uuid: 445b3b34-8cf7-4042-9cd5-6942e8f0aa7b
+      x: 1963
+      "y": 340
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Analyze the hashes in Recorded Future and VirusTotal.  Cache the results for duplicate hashes and provide text to add to the issue in cases where the hash is not found."}]}]}'
+    - uuid: 3b2455e2-e660-47de-bb5e-889253142590
+      x: 2462
+      "y": 2629
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If the Deep Visibility Query is complete, break the loop."}]}]}'
+    - uuid: 97d8d361-63e3-4557-a03d-0a4fe10cc188
+      x: 2076
+      "y": 3004
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Get the Deep Visibility Events from the Query."}]}]}'
+    - uuid: ab28f48a-29d6-4e9b-9794-51b2874f4f1f
+      x: 2217
+      "y": 3306
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Add notes to the Threat with the Deep Visibility Events data that matches the hash in the event."}]}]}'
+    - uuid: fd20f164-f265-4cd9-aa9b-4da2043ae329
+      x: 2833
+      "y": 767
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"For each new hash, build and append to a Deep Visibility Query."}]}]}'
+root: true

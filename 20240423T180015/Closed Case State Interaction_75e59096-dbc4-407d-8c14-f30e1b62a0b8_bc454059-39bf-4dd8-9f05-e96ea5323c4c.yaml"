@@ -1,0 +1,250 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 75e59096-dbc4-407d-8c14-f30e1b62a0b8
+name: Closed Case State Interaction
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: close_ticket
+          required: true
+          prettyName: 'Close Ticket '
+          singleSelect:
+            options:
+              - "YES"
+              - "NO"
+            defaultValue: "YES"
+    onSubmitActionType: next_webform_page
+    formName: Close Items?
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "allowed_states": {
+                  "type": 10,
+                  "prettyName": "Allowed States",
+                  "description": "",
+                  "uiPlaceholder": "[\"NEW\",\"IN_PROGRESS\"]"
+              },
+              "destination_state": {
+                  "type": 8,
+                  "prettyName": "Destination State",
+                  "description": "This is the state that the WF is handling the changes",
+                  "uiPlaceholder": "ON_HOLD"
+              }
+          }
+        VALUES: |-
+          {
+            "allowed_states": [
+              "RESOLVED",
+              "IN_PROGRESS",
+              "ON_HOLD"
+            ],
+            "destination_state": "CLOSED"
+          }
+      uuid: f50b54be-0490-415a-b2c9-2f4d621c7c2a
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-case:3.6.0
+      id: get_case_details
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+      uuid: 29685614-9ae1-48d3-ab03-ebc9cab2e696
+      pretty_name: Get case details
+      options:
+        executor:
+          name: torq_cases_get-case_v_3_6_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 24225e38-e2b8-5d5c-9c0f-c31c6df8b6d2
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.get_case_details.case.state.value }}'
+                  operator: NOT_EQUALS
+                  rvalue: '{{ $.workflow_parameters.destination_state }}'
+        then:
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.get_case_details.case.state.value }}'
+                        operator: IN
+                        rvalue: '{{ $.workflow_parameters.allowed_states }}'
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+                  id: reason
+                  env:
+                    CONCLUDE_WEB_FORM_WITH: Next form
+                    FORM_NAME: Set {{ $.workflow_parameters.destination_state }} State
+                    PARAMETERS: '[{"name":"what_s_the_reason_to_change_the_state","prettyName":"What''s the reason to change the state?","description":"","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":["One Reason","Another Reason","No Reason"],"defaultValue":"one reason","optionsTemplate":""}},{"name":"geo_locations","prettyName":"Geo Locations","description":"The locations for this case.","required":true,"defaultValue":"","optionsList":[],"type":14,"uiPlaceholder":"","multiSelect":{"optionsList":["US","EU"],"defaultValuesList":[],"optionsTemplate":""}},{"name":"additional_information","prettyName":"Additional Information","description":"Any Additional Information that may be needed","required":true,"defaultValue":"","optionsList":[],"type":8,"uiPlaceholder":"","shortText":{"defaultValue":""}}]'
+                    TIMEOUT: 10m
+                  uuid: 6ca0de0f-d381-4168-bcd8-ec172456a4b1
+                  pretty_name: Reason
+                  options:
+                    executor:
+                      name: utils_forms_send_form_v_4_1_3
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.reason.timed_out }}'
+                              operator: EQUALS
+                              rvalue: "true"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+                        id: send_form_not_modified_message
+                        env:
+                          CONCLUDE_WEB_FORM_WITH: Close form
+                          FORM_NAME: Case modification TIMED-OUT
+                          PARAMETERS: '[{"name":"edf22dfb-0486-4df1-93b8-1bde63c4f239","prettyName":"","description":"The case can''t be modified due to timeout\n","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"The case can''t be modified due to timeout\n"}}]'
+                          TIMEOUT: 10m
+                        uuid: a0b21006-ca56-4402-a648-b35518ea1361
+                        pretty_name: 'Send Form  - Not Modified Message '
+                        options:
+                          executor:
+                            name: utils_forms_send_form_v_4_1_3
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-state:3.9.0
+                        id: change_case_state_closed
+                        env:
+                          CASE_ID: '{{ $.metadata.case.id }}'
+                          CASE_STATE: '{{ $.workflow_parameters.destination_state }}'
+                          RESOLUTION_DETAILS: |-
+                            Reason for State Change : {{ $.reason.answers.what_s_the_reason_to_change_the_state }}
+                            Geo Regions Selected: {{ $.reason }}
+                          RESOLUTION_REASON: '{{ $.reason.answers.additional_information }}'
+                        uuid: e4b049cf-74f2-48a0-9c1a-6e4c0a1903ba
+                        pretty_name: Change Case State - Closed
+                        options:
+                          executor:
+                            name: torq_cases_update-state_v_3_9_0
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: c9bdae95-b86a-50e5-89f9-28cd7c48109c
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+                        id: send_form_thank_you_message
+                        env:
+                          CONCLUDE_WEB_FORM_WITH: Close form
+                          FORM_NAME: Case is {{ $.workflow_parameters.destination_state }}
+                          PARAMETERS: '[{"name":"919f7070-f6a7-467d-9fa6-4f1a1ecae470","prettyName":"","description":"The case is CLOSED.\nYou''re all done.","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"The case is CLOSED.\nYou''re all done."}}]'
+                          TIMEOUT: 10m
+                        uuid: 3f8c84de-dfca-4286-8b35-a1742a55e117
+                        pretty_name: Send Form  - Thank You Message
+                        options:
+                          executor:
+                            name: utils_forms_send_form_v_4_1_3
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    uuid: 7a2debb4-a385-4613-b0d4-d716c4c635dc
+                    pretty_name: If Timeout Occurred
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+                  id: change_not_allowed
+                  env:
+                    CONCLUDE_WEB_FORM_WITH: Close form
+                    FORM_NAME: No Change
+                    PARAMETERS: '[{"name":"73872904-823d-4315-aba9-70a813968f07","prettyName":"","description":"Changing state from {{ $.get_case_details.case.state.value }} to {{ $.workflow_parameters.destination_state }} is not allowed.","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"Changing state from {{ $.get_case_details.case.state.value }} to {{ $.workflow_parameters.destination_state }} is not allowed."}}]'
+                    TIMEOUT: 10m
+                  uuid: 0a84ed41-1b8a-4b42-9f03-08c692e6292d
+                  pretty_name: Change Not Allowed
+                  options:
+                    executor:
+                      name: utils_forms_send_form_v_4_1_3
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              uuid: 0ed35ccb-2470-44d6-a6ac-7a730e4ee92c
+              pretty_name: If Changing to a Permitted State
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.3
+            id: no_change
+            env:
+              CONCLUDE_WEB_FORM_WITH: Close form
+              FORM_NAME: No Change
+              PARAMETERS: '[{"name":"c8a4a9b0-0791-4aae-89b1-7e42cb9538b5","prettyName":"","description":"Case is Already in {{ $.workflow_parameters.destination_state }} State","required":true,"defaultValue":"","optionsList":[],"type":16,"uiPlaceholder":"","markdownText":{"defaultValue":"Case is Already in {{ $.workflow_parameters.destination_state }} State"}}]'
+              TIMEOUT: 10m
+            uuid: 9297f339-96ea-4543-9cf6-279ed494b18f
+            pretty_name: No Change
+            options:
+              executor:
+                name: utils_forms_send_form_v_4_1_3
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 7ea0c173-b66c-5b2b-ae60-3a8fc0031297
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: 4b722657-bdb7-4142-b623-09a3b7a8548a
+        pretty_name: If State Changes
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 101ca50d-a6d2-48f6-a10e-0e4a41cf0e8c
+  annotations:
+    - uuid: 07680ffa-49ae-4061-a2f2-c6fb21681e11
+      x: 862
+      "y": 776
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"You can add any desired reason to not close the case based on the user''s feedback"}]}]}'
+    - uuid: 8c4abf85-b203-4826-85d8-e7ebc07f5c08
+      x: 313
+      "y": 175
+      width: 551
+      height: 118
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"What States are permitted to move a casse to Closed:"}]},{"type":"paragraph"},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Resolved"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"In Progress"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"On Hold"},{"type":"hardBreak"}]}]}]}]}'
+  output_schema: '{}'
+root: true

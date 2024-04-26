@@ -1,0 +1,1119 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: bdd909b8-546f-4267-8749-b528fab1f4ae
+name: create_report_testing_fileUpdate
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters: []
+playbook:
+  steps:
+    - parallel:
+        uuid: 3d8d001c-4e41-4d6f-ae67-0e21dd2027a5
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 1f327a69-8fa5-4860-9859-5da68df92778
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-notes:2.1.0
+                id: list_case_notes
+                env:
+                  CASE_ID: '{{ $.metadata.case.id }}'
+                uuid: 167c58c8-4363-48b3-a5cb-68843fbe4ede
+                pretty_name: List case notes
+                options:
+                  executor:
+                    name: torq_cases_list-notes_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: ae8b9687-ce54-5b06-b62b-e2be5f487a7a
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: 23b810f8-5adc-494d-92cc-c7fcd84b9d4f
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-case:3.7.0
+                id: get_case_details
+                env:
+                  CASE_ID: '{{ $.metadata.case.id }}'
+                uuid: f2274b5e-4775-4da4-b987-8e29690b18e8
+                pretty_name: Get case details
+                options:
+                  executor:
+                    name: torq_cases_get-case_v_3_7_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 4f6c348c-153e-52ac-9ddb-7da801362dc5
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: 183ef2e8-c114-47bd-96ab-c23afc2f8a44
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-case-timeline-events:3.7.0
+                id: list_case_timeline_events
+                env:
+                  CASE_ID: '{{ $.metadata.case.id }}'
+                uuid: 3ad99821-6549-4d16-b676-9c0da7ff7432
+                pretty_name: List case timeline events
+                options:
+                  executor:
+                    name: torq_cases_list-case-timeline-events_v_3_7_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 793451b3-9b01-5cd7-9d02-a1cf87c48228
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - loop:
+                  in: '{{ $.list_case_timeline_events.events}}'
+                  key: timeline_key
+                  value: timeline_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.1.0
+                      id: convert_timestamp
+                      env:
+                        CURRENT_DATE_FORMAT_LAYOUT: 2006-01-02T15:04:05Z07:00
+                        DATE: '{{ $.timeline_value.timestamp }}'
+                        NEW_DATE_FORMAT_LAYOUT: 02 Jan 06 15:04 MST
+                      uuid: 604e8d2f-4be2-41b7-814c-bf3940aef41c
+                      pretty_name: Convert TimeStamp
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_22_0
+                          env:
+                            COMMAND: convert_date
+                          sync: true
+                          disable: false
+                      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                      manifestId: 87b764a5-36ef-5e92-8606-387d05f4413b
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                    - switch:
+                        uuid: 66097a6f-a8b7-4e83-917d-c57e4de99c84
+                        pretty_name: Determine Event
+                        cases:
+                          - id: 7e40a812-cd3d-45ad-a44e-9b7f52922369
+                            pretty_name: Case Updated
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.timeline_value.case_updated }}'
+                                      operator: NOT_EMPTY
+                                      rvalue: ""
+                            steps:
+                              - switch:
+                                  uuid: 6982d64b-37f8-436a-b56c-91221294d5b5
+                                  pretty_name: Case Update
+                                  cases:
+                                    - id: 4b50c56f-0d64-4415-a6f9-78975581ba37
+                                      pretty_name: State
+                                      conditions:
+                                        or:
+                                          - and:
+                                              - lvalue: '{{ $.timeline_value.case_updated.update_mask }}'
+                                                operator: CONTAINS
+                                                rvalue: state
+                                      steps:
+                                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                                          id: timeline_event
+                                          env:
+                                            INPUT: '<li><i>{{ $.convert_timestamp.result }}</i>: Case state changed from <b>{{$.timeline_value.case_updated.previous.state.value }}</b> to <b>{{$.timeline_value.case_updated.current.state.value }}</b></li>'
+                                          uuid: 39b074ae-632a-4374-b367-0cb58b67446c
+                                          pretty_name: Timeline Event
+                                          options:
+                                            executor:
+                                              name: utils_infrastructure_v_1_22_0
+                                              env:
+                                                COMMAND: print
+                                              sync: true
+                                              disable: false
+                                          manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                                          isPrivate: false
+                                          isPrivateUrl: true
+                                          mock_output:
+                                            enabled: false
+                                          skip: false
+                                          retry: {}
+                                    - id: 7ebad7ed-334b-41d3-9de6-26d2d21e9822
+                                      pretty_name: Assignee
+                                      conditions:
+                                        or:
+                                          - and:
+                                              - lvalue: '{{ $.timeline_value.case_updated.update_mask }}'
+                                                operator: EQUALS
+                                                rvalue: assignee
+                                      steps:
+                                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                                          id: timeline_event
+                                          env:
+                                            INPUT: '<li><i>{{ $.convert_timestamp.result }}</i>: <b>{{$.timeline_value.case_updated.current.assignee }} </b>assigned the Case</li>'
+                                          uuid: c2a338df-606e-4656-bf9d-688c514fc7e4
+                                          pretty_name: Timeline Event
+                                          options:
+                                            executor:
+                                              name: utils_infrastructure_v_1_22_0
+                                              env:
+                                                COMMAND: print
+                                              sync: true
+                                              disable: false
+                                          manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                                          isPrivate: false
+                                          isPrivateUrl: true
+                                          mock_output:
+                                            enabled: false
+                                          skip: false
+                                          retry: {}
+                                    - id: 77835784-a4f5-4c4d-8dc7-5b3dc59a7f97
+                                      pretty_name: Severity
+                                      conditions:
+                                        or:
+                                          - and:
+                                              - lvalue: '{{ $.timeline_value.case_updated.update_mask }}'
+                                                operator: EQUALS
+                                                rvalue: severity
+                                      steps:
+                                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                                          id: timeline_event
+                                          env:
+                                            INPUT: '<li><i>{{ $.convert_timestamp.result }}</i>: Case severity changed from <b>{{$.timeline_value.case_updated.previous.severity.value }}</b> to <b>{{$.timeline_value.case_updated.current.severity.value }}</b> </li>'
+                                          uuid: d456a405-be30-48f7-9f3d-31ef28887f80
+                                          pretty_name: Timeline Event
+                                          options:
+                                            executor:
+                                              name: utils_infrastructure_v_1_22_0
+                                              env:
+                                                COMMAND: print
+                                              sync: true
+                                              disable: false
+                                          manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                                          isPrivate: false
+                                          isPrivateUrl: true
+                                          mock_output:
+                                            enabled: false
+                                          skip: false
+                                          retry: {}
+                                  default:
+                                    id: 6eafb77f-cb4c-4330-8111-6553312c692a
+                                    steps: []
+                          - id: 19c039fd-38c5-4f0c-80dc-b1bb30c73709
+                            pretty_name: Case Created
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.timeline_value.case_created }}'
+                                      operator: NOT_EMPTY
+                                      rvalue: ""
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                                id: timeline_event
+                                env:
+                                  INPUT: '<li><i>{{ $.convert_timestamp.result }}</i>: <b>Case Created </b></li>'
+                                uuid: 26f65522-0541-4d17-889e-c826d7cface9
+                                pretty_name: Timeline Event
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_22_0
+                                    env:
+                                      COMMAND: print
+                                    sync: true
+                                    disable: false
+                                manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                                isPrivate: false
+                                isPrivateUrl: true
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                                retry: {}
+                          - id: 6a164de9-a2f8-44e2-ab3f-1a6bf24a1e75
+                            pretty_name: Comment
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.timeline_value.comment_added }}'
+                                      operator: NOT_EMPTY
+                                      rvalue: ""
+                                    - lvalue: '{{ $.timeline_value.added_by.kind }}'
+                                      operator: EQUALS
+                                      rvalue: USER
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                                id: timeline_event
+                                env:
+                                  INPUT: '<li><i>{{ $.convert_timestamp.result }}:  </i>{{$.timeline_value.comment_added.text }} </li>'
+                                uuid: 50e42b7d-641e-4333-a612-763eed1c2e74
+                                pretty_name: Timeline Event
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_22_0
+                                    env:
+                                      COMMAND: print
+                                    sync: true
+                                    disable: false
+                                manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                                isPrivate: false
+                                isPrivateUrl: true
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                                retry: {}
+                        default:
+                          id: 2837ab03-340a-4b01-9ead-72a0cc80c205
+                          steps: []
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.timeline_event.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - collector:
+                              id: collect_event
+                              uuid: dcc036b8-3be4-46da-acc6-9a51eec7cf94
+                              pretty_name: Collect Event
+                              expression: |-
+                                {
+                                  "timestamp": "{{ $.timeline_value.timestamp }}",
+                                  "event": "{{ $.timeline_event.output }}"
+                                }
+                              flatten: true
+                        else: []
+                        uuid: 1ec10d11-c213-4e50-b8f8-80317f6a739e
+                        pretty_name: If
+                  uuid: f9233265-3064-4d47-a44a-61b636a4d0d5
+                  pretty_name: Loop Timeline
+                  run_in_parallel: true
+    - loop:
+        in: '{{ $.list_case_notes.notes }}'
+        key: loop_key
+        value: loop_value
+        steps:
+          - switch:
+              uuid: b2e2f248-4d5d-4d4d-b97d-2f97013c4f1f
+              pretty_name: Notes
+              cases:
+                - id: a33c92dc-23e2-40fd-98ad-84dbf33803a8
+                  pretty_name: Technical Notes
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.loop_value.title }}'
+                            operator: CONTAINS
+                            rvalue: Technical Notes
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-note:2.2.0
+                      id: get_tech_notes
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        ID: '{{ $.loop_value.id }}'
+                      uuid: f9dc1b82-3574-4acf-89e8-bec17d5e20b0
+                      pretty_name: Get Tech Notes
+                      options:
+                        executor:
+                          name: torq_cases_get-note_v_2_2_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: ea12b667-03be-5437-9628-9478c967dcf9
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - id: baa21884-d585-4c0a-b9aa-bde90d87d9d5
+                  pretty_name: Incident Report
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.loop_value.title }}'
+                            operator: CONTAINS
+                            rvalue: Incident Report
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-note:2.2.0
+                      id: get_incident_report
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        ID: '{{ $.loop_value.id }}'
+                      uuid: c444a70c-6e92-4d5b-92b4-eadc52de18c0
+                      pretty_name: Get Incident Report
+                      options:
+                        executor:
+                          name: torq_cases_get-note_v_2_2_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: ea12b667-03be-5437-9628-9478c967dcf9
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - id: 870e9e46-4249-4b3a-87b9-fd71d9436c98
+                  pretty_name: Impact
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.loop_value.title }}'
+                            operator: CONTAINS
+                            rvalue: Impact
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-note:2.2.0
+                      id: get_post_impact
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        ID: '{{ $.loop_value.id }}'
+                      uuid: 0588f1e2-bfda-4af3-86a9-e48d6dd4a981
+                      pretty_name: Get Post Impact
+                      options:
+                        executor:
+                          name: torq_cases_get-note_v_2_2_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: ea12b667-03be-5437-9628-9478c967dcf9
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: true
+                      retry: {}
+                - id: 2b88d109-4eb9-4b21-bf4d-518ff8f6906a
+                  pretty_name: ' Root Cause'
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.loop_value.title }}'
+                            operator: CONTAINS
+                            rvalue: Root Cause
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-note:2.2.0
+                      id: get_post_root_cause
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        ID: '{{ $.loop_value.id }}'
+                      uuid: 0f890c97-94db-418a-9cf4-017686289ab0
+                      pretty_name: Get Post Root Cause
+                      options:
+                        executor:
+                          name: torq_cases_get-note_v_2_2_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: ea12b667-03be-5437-9628-9478c967dcf9
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: true
+                      retry: {}
+                - id: b034243d-64ec-427d-a4e4-1f96567a7125
+                  pretty_name: Mitigation
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.loop_value.title }}'
+                            operator: CONTAINS
+                            rvalue: Mitigation
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-note:2.2.0
+                      id: get_post_mitigation
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        ID: '{{ $.loop_value.id }}'
+                      uuid: 9dfb27f4-f49d-4c8e-905d-f46397189757
+                      pretty_name: Get Post Mitigation
+                      options:
+                        executor:
+                          name: torq_cases_get-note_v_2_2_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: ea12b667-03be-5437-9628-9478c967dcf9
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: true
+                      retry: {}
+              default:
+                id: b2b53953-375b-45b6-be98-17ef0a4ca4d2
+                steps: []
+        uuid: b04eeea6-3179-4399-8240-22ec8a82b72a
+        pretty_name: Gather Notes
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.3.0
+      id: prepare_timeline_and_sort
+      env:
+        INPUT: '{{ $.collect_event.result }}'
+        JSON_QUERY: ' unique | sort_by(.timestamp) | .[] | (.event)'
+        OUTPUT_AS_STRING: "true"
+      uuid: 4fc50bb2-bbba-4165-a193-32c0f6ef8eaa
+      pretty_name: Prepare Timeline and Sort
+      options:
+        executor:
+          name: jq_infra_v_3_3_0
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 13e8f773-c042-5be2-8f25-a4b50d8d8be3
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python-data-processing:1.0.0
+      id: remove_timeline_duplicates
+      env:
+        PYTHON_CODE: |-
+          def remove_duplicates(input_string):
+              lines = input_string.split('\n')
+              unique_lines = []
+
+              for line in lines:
+                  if line not in unique_lines:
+                      unique_lines.append(line)
+
+              return '\n'.join(unique_lines)
+
+          input_string = """
+          {{ $.prepare_timeline_and_sort.output }}
+          """
+
+          cleaned_string = remove_duplicates(input_string)
+          print(cleaned_string)
+      uuid: 441a4a51-90a7-4f7a-a91d-cacf15f1f777
+      pretty_name: Remove Timeline Duplicates
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: 9df460ec-bf05-5dfa-a1ef-ca1d1dbacd22
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/convert-date:2.1.0
+      id: convert_date
+      env:
+        CURRENT_DATE_FORMAT_LAYOUT: 2006-01-02T15:04:05Z07:00
+        DATE: '{{ $.get_case_details.case.created_at }}'
+        NEW_DATE_FORMAT_LAYOUT: "2006-01-02"
+      uuid: 818fb2a6-f1f4-468a-a3e3-a0902fdd22fd
+      pretty_name: Convert Date
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: convert_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: 87b764a5-36ef-5e92-8606-387d05f4413b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+      id: report_template
+      env:
+        INPUT: |-
+          <h3>Case {{ $.get_case_details.case.pretty_id }} - {{ $.get_case_details.case.title }} - {{ $.convert_date.result }}</h3>
+          <p>The purpose of this document is to help capture the series of steps taken during the analysis&nbsp; and mitigation phases of a security incident.&nbsp;</p>
+          <p></p>
+          {{ $.get_incident_report.note.content }}
+          <h3>6. Incident Timeline:</h3><p></p>
+          <ol>
+          {{ $.remove_timeline_duplicates.output }}
+          </ol>
+          <p></p>
+          <h3>7. Technical Notes</h3>
+          {{ $.get_tech_notes.note.content}}
+          <p></p>
+      uuid: d5e271f3-f282-4632-a170-164450ca4f78
+      pretty_name: Report Template
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: print
+          sync: true
+          disable: false
+      manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/get-custom-field-value:1.5.0
+      id: get_a_custom_field_s_value
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        KEY: Incident Report
+      uuid: 240cce74-ecf4-44b9-9f41-eaf203318abe
+      pretty_name: Get a custom field's value
+      options:
+        executor:
+          name: torq_cases_get-custom-field-value_v_1_5_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 807eb0f7-f2b3-50af-b1b1-324bb2be7600
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/google_drive/generate-google-drive-token:3.1.0
+      id: generate_google_drive_token
+      env:
+        EMAIL_TO_IMPERSONATE: javier@wolken.cloud
+        SCOPES: https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/drive.activity,https://www.googleapis.com/auth/documents
+      envFrom:
+        integrationRef: jrp_gsuite
+      uuid: 8ae36490-d844-476d-afd7-5bf0980c5c7e
+      pretty_name: Generate Google Drive Token
+      options:
+        executor:
+          name: gcp_generate-bearer-token_v_5_1_0
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://developers.google.com/identity/protocols/oauth2/scopes
+      manifestId: b580f419-884e-5d0d-bf12-234176ee065e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.get_a_custom_field_s_value.value }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+            id: get_fileid
+            env:
+              COMMAND: awk -F'/' '{print $6}'
+              INPUT: '{{ $.get_a_custom_field_s_value.value }}'
+            uuid: 040af545-7408-4ca0-a6f3-51c7f5a83548
+            pretty_name: Get FileID
+            options: {}
+            manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: update_file
+            env:
+              AUTHORIZATION: Bearer
+              BODY: "--boundary\nContent-Type: application/json; charset=UTF-8\n\n{\n    \"name\": \"Nubank-Report-{{ $.metadata.case.id }}\",\n    \"mimeType\": \"application/vnd.google-apps.document\",\n    \"parents\": [\"root\"],\n\"fileId\":\"{{ $.get_fileid.output }}\"\n}\n\n--boundary\nContent-Type: text/html\nContent-Transfer-Encoding: \n\n{{ $.report_template.output }}\n--boundary--"
+              CONTENT_TYPE: text
+              HEADERS: |-
+                {
+                    "Content-Type": "multipart/related; boundary=boundary"
+                }
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://www.googleapis.com/upload/drive/v3/files?&uploadType=multipart
+            uuid: 9d842e5b-dd62-4d73-898f-a59ed7b9d42f
+            pretty_name: Update File
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/create
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: update_file
+            env:
+              AUTHORIZATION: Bearer
+              BODY: '{{ $.report_template.output }}'
+              CONTENT_TYPE: text
+              HEADERS: '{"Content-Type":"text/html"}'
+              METHOD: PATCH
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://www.googleapis.com/upload/drive/v3/files/{{ $.get_fileid.output }}
+            uuid: 3921b971-266e-475a-8b89-588fd98fd16a
+            pretty_name: Update File
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/create
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/google_drive/upload-file:7.0.5
+            id: upload_file_2
+            env:
+              FILE_CONTENT_TYPE: text/plain
+              FILE_TO_UPLOAD: '{{ $.report_template.output }}'
+              FILE_TO_UPLOAD_FILENAME: Nubank-Report-{{ $.metadata.case.id }}
+              GOOGLE_DRIVE_ACCESS_TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              PARENT_FOLDER_ID: root
+            uuid: 5d5fa085-8322-4299-9d06-3a801b0b1f5c
+            pretty_name: Upload File 2
+            options:
+              executor:
+                name: http_request_v_4_5_1
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    --boundary
+                    Content-Type: application/json; charset=UTF-8
+
+                    {
+                        "name": "{{ .FILE_TO_UPLOAD_FILENAME }}",
+                        "parents": ["{{ .PARENT_FOLDER_ID }}"]
+                    }
+
+                    --boundary
+                    Content-Type: {{ .FILE_CONTENT_TYPE }}
+                    Content-Transfer-Encoding: {{ .FILE_ENCODING }}
+
+                    {{ .FILE_TO_UPLOAD }}
+                    --boundary--
+                  CONTENT_TYPE: text
+                  HEADERS: |-
+                    {
+                        "Content-Type": "multipart/related; boundary=boundary"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["GOOGLE_DRIVE_ACCESS_TOKEN", "FILE_TO_UPLOAD", "FILE_TO_UPLOAD_FILENAME", "FILE_CONTENT_TYPE", "PARENT_FOLDER_ID"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .GOOGLE_DRIVE_ACCESS_TOKEN }}'
+                  URL: https://www.googleapis.com/upload/drive/v3/files?&uploadType=multipart
+                sync: true
+                disable: false
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/create
+            manifestId: d12c3365-d54c-4614-8067-982fecb139cc
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: delete_doc_contents
+            env:
+              AUTHORIZATION: Bearer
+              BODY: |-
+                {
+                  "requests": [
+                    {
+                      "deleteContentRange": {
+                        "range": {
+                          "startIndex": 1,
+                          "endIndex": 999999
+                        }
+                      }
+                    }
+                  ]
+                }
+              CONTENT_TYPE: application/json; charset=utf-8
+              HEADERS: '{}'
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://docs.googleapis.com/v1/documents/{{ $.get_fileid.output }}:batchUpdate
+            uuid: 368ae263-5606-4ccc-bfad-35c975bc2a06
+            pretty_name: Delete Doc Contents
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/get
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.delete_doc_contents.status_code }}'
+                        operator: NOT_EQUALS
+                        rvalue: "200"
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+                  id: data_transformer
+                  env:
+                    COMMAND: awk '{print $NF}'
+                    INPUT: '{{ $.delete_doc_contents.api_object.error.message }}'
+                  uuid: d98140fd-7ccf-4bd2-961e-77c6cb0f7ffd
+                  pretty_name: Data Transformer
+                  options: {}
+                  manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.3.0
+                  id: solve_equation
+                  env:
+                    INPUT: '{{ $.data_transformer.output }} - 1'
+                  uuid: a479d28c-60ed-458c-9d79-85e7e71b8690
+                  pretty_name: Solve Equation
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: math_utils
+                      sync: true
+                      disable: false
+                  manifestId: bb157136-9c22-5f91-8ec1-0b9a36982e02
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+                  id: delete_doc_contents
+                  env:
+                    AUTHORIZATION: Bearer
+                    BODY: |-
+                      {
+                        "requests": [
+                          {
+                            "deleteContentRange": {
+                              "range": {
+                                "startIndex": 1,
+                                "endIndex": {{ $.solve_equation.result }}
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    CONTENT_TYPE: application/json; charset=utf-8
+                    HEADERS: '{}'
+                    METHOD: POST
+                    TIMEOUT: "30"
+                    TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+                    URL: https://docs.googleapis.com/v1/documents/{{ $.get_fileid.output }}:batchUpdate
+                  uuid: 250755c0-9f94-4b99-80e8-eb599c6f4b81
+                  pretty_name: Delete Doc Contents
+                  options:
+                    executor:
+                      name: http_request_v_4_11_0
+                      env:
+                        FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                        GO_TEMPLATE_BODY_PARSING: "false"
+                        RESPONSE_API_OBJECT_ONLY: "false"
+                      sync: true
+                      disable: false
+                  icon: https://cdn.torq.io/vendors/googledrive.svg
+                  documentationUrl: https://developers.google.com/drive/api/v3/reference/files/get
+                  manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              else: []
+              uuid: 9ef99ab6-b62c-4b5c-af61-557a0400140b
+              pretty_name: If Error
+              skip: true
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: update_doc_contents
+            env:
+              AUTHORIZATION: Bearer
+              BODY: |-
+                {
+                  "requests": [
+                    {
+                            'insertText': {
+                                'location': {
+                                    'index': 1,
+                                },
+                                'text': '{{ $.report_template.output }}'
+                            }
+                        }
+                  ]
+                }
+              CONTENT_TYPE: application/json; charset=utf-8
+              HEADERS: '{}'
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://docs.googleapis.com/v1/documents/{{ $.get_fileid.output }}:batchUpdate
+            uuid: 7ac99dde-b9be-4a04-afbd-680d38245d39
+            pretty_name: Update Doc Contents
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/get
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: update_doc_contents_1
+            env:
+              AUTHORIZATION: Bearer
+              BODY: |-
+                {
+                  "requests": [
+                    {
+                            "insertText": {
+                                "location": {
+                                    "index": 1,
+                                },
+                                "text": "{{ jsonEscape $.report_template.output }}"
+                            }
+                        }
+                  ]
+                }
+              CONTENT_TYPE: application/json; charset=utf-8
+              HEADERS: '{}'
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://docs.googleapis.com/v1/documents/{{ $.get_fileid.output }}:batchUpdate
+            uuid: 27563bdc-33e8-46fb-aac0-15d1d04864b6
+            pretty_name: Update Doc Contents 1
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/get
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: upload_file
+            env:
+              AUTHORIZATION: Bearer
+              BODY: "--boundary\nContent-Type: application/json; charset=UTF-8\n\n{\n    \"name\": \"Nubank-Report-{{ $.metadata.case.id }}\",\n    \"mimeType\": \"text/plain\",\n    \"parents\": [\"root\"]\n}\n\n--boundary\nContent-Type: text/html\nContent-Transfer-Encoding: \n\n{{ $.report_template.output }}\n--boundary--"
+              CONTENT_TYPE: text
+              HEADERS: |-
+                {
+                    "Content-Type": "multipart/related; boundary=boundary"
+                }
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://www.googleapis.com/upload/drive/v3/files?&uploadType=multipart
+            uuid: 44132f05-3ac3-4fd6-8c46-2a1c0d90ded9
+            pretty_name: Upload File
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/create
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: true
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+            id: upload_file
+            env:
+              AUTHORIZATION: Bearer
+              BODY: "--boundary\nContent-Type: application/json; charset=UTF-8\n\n{\n    \"name\": \"Nubank-Report-{{ $.metadata.case.id }}\",\n    \"mimeType\": \"application/vnd.google-apps.document\",\n    \"parents\": [\"root\"]\n}\n\n--boundary\nContent-Type: text/html\nContent-Transfer-Encoding: \n\n{{ $.report_template.output }}\n--boundary--"
+              CONTENT_TYPE: text
+              HEADERS: |-
+                {
+                    "Content-Type": "multipart/related; boundary=boundary"
+                }
+              METHOD: POST
+              TIMEOUT: "30"
+              TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              URL: https://www.googleapis.com/upload/drive/v3/files?&uploadType=multipart
+            uuid: f88f8626-4a39-46d4-a1f6-4040c86ca801
+            pretty_name: Upload File
+            options:
+              executor:
+                name: http_request_v_4_11_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/googledrive.svg
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/files/create
+            manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/google_drive/create-permission:7.0.4
+            id: create_permission
+            env:
+              FILE_ID: '{{ $.upload_file.api_object.id }}'
+              GOOGLE_DRIVE_ACCESS_TOKEN: '{{ $.generate_google_drive_token.access_token }}'
+              PERMISSION_EMAIL: javier.reynapadilla@torq.io
+              PERMISSION_GRANTEE_TYPE: user
+              PERMISSION_ROLE: writer
+            uuid: de7a5a57-6d0e-4040-8c63-293ee978c9d6
+            pretty_name: Create Permission
+            options:
+              executor:
+                name: http_request_v_4_5_1
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                        "role": "{{ .PERMISSION_ROLE | jsonEscape }}",
+                        "type": "{{ .PERMISSION_GRANTEE_TYPE | jsonEscape }}",
+                    {{ if or .PERMISSION_EMAIL }}    "emailAddress": "{{ .PERMISSION_EMAIL | jsonEscape }}",{{ end }}
+                    {{ if or .PERMISSION_DOMAIN }}    "domain": "{{ .PERMISSION_DOMAIN | jsonEscape }}"{{ end }}
+                    }
+                  CONTENT_TYPE: application/json; charset=UTF-8
+                  HEADERS: |-
+                    {
+                        "Content-Type": "application/json; charset=UTF-8"
+                    }
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["GOOGLE_DRIVE_ACCESS_TOKEN", "FILE_ID", "PERMISSION_GRANTEE_TYPE", "PERMISSION_ROLE"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .GOOGLE_DRIVE_ACCESS_TOKEN }}'
+                  URL: https://www.googleapis.com/drive/v3/files/{{ .FILE_ID | urlEnc }}/permissions?{{ if or .TRANSFER_PERMISSION_OWNERSHIP }}&transferOwnership={{ .TRANSFER_PERMISSION_OWNERSHIP | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://developers.google.com/drive/api/v3/reference/permissions/create
+            manifestId: 13616619-7792-4e42-889c-6b40a0fa0b91
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - parallel:
+              uuid: 3a8f6db3-f534-40a1-83f6-31bc7853a3a4
+              pretty_name: Parallel Executions
+              threads:
+                - uuid: 82424440-8964-4de8-865e-fdd8567766e8
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-comment-to-case:4.1.0
+                      id: add_comment_to_case
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        TEXT_COMMENT: '[Incident Report - {{ $.metadata.case.id }}](https://docs.google.com/document/d/{{ $.upload_file.api_object.id }})'
+                      uuid: 5a20c877-fb5d-49eb-8b1b-251db9117bc9
+                      pretty_name: Add comment to case
+                      options:
+                        executor:
+                          name: torq_cases_add-comment-to-case_v_4_1_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 7d3eb998-1600-5f67-9fe7-57dee5af019e
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - uuid: 56aea748-d67e-4b5f-8ae1-22bfceca9fc2
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/set-custom-field-value:1.6.0
+                      id: set_a_custom_field_s_value
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        CUSTOM_FIELD_KEY: Incident Report
+                        CUSTOM_FIELD_VALUE: https://docs.google.com/document/d/{{ $.upload_file.api_object.id }}
+                      uuid: 4f9164d9-b514-45e6-b044-c37ed1850c89
+                      pretty_name: Set a custom field's value
+                      options:
+                        executor:
+                          name: torq_cases_set-custom-field-value_v_1_6_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 12cbfa01-bba2-5893-981b-da204d919984
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+        uuid: 5d0683ab-3a8d-4f97-88dc-838a0bff798e
+        pretty_name: Report exists?
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 669a1261-2f60-41c8-a134-3e8f0c4a4e0b
+  output_schema: '{}'
+root: true

@@ -1,0 +1,932 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: abe5c317-6c65-414e-a801-dc301a237d9c
+name: Prepare Case Properties
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_CREATED
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.cases.current.category }}'
+                operator: OPERATOR_EQUALS
+                rvalue: Malware
+          - expression:
+              - lvalue: '{{ $.event.cases.current.category }}'
+                operator: OPERATOR_EQUALS
+                rvalue: Email Security
+          - expression:
+              - lvalue: '{{ $.event.cases.current.category }}'
+                operator: OPERATOR_EQUALS
+                rvalue: Data Security
+          - expression:
+              - lvalue: '{{ $.event.cases.current.category }}'
+                operator: OPERATOR_EQUALS
+                rvalue: Cloud Security
+          - expression:
+              - lvalue: '{{ $.event.cases.current.category }}'
+                operator: OPERATOR_EQUALS
+                rvalue: Endpoint Security
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "torq_integration": {
+                  "type": 17,
+                  "prettyName": "Torq Integration",
+                  "description": "The Torq integration to use with the workflow",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "torq_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "torq_integration": "torq_api"
+          }
+      uuid: 5fc168d4-c46d-4960-8802-916583c603f3
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 58aa8b45-fb79-4c42-924d-10d9b0192e7e
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 20082111-a06b-4e86-9bf3-0cd4b569fc0c
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-quick-actions:2.1.2
+                id: list_case_s_quick_actions
+                env:
+                  CASE_ID: '{{ $.event.cases.current.id }}'
+                uuid: 8ee9f04f-c89f-4b0a-8782-1f5208e85a6e
+                pretty_name: List case's quick actions
+                options:
+                  executor:
+                    name: torq_cases_list-quick-actions_v_2_1_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 173e3b96-03db-58ce-a510-9af652b0d171
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: set_quick_actions
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "Malware": [
+                            {
+                                "name": "IOC Enrichment",
+                                "workflow_id": "80aa9396-aa07-47f5-89aa-2e181ff0b5c9"
+                            },
+                            {
+                                "name": "Add MITRE Layer",
+                                "workflow_id": "559a35fd-3312-4c59-b9a9-d3a761459c36"
+                            },
+                            {
+                                "name": "Isolate Device",
+                                "workflow_id": "41f2d105-d7e4-48a0-82e9-dc7ecbb6976b"
+                            }
+                        ]
+                    }
+                  VARIABLE_NAME: data
+                uuid: 57102609-1d1c-4d74-a518-994f56558e31
+                pretty_name: Set Quick Actions
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/subtract-arrays:1.1.4
+                id: compare_quick_actions
+                env:
+                  LEFT_ARRAY: '{{ $.list_case_s_quick_actions.quick_actions }}'
+                  RIGHT_ARRAY: '{{ $.set_quick_actions.data.''{{ $.event.cases.current.category }}''..workflow_id }}'
+                uuid: 037e455b-97af-4454-ac5d-e3dc6fc6040e
+                pretty_name: Compare Quick Actions
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: array_substrut
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#subtract-arrays
+                manifestId: c507deac-1d72-40a9-b9eb-885615364974
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.compare_quick_actions.right_diff }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                      id: filter_for_required_quick_actions
+                      env:
+                        FIELD_PATH: workflow_id
+                        FILTER_ARG: '{{ $.compare_quick_actions.right_diff }}'
+                        FILTER_FUNC: Equals
+                        INPUT: '{{ $.set_quick_actions.data.''{{ $.event.cases.current.category }}'' }}'
+                      uuid: 2faed596-eeab-4690-96c8-bf01ceead3f6
+                      pretty_name: Filter for Required Quick Actions
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: array_filter
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                      manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - loop:
+                        in: '{{ $.filter_for_required_quick_actions.result }}'
+                        key: quick_action_key
+                        value: quick_action_value
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/torq/retrieve-a-workflow:1.0.2
+                            id: retrieve_a_workflow
+                            env:
+                              WORKFLOW_ID: '{{ $.quick_action_value.workflow_id }}'
+                            envFrom:
+                              integrationRef: '{{ $.workflow_parameters.torq_integration }}'
+                            ignoreFailure: true
+                            uuid: 14851725-1899-4aaf-a109-32949dd6a8f3
+                            pretty_name: Retrieve a workflow
+                            options:
+                              executor:
+                                name: http_request_v_4_6_0
+                                env:
+                                  AUTHORIZATION: Bearer
+                                  BODY: ""
+                                  HEADERS: '{}'
+                                  METHOD: GET
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["ACCESS_TOKEN","WORKFLOW_ID"]'
+                                  TIMEOUT: "30"
+                                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v1alpha/workflows/{{ .WORKFLOW_ID | urlEnc }}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://learn.torq.io/apidocs/retrieve-a-workflow
+                            manifestId: 611a96d3-e633-5a63-9cf0-089f9b216c09
+                            isPrivate: false
+                            isPrivateUrl: true
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.retrieve_a_workflow.step_status.code }}'
+                                        operator: EQUALS
+                                        rvalue: "1"
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-quick-action:1.1.2
+                                  id: create_a_quick_action_for_a_case
+                                  env:
+                                    CASE_ID: '{{ $.event.cases.current.id }}'
+                                    TITLE: '{{ $.quick_action_value.name }}'
+                                    WORKFLOW: '{{ $.quick_action_value.workflow_id }}'
+                                  uuid: 13a9ef84-ba62-4339-99eb-4472f48d5ba9
+                                  pretty_name: Create a quick action for a case
+                                  options:
+                                    executor:
+                                      name: torq_cases_create-quick-action_v_1_1_2
+                                      env: {}
+                                      sync: true
+                                      disable: false
+                                  manifestId: af109271-645c-59e6-a7bc-221fdfaa9524
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              else:
+                                - collector:
+                                    id: quick_action_failure
+                                    uuid: 5d1c9230-4763-4163-8a05-145d1232906b
+                                    pretty_name: Quick Action Failure
+                                    expression: '{{ $.quick_action_value }}'
+                                    flatten: true
+                              uuid: f8aa55a8-fc34-4675-97f0-1cd15593b49e
+                              pretty_name: If Workflow Exists
+                        uuid: 07eb2fcc-ba95-40a6-bd34-d25d847ab9ae
+                        pretty_name: Loop Over Quick Actions
+                        run_in_parallel: true
+                  else: []
+                  uuid: b16dcb14-1d8a-4b98-b1a5-3b3b111ff86a
+                  pretty_name: If Results are Found
+          - uuid: 0c3d8552-6817-41af-9515-3a5f12261192
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-custom-fields:2.1.2
+                id: lists_custom_fields_of_a_case
+                env:
+                  CASE_IDS: '{{ $.event.cases.current.id }}'
+                uuid: b8b43e67-b5c4-4e46-8c1a-49be222b75fb
+                pretty_name: Lists custom fields of a case
+                options:
+                  executor:
+                    name: torq_cases_list-custom-fields_v_2_1_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3a50d663-14cc-5b99-b6f0-cbbe6c2bef00
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: custom_fields
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "Malware": [
+                        {
+                          "name": "CVE",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "CVSS",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Username",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Source OS",
+                          "type": "list single select",
+                          "options": "Windows, MacOS, Linux"
+                        },
+                        {
+                          "name": "Source OS Version",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Windows Domain",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "SAM Account Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malware Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malware Family",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malicious Behavior",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Machine Isolated",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "First Seen",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "File Path",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "MITRE TTPs",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Finding Source",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Finding Device ID",
+                          "type": "short text"
+                        }
+                      ],
+                      "Endpoint Security": [
+                        {
+                          "name": "CVE",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "CVSS",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Username",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Machine Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Source OS",
+                          "type": "list single select",
+                          "options": "Windows, MacOS, Linux"
+                        },
+                        {
+                          "name": "Source OS Version",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Windows Domain",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "SAM Account Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malware Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malware Family",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Malicious Behavior",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Machine Isolated",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "First Seen",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "File Path",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "MITRE TTPs",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Finding Source",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Finding Device ID",
+                          "type": "short text"
+                        }
+                      ],
+                      "Identity & Access Management": [
+                        {
+                          "name": "Last Login Time",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Last Login Location",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Login Attempt Status",
+                          "type": "list single select",
+                          "value": "FAILED,SUCCESSFUL"
+                        },
+                        {
+                          "name": "Last Password Reset",
+                          "type": "short text "
+                        },
+                        {
+                          "name": "User Status",
+                          "type": "list single select",
+                          "options": "Active,Provisioned,Deactivated,Suspended"
+                        },
+                        {
+                          "name": "User Agent",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Crown Jewel",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Application",
+                          "type": "short text"
+                        }
+                      ],
+                      "Cloud Security": [
+                        {
+                          "name": "Asset Owner",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Event Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Asset User",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Environment",
+                          "type": "list single select",
+                          "options": "Dev,Prod,Staging"
+                        },
+                        {
+                          "name": "Crown Jewel",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Destination Ports",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "CVE",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Security Group",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "VPC Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Cloud Provider",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Cloud Account ID",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Cloud Instance Id",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Vendor Reference",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Tags",
+                          "type": "short text"
+                        }
+                      ],
+                      "Data Security": [
+                        {
+                          "name": "Data Owner",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "IT Owner",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Data User",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Regulation",
+                          "type": "list multi select",
+                          "options": "GDPR,LGPD,GCCPA,GDPR,HIPAA,COPPA"
+                        },
+                        {
+                          "name": "Data Classification",
+                          "type": "list multi select",
+                          "options": "Public,Private,External,Confidential"
+                        },
+                        {
+                          "name": "Retention Period",
+                          "type": "number"
+                        },
+                        {
+                          "name": "Crown Jewel",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Data Source Type",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Data Source Location",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Data Source Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Object Name",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Full Object Path",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Object Size",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Cloud Provider",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Cloud Provider Region",
+                          "type": "short text"
+                        }
+                      ],
+                      "Email Security": [
+                        {
+                          "name": "Email Subject",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Email Size",
+                          "type": "number"
+                        },
+                        {
+                          "name": "Verified Phishing",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Verified Malware",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Message ID",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Email Count of Recipients",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Email Deleted",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Classification",
+                          "type": "list single select",
+                          "options": "Malicious,Suspicious,Phishing,Benign"
+                        },
+                        {
+                          "name": "Attachment Included",
+                          "type": "boolean"
+                        },
+                        {
+                          "name": "Attachment Count",
+                          "type": "number"
+                        },
+                        {
+                          "name": "Email Tags",
+                          "type": "short text"
+                        },
+                        {
+                          "name": "Threat Source",
+                          "type": "list single select",
+                          "options": "VirusTotal,Recorded Future,Alien Vault,Intezer"
+                        }
+                      ]
+                    }
+                  VARIABLE_NAME: data
+                uuid: 12cab0e4-1558-45d6-a48e-cfed52a5af77
+                pretty_name: Custom Fields
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/subtract-arrays:1.1.4
+                id: compare_custom_fields
+                env:
+                  LEFT_ARRAY: '{{ $.lists_custom_fields_of_a_case.custom_fields..key }}'
+                  RIGHT_ARRAY: '{{ $.custom_fields.data.''{{ $.event.cases.current.category }}''..name }}'
+                uuid: e2963c7b-770b-436e-9c60-67bcb13f1ff7
+                pretty_name: Compare Custom Fields
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: array_substrut
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#subtract-arrays
+                manifestId: c507deac-1d72-40a9-b9eb-885615364974
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                id: filter_for_required_custom_fields
+                env:
+                  FIELD_PATH: name
+                  FILTER_ARG: '{{ $.compare_custom_fields.right_diff }}'
+                  FILTER_FUNC: Equals
+                  INPUT: '{{ $.custom_fields.data.''{{ $.event.cases.current.category }}'' }} '
+                uuid: dcf1bea2-98af-4873-a043-5ac7ee4f5431
+                pretty_name: Filter for Required Custom Fields
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: array_filter
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.1.2
+                id: add_short_text_custom_field_1
+                env:
+                  CASE_ID: '{{ $.event.cases.current.id }}'
+                  CUSTOM_FIELD_KEY: Incident Report
+                  CUSTOM_FIELD_TYPE: short text
+                uuid: 8b5a7810-d7f2-4b27-a5d4-c9f8b4ee9cbd
+                pretty_name: Add short text custom field 1
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_1_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b181581f-b956-5766-88e0-292265f734a1
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - loop:
+                  in: '{{ $.filter_for_required_custom_fields.result }}'
+                  key: field_key
+                  value: field_value
+                  steps:
+                    - switch:
+                        uuid: 794e85b5-7d03-45d1-a07c-bc5c722b2499
+                        pretty_name: Determine Field Type
+                        cases:
+                          - id: 831a3fc7-89af-4fd6-a7de-5764f111d0e8
+                            pretty_name: boolean
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.field_value.type }}'
+                                      operator: EQUALS
+                                      rvalue: boolean
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.1.2
+                                id: add_boolean_custom_field
+                                env:
+                                  CASE_ID: '{{ $.event.cases.current.id }}'
+                                  CUSTOM_FIELD_KEY: '{{ $.field_value.name }}'
+                                  CUSTOM_FIELD_TYPE: boolean
+                                  CUSTOM_FIELD_VALUE: '{{ $.field_value.value }}'
+                                uuid: 9590336b-6af7-4880-a51d-ed347b699bcc
+                                pretty_name: Add boolean custom field
+                                options:
+                                  executor:
+                                    name: torq_cases_add-custom-field_v_5_1_2
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                manifestId: b181581f-b956-5766-88e0-292265f734a1
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                          - id: e456437d-e45f-4511-a605-fc5cd47330f9
+                            pretty_name: short text
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.field_value.type }}'
+                                      operator: EQUALS
+                                      rvalue: short text
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.1.2
+                                id: add_short_text_custom_field
+                                env:
+                                  CASE_ID: '{{ $.event.cases.current.id }}'
+                                  CUSTOM_FIELD_KEY: '{{ $.field_value.name }}'
+                                  CUSTOM_FIELD_TYPE: short text
+                                  CUSTOM_FIELD_VALUE: '{{ $.field_value.value }}'
+                                uuid: a2d364a4-96a4-47c9-bf13-dce9dfb1346e
+                                pretty_name: Add short text custom field
+                                options:
+                                  executor:
+                                    name: torq_cases_add-custom-field_v_5_1_2
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                manifestId: b181581f-b956-5766-88e0-292265f734a1
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                          - id: dea570d8-62e9-44b7-98d7-549558041dce
+                            pretty_name: number
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.field_value.type }}'
+                                      operator: EQUALS
+                                      rvalue: number
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.1.2
+                                id: add_number_custom_field
+                                env:
+                                  CASE_ID: '{{ $.event.cases.current.id }}'
+                                  CUSTOM_FIELD_KEY: '{{ $.field_value.name }}'
+                                  CUSTOM_FIELD_TYPE: number
+                                  CUSTOM_FIELD_VALUE: '{{ $.field_value.value }}'
+                                uuid: 99dda3f6-955a-48d9-a5c9-63a717ab56a1
+                                pretty_name: Add number custom field
+                                options:
+                                  executor:
+                                    name: torq_cases_add-custom-field_v_5_1_2
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                manifestId: b181581f-b956-5766-88e0-292265f734a1
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                          - id: 78c6f347-5a53-4bae-a403-bd7df2e2e380
+                            pretty_name: single select
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.field_value.type }}'
+                                      operator: EQUALS
+                                      rvalue: list single select
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.1.2
+                                id: add_single_select_custom_field
+                                env:
+                                  CASE_ID: '{{ $.event.cases.current.id }}'
+                                  CUSTOM_FIELD_KEY: '{{ $.field_value.name }}'
+                                  CUSTOM_FIELD_TYPE: list single select
+                                  CUSTOM_FIELD_VALUE: '{{ $.field_value.value }}'
+                                  SELECTION_OPTIONS: '{{ $.field_value.options }}'
+                                uuid: 46b8a066-1f52-47df-a49b-6bd9397a9b0e
+                                pretty_name: Add single select custom field
+                                options:
+                                  executor:
+                                    name: torq_cases_add-custom-field_v_5_1_2
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                manifestId: b181581f-b956-5766-88e0-292265f734a1
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                        default:
+                          id: a358f806-8c9b-4899-94de-3fc096c4f8ca
+                          steps: []
+                  uuid: 2dab8379-1d4a-44b2-ac51-44eae1fb9638
+                  pretty_name: Loop Over Custom Fields
+                  run_in_parallel: true
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.quick_action_failure.length }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - exit:
+              success: "false"
+              pretty_name: Exit
+              output: |-
+                {
+                  "error": "Quick Action Failure for {{ $.quick_action_failure.result }}"
+                }
+              uuid: 4369d560-3189-4222-b96a-665feb4669c0
+              use_schema: true
+        else:
+          - exit:
+              success: "true"
+              pretty_name: Exit
+              output: '{}'
+              uuid: 99b3af48-8276-4da6-92e9-17561ed897a4
+        uuid: cc46f3da-7709-487c-bbec-ee787a2a739b
+        pretty_name: If a Failure Occured
+  annotations:
+    - uuid: de1568dd-3bf7-4fd5-bcc4-a9303f46c447
+      x: 489
+      "y": 380
+      width: 422
+      height: 110
+      attachedStepId: b8b43e67-b5c4-4e46-8c1a-49be222b75fb
+      attachedDistance:
+        x: -349
+        "y": -105
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"List current custom fields for case and set the custom fields for all case types."}]}]}'
+    - uuid: 25d7af5f-2ca0-4db3-87ff-94ecab725d2b
+      x: 490
+      "y": 619
+      width: 424
+      height: 127
+      attachedStepId: e2963c7b-770b-436e-9c60-67bcb13f1ff7
+      attachedDistance:
+        x: -350
+        "y": -82
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Compare the existing list of fields to the list of desired custom fields.  The missing fields will be listed in the right diff of the step."}]}]}'
+    - uuid: a24ad1ba-e94f-44da-a537-ac6a968d28bc
+      x: 488
+      "y": 764
+      width: 427
+      height: 110
+      attachedStepId: dcf1bea2-98af-4873-a043-5ac7ee4f5431
+      attachedDistance:
+        x: -348
+        "y": -96
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Filter the desired custom fields that are missing and loop over the fields to have them added to the case."}]}]}'
+    - uuid: c6805549-546b-4993-8f03-2536b339c212
+      x: 198
+      "y": 1020
+      attachedStepId: 2dab8379-1d4a-44b2-ac51-44eae1fb9638
+      attachedDistance:
+        x: -58
+        "y": -221
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Create custom fields by type"}]}]}'
+    - uuid: c210c45f-7de5-4b90-8c84-1cbe2514bba0
+      x: -770
+      "y": 1322
+      attachedStepId: 07eb2fcc-ba95-40a6-bd34-d25d847ab9ae
+      attachedDistance:
+        x: 210
+        "y": -248
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Verify the workflow exists and if so add it to the case."}]}]}'
+    - uuid: ee4a633b-cecd-4c0b-8d12-5b005490338c
+      x: -1105
+      "y": 521
+      attachedStepId: 8ee9f04f-c89f-4b0a-8782-1f5208e85a6e
+      attachedDistance:
+        x: 405
+        "y": -115
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"List current case quick actions"}]}]}'
+    - uuid: 3a7e2403-220b-4cff-a91b-c9658d67fbc3
+      x: -1145
+      "y": 915
+      attachedStepId: b16dcb14-1d8a-4b98-b1a5-3b3b111ff86a
+      attachedDistance:
+        x: 445
+        "y": -116
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If new quick actions are needed add them to the case."}]}]}'
+  output_schema: |-
+    {
+        "error": {
+            "type": 8,
+            "prettyName": "Error",
+            "description": ""
+        }
+    }
+root: true

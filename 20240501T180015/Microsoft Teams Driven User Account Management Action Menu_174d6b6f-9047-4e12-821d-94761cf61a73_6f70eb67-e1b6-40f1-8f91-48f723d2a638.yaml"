@@ -1,0 +1,1944 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 174d6b6f-9047-4e12-821d-94761cf61a73
+name: Microsoft Teams Driven User Account Management Action Menu
+trigger:
+  integrationTrigger:
+    integration:
+      name: hyperautomationbot
+      typeId: microsoft_teams_token
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "teams_integration":"hyperautomationbot",
+            "microsoft_integration":"hyperautomation_graphql",
+            "okta_integration":"okta",
+            "privileged_group": "Priviledged_Group"
+          }
+        VARIABLE_NAME: data
+      uuid: 2c0ab1da-e103-47a5-bfa6-36cd087a9bc6
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: logos
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "okta_logo": "https://1000logos.net/wp-content/uploads/2023/01/Okta-logo.png",
+            "ad_logo": "https://cf-assets.www.cloudflare.com/slt3lc6tev37/1L8hQWFqu3pcaYbEgFCMda/9aaae29768391c262f680926b1c8d0c5/Azure_AD_logo_high_res.png"
+          }
+        VARIABLE_NAME: url
+      uuid: bbe597f6-8edb-4257-bd98-5d286c583c11
+      pretty_name: Logos
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/generate-access-token:2.0.3
+      id: generate_access_token
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.microsoft_integration }}'
+      uuid: 6c0bb1e7-0d62-473d-8a02-5f96305f5b70
+      pretty_name: Generate Access Token
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            BODY: '[{"key": "client_id", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_ID | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_ID"}, {"key": "scope", "type": "text", "value": "https://graph.microsoft.com/.default"}, {"key": "client_secret", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_SECRET | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_SECRET"}, {"key": "grant_type", "type": "text", "value": "client_credentials"}]'
+            CONTENT_TYPE: application/x-www-form-urlencoded
+            HEADERS: |-
+              {
+                  "Content-Type": "application/x-www-form-urlencoded"
+              }
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_365_TENANT_ID", "MICROSOFT_365_CLIENT_ID", "MICROSOFT_365_CLIENT_SECRET"]'
+            TIMEOUT: "30"
+            URL: https://login.microsoftonline.com/{{ .MICROSOFT_365_TENANT_ID | urlEnc }}/oauth2/v2.0/token
+          sync: true
+          disable: false
+      manifestId: 94deb564-a701-47a1-8cc2-8460f8bf7803
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/get-user-group-memberships:3.0.2
+      id: get_user_group_memberships
+      env:
+        MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+        USER_ID: '{{ $.event.from.aadObjectId }}'
+      uuid: 244fc494-ad9d-4f8f-84e9-8c425d63ca0f
+      pretty_name: Get User Group Memberships
+      options:
+        executor:
+          name: http_request_v_4_1_5
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+            URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}/memberOf?{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&$skiptoken={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .RETURN_COUNT }}&$count={{ .RETURN_COUNT | urlEnc }}{{ end }}{{ if or .FILTER }}&$filter={{ .FILTER | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0&tabs=http
+      manifestId: 1a2941e0-de5f-4302-9ca4-457e3e9659e1
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.1.11
+      id: current_groups
+      env:
+        INPUT: '{{ $.get_user_group_memberships.api_object.value }}'
+        JSON_QUERY: .[]| select(.["@odata.type"] | contains("microsoft.graph.group")) | .displayName
+      uuid: a2cbed69-e8ef-4d8b-84a0-272de2c334ad
+      pretty_name: Current Groups
+      options:
+        executor:
+          name: jq_infra_v_3_1_11
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 5818b575-f3bb-413b-a5a7-d7c808965d23
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.workflow_context.data.privileged_group }}'
+                  operator: NOT_IN
+                  rvalue: '{{ $.current_groups.output }}'
+        then: []
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+            id: no_privileges_for_this_action
+            env:
+              ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.3\",\n  \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.ad_logo}}\",\n            \"size\": \"Large\",\n            \"separator\": true,\n            \"horizontalAlignment\": \"Center\"\n        },\n       {\n            \"type\": \"TextBlock\",\n            \"size\": \"Medium\",\n            \"weight\": \"Bolder\",\n            \"text\": \"You nedd to be a member of *{{ $.workflow_context.data.privileged_group }}* group to perform this action.\" \n        }\n\n    ]\n}"
+              RECIPIENT: '{{ $.event.conversation.id }}'
+            envFrom:
+              integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+            uuid: bd8a9c4e-42bc-4974-840d-96c61b9e6daf
+            pretty_name: No Privileges For this Action
+            options:
+              executor:
+                name: teams_send_adaptive_card_v_1_0_4
+                env: {}
+                sync: true
+                disable: false
+            documentationUrl: https://adaptivecards.io/designer/
+            manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - exit:
+              success: "true"
+              pretty_name: Exit
+              output: '{}'
+              uuid: 2691ca6d-47c1-4374-a8c3-053319890b3a
+        uuid: 96641d36-0517-45ff-944b-de36c817cd78
+        pretty_name: If Asking user is in Priviledged Group
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card-form:1.0.4
+      id: send_account_management_form
+      env:
+        ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\",\n     \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Container\",\n            \"style\": \"accent\",\n            \"items\": [\n                {\n                    \"type\": \"Container\",\n                    \"style\": \"default\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"User Activity Menu\",\n                            \"wrap\": true,\n                            \"size\": \"ExtraLarge\",\n                            \"weight\": \"Bolder\",\n                            \"color\": \"Accent\",\n                            \"horizontalAlignment\": \"Center\",\n                            \"fontType\": \"Default\"\n                        },\n                      {\n                            \"type\": \"Input.ChoiceSet\",\n                            \"choices.data\": {\n                                \"type\": \"Data.Query\",\n                                \"dataset\": \"graph.microsoft.com/users\"\n                            },\n                            \"id\": \"people-picker\",\n                            \"isMultiSelect\": true\n                        },\n                        {\n                            \"type\": \"Input.ChoiceSet\",\n                            \"choices\": [\n                                {\n                                    \"title\": \"Get User Information\",\n                                    \"value\": \"getinfo\"\n                                },\n                                {\n                                    \"title\": \"Reset Users Password\",\n                                    \"value\": \"pwreset\"\n                                },\n                                {\n                                    \"title\": \"Disable User\",\n                                    \"value\": \"disable\"\n                                },\n                                {\n                                    \"title\": \"Reenable User\",\n                                    \"value\": \"enable\"\n                                },\n                                {\n                                    \"title\": \"Get namedLocation Information\",\n                                    \"value\": \"location\"\n                                },\n                                {\n                                    \"title\": \"On-Board a new Employee\",\n                                    \"value\": \"onboard\"\n                                },\n                                {\n                                    \"title\": \"Off-Board a leaving Employee\",\n                                    \"value\": \"offboard\"\n                                }\n                            ],\n                            \"placeholder\": \"Choose desired action to take on the User\",\n                            \"separator\": true,\n                            \"id\": \"requested_action\",\n                            \"wrap\": true\n                        },\n                        \n                        {\n                            \"type\": \"ActionSet\",\n                            \"actions\": [\n                                {\n                                    \"type\": \"Action.Submit\",\n                                    \"title\": \"Submit\"\n                                }\n                            ]\n                        }\n                    ]\n                }\n            ],\n            \"height\": \"stretch\"\n        }\n    ],\n    \"minHeight\": \"300px\"\n}"
+        RECIPIENT: '{{ $.event.conversation.id }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+      uuid: 58f406a9-89ce-443d-a795-97f7322ac2de
+      pretty_name: Send Account Management Form
+      options:
+        executor:
+          name: teams_send_adaptive_card_form_v_1_0_4
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://adaptivecards.io/designer/
+      manifestId: a4f52fcf-554f-4301-9bcb-219d63a760c7
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/get-user-by-id:3.0.2
+      id: get_user_by_id
+      env:
+        MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+        USER_ID: '{{ $.send_account_management_form.response.value.''people-picker'' }}'
+      ignoreFailure: true
+      uuid: becb7051-a299-40ba-b743-5ebaa1641a20
+      pretty_name: Get User by ID
+      options:
+        executor:
+          name: http_request_v_4_1_5
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+            URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+          sync: true
+          disable: false
+      documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0
+      manifestId: 67dcf1fc-cfaf-4754-8d50-036592a2b21d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                  operator: EQUALS
+                  rvalue: onboard
+        then: []
+        else:
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.get_user_by_id.api_object }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then: []
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                  id: user_account_not_found
+                  env:
+                    ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.3\",\n  \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.ad_logo}}\",\n            \"size\": \"Large\",\n            \"separator\": true,\n            \"horizontalAlignment\": \"Center\"\n        },\n       {\n            \"type\": \"TextBlock\",\n            \"size\": \"Medium\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Sorry. We could not find user account.Please check your input and try again.\" \n        }\n\n    ]\n}"
+                    RECIPIENT: '{{ $.event.conversation.id }}'
+                  envFrom:
+                    integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                  uuid: 4847ff99-8e93-4e52-8605-0ccb229fc68f
+                  pretty_name: User Account Not Found
+                  options:
+                    executor:
+                      name: teams_send_adaptive_card_v_1_0_4
+                      env: {}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://adaptivecards.io/designer/
+                  manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - exit:
+                    success: "true"
+                    pretty_name: Exit
+                    output: '{}'
+                    uuid: 48e62cc0-196b-4153-bab9-77cbb712a2ae
+              uuid: a4f1d16e-a1ec-4c2f-964f-e8543b901197
+              pretty_name: Was the user found?
+        uuid: dd39139c-1f30-41aa-a82f-cab178ec5e1a
+        pretty_name: If Creating a new uset
+    - switch:
+        uuid: 938ec192-a356-4c6a-832f-2e53aea0d35e
+        pretty_name: Requested action
+        cases:
+          - id: e1826935-0892-4db3-ab7c-2443c31d9e82
+            pretty_name: User Info
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: getinfo
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/get-user-group-memberships:3.0.2
+                id: get_user_group_memberships
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  USER_ID: '{{ $.get_user_by_id.api_object.id }}'
+                uuid: ef1a8d4f-add7-4421-9d19-740318eb82e6
+                pretty_name: Get User Group Memberships
+                options:
+                  executor:
+                    name: http_request_v_4_1_5
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}/memberOf?{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&$skiptoken={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .RETURN_COUNT }}&$count={{ .RETURN_COUNT | urlEnc }}{{ end }}{{ if or .FILTER }}&$filter={{ .FILTER | urlEnc }}{{ end }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0&tabs=http
+                manifestId: 1a2941e0-de5f-4302-9ca4-457e3e9659e1
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.0.2
+                id: prettify_group_membership
+                env:
+                  DELIMITER: Comma
+                  INPUT: '{{ $.get_user_group_memberships.api_object.value..displayName }}'
+                uuid: 341abb53-076e-4aba-8e46-780226adcb1a
+                pretty_name: Prettify group membership
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: join_strings
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                manifestId: 5fa0cd71-8b83-4554-bd75-254f3153e2ef
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/get-user-manager:3.0.2
+                id: get_user_manager
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  USER_ID: '{{ $.get_user_by_id.api_object.id }}'
+                ignoreFailure: true
+                uuid: e9393310-bad3-43b0-ac0b-3fe4bf26fc3e
+                pretty_name: Get User Manager
+                options:
+                  executor:
+                    name: http_request_v_4_1_5
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}/manager
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-list-manager?view=graph-rest-1.0&tabs=http
+                manifestId: 7e7fcb19-7d68-4fe0-ad6d-c78f534ec803
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_user_manager.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then: []
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: get_user_manager
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                              "displayName": "(none listed)"
+                          }
+                        VARIABLE_NAME: api_object
+                      uuid: 37b35a2b-2858-4c55-bb80-dc9747b7dbab
+                      pretty_name: Get User Manager
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  uuid: 856ef012-b4c3-475d-82af-e2f8c260ca62
+                  pretty_name: Did the Get User Manager step succeed?
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                id: get_additional_user_details
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  REQUEST_URL: https://graph.microsoft.com/beta/users/{{ $.get_user_by_id.api_object.id }}
+                uuid: d4443a9a-a810-41c8-8a16-948f56f97e52
+                pretty_name: Get additional user details
+                options:
+                  executor:
+                    name: http_request_v_4_2_3
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: |-
+                        {
+                            "ConsistencyLevel": "eventual"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: ad_output_banner
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "type": "TextBlock",
+                      "size": "Medium",
+                      "weight": "Bolder",
+                      "text": "{{ $.get_user_by_id.api_object.mail }}",
+                      "horizontalAlignment": "Center",
+                      "color": "Good"
+                    }
+                  VARIABLE_NAME: body
+                uuid: c1e3022b-3250-47eb-9118-5e2555266bed
+                pretty_name: ad_output_banner
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: ad_output_factset
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                                    {
+                                        "title": "User",
+                                        "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                                    },
+                                    {
+                                        "title": "Job Title",
+                                        "value": "{{ $.get_user_by_id.api_object.jobTitle }}"
+                                    },
+                                    {
+                                        "title": "UserPrincipal",
+                                        "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                                    },
+                                    {
+                                        "title": "Unique ID",
+                                        "value": "{{ $.get_user_by_id.api_object.id }}"
+                                    },
+                                    {
+                                        "title": "Manager",
+                                        "value": "{{ $.get_user_manager.api_object.displayName }}"
+                                    },
+                                    {
+                                        "title": "Is Account Enabled?",
+                                        "value": "{{ $.get_additional_user_details.api_object.accountEnabled }}"
+                                    },
+                                    {
+                                        "title": "Is \"Force Password Change on Next Login\" set?",
+                                        "value": "{{ $.get_additional_user_details.api_object.passwordProfile.forceChangePasswordNextSignIn }}"
+                                    }
+                                ]
+                    }
+                  VARIABLE_NAME: body
+                uuid: b3d0148d-8127-4214-a621-f8758c7a6258
+                pretty_name: ad_output_factset
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_user_details
+                env:
+                  ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.3\",\n   \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.ad_logo }}\",\n            \"size\": \"Large\",\n            \"horizontalAlignment\": \"Center\"\n        },\n      {{ $.ad_output_banner.body }},\n      {{ $.ad_output_factset.body }}\n       {{ if eq (len $.list_user_by_email.api_object) 1 }}\n       ,{\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.okta_logo}}\",\n            \"size\": \"Large\",\n            \"separator\": true,\n            \"horizontalAlignment\": \"Center\"\n        },\n      {{ $.okta_output_factset.body }}\n      {{ end }} \n\n    ]\n}"
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 85fafe51-4923-471b-bab5-2408a43bc62b
+                pretty_name: Post user details
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: a41ea7d3-3e5d-427e-a466-96fb5eef6707
+            pretty_name: Password Reset
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: pwreset
+            steps:
+              - loop:
+                  key: loop_key
+                  value: loop_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.1
+                      id: generate_random_string
+                      env:
+                        LENGTH: "16"
+                        STRING_FORMAT: Alphanumeric both lower and upper
+                      uuid: 053923d5-3a86-4996-a517-2989e3c19195
+                      pretty_name: Generate Random String
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: generate_alphanumeric
+                          sync: true
+                          disable: false
+                      manifestId: 0baf9f05-84fd-4874-90ed-9adcf6d8dccd
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/reset-user-password:3.0.2
+                      id: reset_user_password
+                      env:
+                        MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                        TEMP_PASSWORD: '{{ $.generate_random_string.result }}'
+                        USER_ID: '{{ $.get_user_by_id.api_object.id }}'
+                      ignoreFailure: true
+                      uuid: 709a5192-d39d-4254-8130-dd9d1efe4f8e
+                      pretty_name: Reset User Password
+                      options:
+                        executor:
+                          name: http_request_v_4_1_5
+                          env:
+                            AUTHORIZATION: Bearer
+                            BODY: |-
+                              {
+                                  "passwordProfile": {
+                                      "forceChangePasswordNextSignIn": true,
+                                      "password": "{{ .TEMP_PASSWORD | jsonEscape }}"
+                                  }
+                              }
+                            CONTENT_TYPE: application/json
+                            HEADERS: '{}'
+                            METHOD: PATCH
+                            PARSE_HJSON: "true"
+                            REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID", "TEMP_PASSWORD"]'
+                            TIMEOUT: "30"
+                            TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                            URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-beta&tabs=http#example-3-update-the-passwordprofile-of-a-user-to-reset-their-password
+                      manifestId: d173e56c-a1e7-40cd-ab1d-005e421aed68
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.reset_user_password.api_object.error.message }}'
+                                  operator: CONTAINS
+                                  rvalue: Please provide a different password
+                        then: []
+                        else:
+                          - break:
+                              pretty_name: Break
+                              uuid: 160cd83e-d063-4fb7-b3bf-bd7f23d42ea2
+                        uuid: 2fcdee65-d041-467a-87d1-aa654b7f89b6
+                        pretty_name: If Password not valid, try with a new one
+                  uuid: 13632ef8-aa03-4e5a-baaf-ea9357a1a7d8
+                  pretty_name: Try Created Password up to Five times
+                  range:
+                    start: "1"
+                    end: "5"
+                    interval: "1"
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.reset_user_password.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "PASSWORD CHANGED SUCCESFULLY",
+                            "horizontalAlignment": "Center",
+                            "color": "Good"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 313784f7-c3db-401f-9b2b-9789a19069fe
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              },
+                              {
+                                "title": "Temp Password:",
+                                "value": "*{{ $.generate_random_string.result }}*"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: b1ac1f40-4a11-4dce-88d8-fe23c35c73aa
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "ERROR RESETTING PASSWORD",
+                            "horizontalAlignment": "Center",
+                            "color": "Attention"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 8d2b65c4-fe1e-4b3f-a9ca-53015da81f7e
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 4a3eb1f3-d004-4549-b476-5d37a28a547d
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: d49733ab-72df-4e7f-ad62-3a44d3861c4a
+                  pretty_name: Were we successful?
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_password_reset_results
+                env:
+                  ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.3\",\n   \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.ad_logo }}\",\n            \"size\": \"Large\",\n            \"horizontalAlignment\": \"Center\"\n        },\n      {{ $.ad_output_banner.body }},\n      {{ $.ad_output_factset.body }}\n {{ if( eq $.reset_in_okta.response.value.action.data  \"Yes\")}}\n       ,{\n            \"type\": \"Image\",\n            \"url\": \"{{ $.logos.url.okta_logo }}\",\n            \"size\": \"Large\",\n            \"separator\": true,\n            \"horizontalAlignment\": \"Center\"\n        },\n      {{ $.okta_output_banner.body }},\n      {{ $.okta_output_factset.body }}\n      {{ end }} \n\n    ]\n}"
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 388a52b4-b65f-43eb-8204-e52cb1f7b842
+                pretty_name: Post Password Reset Results
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: 5031f36b-3526-42cc-8e1d-9a3c42a95418
+            pretty_name: Disable user
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: disable
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/disable-user:3.0.2
+                id: disable_user
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  USER_ID: '{{ $.get_user_by_id.api_object.id }}'
+                ignoreFailure: true
+                uuid: 8da78d3e-6468-46fc-b087-ee0c28a52560
+                pretty_name: Disable User
+                options:
+                  executor:
+                    name: http_request_v_4_1_5
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                            "accountEnabled": false
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: |-
+                        {
+                            "ConsistencyLevel": "eventual"
+                        }
+                      METHOD: PATCH
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0&tabs=http
+                manifestId: 36fa56c4-1e99-4eda-8cc0-b50d312e3080
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.disable_user.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "USER DISABLED",
+                            "horizontalAlignment": "Center",
+                            "color": "Good"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 09f49729-b644-49fa-bbcb-cc6ea93d4d3c
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 35a9946a-7676-45fa-b273-cd478efdf35b
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "UNABLE TO DISABLE USER",
+                            "horizontalAlignment": "Center",
+                            "color": "Attention"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 2fd94e40-c093-493b-854b-65fe5fbceda2
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              },
+                              {
+                                "title": "ERROR REPORTED",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: f1680c3c-e43f-4384-807f-55adf19c00c0
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: df117ea2-1685-4e3e-bc11-0dd6e5f9fea6
+                  pretty_name: Were we successful?
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_disable_results
+                env:
+                  ADAPTIVE_CARD: |-
+                    {
+                        "type": "AdaptiveCard",
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.3",
+                        "msteams": {
+                            "width": "Full"
+                             },
+                        "body": [
+                            {
+                                "type": "Image",
+                                "url": "{{ $.logos.url.ad_logo }}",
+                                "size": "Large",
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.ad_output_banner.body }},
+                          {{ $.ad_output_factset.body }}
+                    {{ if (eq $.disable_in_okta.response.value.action.data  "Yes") }}
+                           ,{
+                                "type": "Image",
+                                "url": "{{ $.logos.url.okta_logo }}",
+                                "size": "Large",
+                                "separator": true,
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.okta_output_banner.body }},
+                          {{ $.okta_output_factset.body }}
+                          {{ end }}
+                        ]
+                    }
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 5defafc4-7508-4e2e-87c9-0acddd152a08
+                pretty_name: Post Disable Results
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: aac45835-a2ce-414b-aa21-d2f3767a07eb
+            pretty_name: Enable User
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: enable
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/enable-user:3.0.2
+                id: enable_user
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  USER_ID: '{{ $.get_user_by_id.api_object.id }}'
+                ignoreFailure: true
+                uuid: 43de8dd3-536b-403a-9fc9-33f6691d94ec
+                pretty_name: Enable User
+                options:
+                  executor:
+                    name: http_request_v_4_1_5
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                            "accountEnabled": true
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: |-
+                        {
+                            "ConsistencyLevel": "eventual"
+                        }
+                      METHOD: PATCH
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_ID"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID | urlEnc }}
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0&tabs=http
+                manifestId: 7c927742-52b8-479c-9633-1f37ac2c3dd9
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.enable_user.step_status.code }}'
+                            operator: EQUALS
+                            rvalue: "1"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "USER ENABLED",
+                            "horizontalAlignment": "Center",
+                            "color": "Good"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 53c58c35-07fc-4cab-b87f-e832453ecc9f
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: e722c3eb-7cb0-4ad0-9ae6-57b76ff3565a
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_banner
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "ACTIVATION FAILED",
+                            "horizontalAlignment": "Center",
+                            "color": "Attention"
+                          }
+                        VARIABLE_NAME: body
+                      uuid: cc0bd8bc-d209-457a-8fa0-938de12f7032
+                      pretty_name: ad_output_banner
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: ad_output_factset
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |
+                          {
+                            "type": "FactSet",
+                            "facts": [
+                              {
+                                "title": "User",
+                                "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                              },
+                              {
+                                "title": "UserPrincipal",
+                                "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                              },
+                              {
+                                "title": "Unique ID",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              },
+                              {
+                                "title": "ERROR REPORTED",
+                                "value": "{{ $.get_user_by_id.api_object.id }}"
+                              }
+                            ]
+                          }
+                        VARIABLE_NAME: body
+                      uuid: 1695031d-21d9-4593-92c5-39e78034102b
+                      pretty_name: ad_output_factset
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 26f4ecb7-7881-4e19-bb0b-d9bd43d199e0
+                  pretty_name: Did it succeed?
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_enable_results
+                env:
+                  ADAPTIVE_CARD: |-
+                    {
+                        "type": "AdaptiveCard",
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.3",
+                       "msteams": {
+                            "width": "Full"
+                             },
+                        "body": [
+                            {
+                                "type": "Image",
+                                "url": "{{ $.logos.url.ad_logo }}",
+                                "size": "Large",
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.ad_output_banner.body }},
+                          {{ $.ad_output_factset.body }}
+                    {{ if (eq $.enable_in_okta.response.value.action.data  "Yes") }}
+                           ,{
+                                "type": "Image",
+                                "url": "{{ $.logos.url.okta_logo }}",
+                                "size": "Large",
+                                "separator": true,
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.okta_output_banner.body }},
+                          {{ $.okta_output_factset.body }}
+                          {{ end }}
+                        ]
+                    }
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 566e729c-949f-4378-905a-db6d47b12bd9
+                pretty_name: Post Enable Results
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: 7c7f1466-a18f-4177-b5f0-b03f562a097c
+            pretty_name: Named Location
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: location
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                id: list_namedlocations
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  REQUEST_URL: https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations
+                uuid: 0cf73fdc-7b60-4cef-ad1c-76a510f9ead1
+                pretty_name: List namedLocations
+                options:
+                  executor:
+                    name: http_request_v_4_2_3
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: |-
+                        {
+                            "ConsistencyLevel": "eventual"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.2.2
+                id: create_ascii_table
+                env:
+                  HEADERS: '["displayName","countriesAndRegions","ipRanges"]'
+                  INPUT: '{{ $.list_namedlocations.api_object.value }}'
+                  MAP_GROUP: '["cidrAddress"]'
+                uuid: a8470608-0640-4565-9bd1-cd0a77ccb3c7
+                pretty_name: Create ASCII table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_2_2
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: c3c5b47c-d7ec-4f4e-9d6e-17303b46bf12
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - parallel:
+                  uuid: 4057c3d7-bfe3-425b-ae89-a3fc3bdcadf3
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: 63731670-8a31-47bb-b840-4d71e5454742
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.3
+                          id: filter_for_country_locations
+                          env:
+                            FIELD_PATH: '''@odata.type'''
+                            FILTER_ARG: '#microsoft.graph.countryNamedLocation'
+                            FILTER_FUNC: Equals
+                            INPUT: '{{ $.list_namedlocations.api_object.value }}'
+                          uuid: a57c28fe-d91c-4972-b2c0-be72b417420d
+                          pretty_name: Filter for Country Locations
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_39
+                              env:
+                                COMMAND: array_filter
+                              sync: true
+                              disable: false
+                          documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                          manifestId: 871ab8e2-b2a6-4d12-b1c0-23694773ba2e
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+                    - uuid: c60c335c-3437-4111-b665-442ef0d06fb6
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.3
+                          id: filter_for_ip_locations
+                          env:
+                            FIELD_PATH: '''@odata.type'''
+                            FILTER_ARG: '#microsoft.graph.ipNamedLocation'
+                            FILTER_FUNC: Equals
+                            INPUT: '{{ $.list_namedlocations.api_object.value }}'
+                          uuid: 422904df-f57e-4606-a8d4-678194be9133
+                          pretty_name: Filter for IP Locations
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_39
+                              env:
+                                COMMAND: array_filter
+                              sync: true
+                              disable: false
+                          documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                          manifestId: 871ab8e2-b2a6-4d12-b1c0-23694773ba2e
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: ad_output_banner
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "type": "TextBlock",
+                      "size": "Medium",
+                      "weight": "Bolder",
+                      "text": "Found the following NamedLocation details:",
+                      "horizontalAlignment": "Center",
+                      "color": "Good"
+                    }
+                  VARIABLE_NAME: body
+                uuid: 016a8704-e54e-4776-b1e2-706197b160a4
+                pretty_name: ad_output_banner
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                id: ad_output_factset
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "User",
+                          "value": "{{ $.get_user_by_id.api_object.displayName }}"
+                        },
+                        {
+                          "title": "UserPrincipal",
+                          "value": "{{ $.get_user_by_id.api_object.userPrincipalName }}"
+                        },
+                        {
+                          "title": "# Country Named Locations",
+                          "value": "{{ $.filter_for_country_locations.length }}"
+                        },
+                        {
+                          "title": "Country Locations",
+                          "value": "{{ $.filter_for_country_locations.result..displayName }}"
+                        },
+                        {
+                          "title": "# IP Named Locations",
+                          "value": "{{ $.filter_for_ip_locations.length }}"
+                        },
+                        {
+                          "title": "IP Locations",
+                          "value": "{{ $.filter_for_ip_locations.result..displayName }}"
+                        }
+                      ]
+                    }
+                  VARIABLE_NAME: body
+                uuid: 326c2db6-bf7e-4cf9-8ad5-e6cf92484c65
+                pretty_name: ad_output_factset
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_location_results
+                env:
+                  ADAPTIVE_CARD: |-
+                    {
+                        "type": "AdaptiveCard",
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.3",
+                       "msteams": {
+                            "width": "Full"
+                             },
+                        "body": [
+                            {
+                                "type": "Image",
+                                "url": "{{ $.logos.url.ad_logo }}",
+                                "size": "Large",
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.ad_output_banner.body }},
+                          {{ $.ad_output_factset.body }}
+                        ]
+                    }
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 1f09062a-85e7-4b21-8033-c815b606b2c2
+                pretty_name: Post Location Results
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/message:1.0.4
+                id: post_table_of_location_details
+                env:
+                  MESSAGE_TEXT: '{{ $.create_ascii_table.tabulate_output }}'
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 82063382-29be-49d9-8dd5-2bb1a4fb52cc
+                pretty_name: Post table of location details
+                options:
+                  executor:
+                    name: teams_post_message_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0#send-a-non-reply-message
+                manifestId: 74a5343b-853f-432f-8458-78c40937290d
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - id: 8267db4c-f1db-42e6-b3e3-b33b75b17c0d
+            pretty_name: OnBoard
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: onboard
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.5
+                id: ac
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "type": "AdaptiveCard",
+                        "body": [
+                            {
+                                "type": "TextBlock",
+                                "size": "Medium",
+                                "weight": "Bolder",
+                                "text": "Criação de novos usuários"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Nome dele novo usuário:",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.Text",
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Cargo",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.ChoiceSet",
+                                "choices": [
+                                    {
+                                        "title": "Recepcionista",
+                                        "value": "recep"
+                                    },
+                                    {
+                                        "title": "Motorista",
+                                        "value": "motor"
+                                    }
+                                ],
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Data de nascimento",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.Date"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Cidade",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.ChoiceSet",
+                                "choices": [
+                                    {
+                                        "title": "Goiânia",
+                                        "value": "cd_goiania"
+                                    },
+                                    {
+                                        "title": "São Paolo",
+                                        "value": "cd_saopaolo"
+                                    }
+                                ],
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Matricula",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.Text",
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "GH",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.ChoiceSet",
+                                "choices": [
+                                    {
+                                        "title": "Seguranca e Administracao",
+                                        "value": "seguranca"
+                                    },
+                                    {
+                                        "title": "Operacao TV",
+                                        "value": "operacaotv"
+                                    }
+                                ],
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Empresa / Lotacão",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.ChoiceSet",
+                                "choices": [
+                                    {
+                                        "title": "Televisao Anhanguera SA, GOIANIA",
+                                        "value": "empresa01"
+                                    },
+                                    {
+                                        "title": "Televisao Anhanguera SA, XXYYZZ",
+                                        "value": "empresa02"
+                                    }
+                                ],
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "Gestor",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.Text",
+                                "placeholder": "Placeholder text"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "E-Mail",
+                                "wrap": true
+                            },
+                            {
+                                "type": "Input.Text",
+                                "placeholder": "user@email.com.br"
+                            }
+                        ],
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.5"
+                    }
+                  VARIABLE_NAME: data
+                uuid: 358699cc-892a-4176-8ef5-6e9320c2df61
+                pretty_name: ac
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_4_3
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e55d6ac1-ccd3-5e39-8e4e-d727f11911b0
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card-form:1.0.4
+                id: send_user_onboarding_form
+                env:
+                  ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\",\n     \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Container\",\n            \"style\": \"accent\",\n            \"items\": [\n                {\n                    \"type\": \"Container\",\n                    \"style\": \"default\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Criação de novos usuários\",\n                            \"wrap\": true,\n                            \"size\": \"ExtraLarge\",\n                            \"weight\": \"Bolder\",\n                            \"color\": \"Accent\",\n                            \"horizontalAlignment\": \"Center\",\n                            \"fontType\": \"Default\"\n                        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Nome dele novo usuário:\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Cargo\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"Recepcionista\",\n                    \"value\": \"recep\"\n                },\n                {\n                    \"title\": \"Motorista\",\n                    \"value\": \"motor\"\n                }\n            ],\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Data de nascimento\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.Date\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Cidade\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"Goiânia\",\n                    \"value\": \"cd_goiania\"\n                },\n                {\n                    \"title\": \"São Paolo\",\n                    \"value\": \"cd_saopaolo\"\n                }\n            ],\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Matricula\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"GH\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"Seguranca e Administracao\",\n                    \"value\": \"seguranca\"\n                },\n                {\n                    \"title\": \"Operacao TV\",\n                    \"value\": \"operacaotv\"\n                }\n            ],\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Empresa / Lotacão\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"Televisao Anhanguera SA, GOIANIA\",\n                    \"value\": \"empresa01\"\n                },\n                {\n                    \"title\": \"Televisao Anhanguera SA, XXYYZZ\",\n                    \"value\": \"empresa02\"\n                }\n            ],\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Gestor\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"Placeholder text\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"E-Mail\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"user@email.com.br\"\n        },\n                        \n                        {\n                            \"type\": \"ActionSet\",\n                            \"actions\": [\n                                {\n                                    \"type\": \"Action.Submit\",\n                                    \"title\": \"Submit\"\n                                }\n                            ]\n                        }\n                    ]\n                }\n            ],\n            \"height\": \"stretch\"\n        }\n    ],\n    \"minHeight\": \"300px\"\n}"
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: b999b467-f8b1-4f89-9fba-fe6c8f6c5451
+                pretty_name: Send User Onboarding Form
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_form_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: a4f52fcf-554f-4301-9bcb-219d63a760c7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card-form:1.0.4
+                id: send_user_onboarding_form_1
+                env:
+                  ADAPTIVE_CARD: "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\",\n     \"msteams\": {\n        \"width\": \"Full\"\n         },\n    \"body\": [\n        {\n            \"type\": \"Container\",\n            \"style\": \"accent\",\n            \"items\": [\n                {\n                    \"type\": \"Container\",\n                    \"style\": \"default\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"User Onboarding Menu\",\n                            \"wrap\": true,\n                            \"size\": \"ExtraLarge\",\n                            \"weight\": \"Bolder\",\n                            \"color\": \"Accent\",\n                            \"horizontalAlignment\": \"Center\",\n                            \"fontType\": \"Default\"\n                        },\n                      {\n                            \"type\": \"Input.ChoiceSet\",\n                            \"choices.data\": {\n                                \"type\": \"Data.Query\",\n                                \"dataset\": \"graph.microsoft.com/users\"\n                            },\n                            \"id\": \"people-picker\",\n                            \"isMultiSelect\": true\n                        },\n                        {\n                            \"type\": \"Input.ChoiceSet\",\n                            \"choices\": [\n                                {\n                                    \"title\": \"Get User Information\",\n                                    \"value\": \"getinfo\"\n                                },\n                                {\n                                    \"title\": \"Reset Users Password\",\n                                    \"value\": \"pwreset\"\n                                },\n                                {\n                                    \"title\": \"Disable User\",\n                                    \"value\": \"disable\"\n                                },\n                                {\n                                    \"title\": \"Reenable User\",\n                                    \"value\": \"enable\"\n                                },\n                                {\n                                    \"title\": \"Get namedLocation Information\",\n                                    \"value\": \"location\"\n                                },\n                                {\n                                    \"title\": \"On-Board a new Employee\",\n                                    \"value\": \"onboard\"\n                                },\n                                {\n                                    \"title\": \"Off-Board a leaving Employee\",\n                                    \"value\": \"offboard\"\n                                }\n                            ],\n                            \"placeholder\": \"Choose desired action to take on the User\",\n                            \"separator\": true,\n                            \"id\": \"requested_action\",\n                            \"wrap\": true\n                        },\n                        \n                        {\n                            \"type\": \"ActionSet\",\n                            \"actions\": [\n                                {\n                                    \"type\": \"Action.Submit\",\n                                    \"title\": \"Submit\"\n                                }\n                            ]\n                        }\n                    ]\n                }\n            ],\n            \"height\": \"stretch\"\n        }\n    ],\n    \"minHeight\": \"300px\"\n}"
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 407ed9f2-5eea-41fe-955d-89becadbb45e
+                pretty_name: Send User Onboarding Form 1
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_form_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: a4f52fcf-554f-4301-9bcb-219d63a760c7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_user_onboarding_menu
+                env:
+                  ADAPTIVE_CARD: '{{ $.ac.data}}'
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: d7485ce8-7990-4ea5-b8e1-3355c4f1de2c
+                pretty_name: Post User OnBoarding Menu
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_teams_bot/v2/adaptive-card:1.0.4
+                id: post_location_results_2
+                env:
+                  ADAPTIVE_CARD: |-
+                    {
+                        "type": "AdaptiveCard",
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.3",
+                       "msteams": {
+                            "width": "Full"
+                             },
+                        "body": [
+                            {
+                                "type": "Image",
+                                "url": "{{ $.logos.url.ad_logo }}",
+                                "size": "Large",
+                                "horizontalAlignment": "Center"
+                            },
+                          {{ $.ad_output_banner.body }},
+                          {{ $.ad_output_factset.body }}
+                        ]
+                    }
+                  RECIPIENT: '{{ $.event.conversation.id }}'
+                envFrom:
+                  integrationRef: '{{ $.workflow_context.data.teams_integration }}'
+                uuid: 41c24fdc-ca9f-40f2-8045-3355145f2e9b
+                pretty_name: Post Location Results 2
+                options:
+                  executor:
+                    name: teams_send_adaptive_card_v_1_0_4
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://adaptivecards.io/designer/
+                manifestId: e9617ea5-dac1-4601-acf0-ff54087be625
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: true
+          - id: cc13cd99-3e86-40e1-a255-a6c4657c66e8
+            pretty_name: OffBoard
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.send_account_management_form.response.value.requested_action }}'
+                      operator: EQUALS
+                      rvalue: offboard
+            steps: []
+        default:
+          id: 95f04658-b224-43b3-867a-b7f515c39f79
+          steps: []
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 7f29512e-f7dd-470e-a186-9814f02c8699
+  annotations:
+    - uuid: e86475bf-32d6-4f2a-ab3e-570bf125e7c4
+      x: 415
+      "y": 208
+      width: 598
+      height: 281
+      attachedStepId: 2c0ab1da-e103-47a5-bfa6-36cd087a9bc6
+      attachedDistance:
+        x: -415
+        "y": -77
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Workflow Context"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"teams_integration:"},{"type":"text","text":" The name of the integration with Teams."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"microsoft_integration:"},{"type":"text","text":" The name of the integration with Microsoft."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"okta_integration:"},{"type":"text","text":" The name of the integration with Okta."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"priviledged_group:"},{"type":"text","text":" A group where members are authorized to run this workflow."}]}]}'
+    - uuid: 8c996a73-2cba-49dd-9f04-a5074cd9537e
+      x: -620
+      "y": 113
+      width: 413
+      height: 102
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Microsoft Teams Driven User Account Management Action Menu"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow displays a menu for different User Management related activities such as "},{"type":"text","marks":[{"type":"code"}],"text":"Reset Password"},{"type":"text","text":", "},{"type":"text","marks":[{"type":"code"}],"text":"Enable/Disable a User"},{"type":"text","text":" ,  "},{"type":"text","marks":[{"type":"code"}],"text":"Get User Information"},{"type":"text","text":" , or "},{"type":"text","marks":[{"type":"code"}],"text":"List namedLocations"},{"type":"text","text":" ."}]},{"type":"paragraph","content":[{"type":"text","text":"The workflow can perform these actions in Azure AD and Okta."}]},{"type":"paragraph","content":[{"type":"text","text":"The calling user of this workflow is required to be a member of a specific group in AAD defined in the workflow context variable "},{"type":"text","marks":[{"type":"code"}],"text":"privileged_group"},{"type":"text","text":".  "}]}]}'
+    - uuid: 48b87112-9bdd-48e4-9929-57a5c3649bc4
+      x: 474
+      "y": 864
+      width: 443
+      height: 293
+      attachedStepId: 96641d36-0517-45ff-944b-de36c817cd78
+      attachedDistance:
+        x: -474
+        "y": -209
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Verify Priviledged Group Membership"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"For being able to run this workflow, requesting user should a member of the group defined in "},{"type":"text","marks":[{"type":"bold"}],"text":"priviledged_group "},{"type":"text","text":"context variable."}]},{"type":"paragraph","content":[{"type":"text","text":"Membership to this group can be created by using a "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://app.torq.io/templates?id=723d282b-12e2-49f5-96a5-b8c4b99765e9","target":"_blank","class":null}}],"text":"Just-In-Time Access Workflow."}]},{"type":"paragraph","content":[{"type":"text","text":"If the user is not a member of the group then the workflow ends."}]}]}'
+    - uuid: 01eace31-4fcf-450f-914a-3387f96635e7
+      x: 476
+      "y": 1288
+      width: 404
+      height: 164
+      attachedStepId: 58f406a9-89ce-443d-a795-97f7322ac2de
+      attachedDistance:
+        x: -476
+        "y": -109
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Account Management Form"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Present a form with the following options:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Disable User: "},{"type":"text","text":"disable"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Reset user password: "},{"type":"text","text":"pwreset"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Get user information:"},{"type":"text","text":" getinfo"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Reenable user: "},{"type":"text","text":"enable"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Get namedLocation information:"},{"type":"text","text":" location"}]}]}]}]}'
+    - uuid: 5ee2406e-4a64-4656-a903-f35e5a4f7d01
+      x: 481
+      "y": 1720
+      width: 405
+      height: 200
+      attachedStepId: a4f1d16e-a1ec-4c2f-964f-e8543b901197
+      attachedDistance:
+        x: -481
+        "y": -279
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Requested User Not Found"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"If user is not found in AAD the workflow will end after sending a notification."}]},{"type":"paragraph"}]}'
+    - uuid: 267d9400-8f22-4415-8744-611accb335d2
+      x: -3204
+      "y": 2460
+      width: 392
+      height: 176
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Get User Information"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Present the user profile from Azure AD, if the user is also active in Oka such information is also shown"}]},{"type":"heading","attrs":{"level":2}}]}'
+    - uuid: 4842050d-d1be-4fef-aced-720c62c56e75
+      x: -1676
+      "y": 1959
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Password Reset"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"When a password reset is requested a temporary one is generated. User will need to change it in the next login."}]},{"type":"paragraph","content":[{"type":"text","text":"If the user is also found in Okta, password reset request will send an email to the user with the link to change credentials."}]}]}'
+    - uuid: 29764fc8-ace3-4669-9396-9ded519eacf5
+      x: -872
+      "y": 2042
+      width: 336
+      height: 185
+      attachedStepId: 8da78d3e-6468-46fc-b087-ee0c28a52560
+      attachedDistance:
+        x: 32
+        "y": 197
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Disable User"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"User Account is disable in AzureAD. If the user is found in Okta, account is disabled in both providers."}]}]}'
+    - uuid: a124e577-8d0d-47dd-b4ad-78eb301e7c08
+      x: 1294
+      "y": 2599
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Enable User"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"User Account is enabled in AzureAD. If the user is found in Okta, account is enabled in both providers."}]}]}'
+    - uuid: 21b1b5f2-8a92-4190-b93b-0f91d57392b6
+      x: 1119
+      "y": 2545
+      width: 405
+      height: 183
+      attachedStepId: a8470608-0640-4565-9bd1-cd0a77ccb3c7
+      attachedDistance:
+        x: -839
+        "y": -174
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"List namedLocations"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Requires: "},{"type":"text","text":"Policy.ReadAll Type Application scope. "}]},{"type":"paragraph","content":[{"type":"text","text":"Shows Country and IP named locations."}]}]}'
+    - uuid: 38e6e35d-e602-4207-bdaa-692fab3b294f
+      x: 326
+      "y": 2051
+      attachedStepId: df117ea2-1685-4e3e-bc11-0dd6e5f9fea6
+      attachedDistance:
+        x: -1166
+        "y": 319
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"AD Data in Adaptive Card for deactivating a User"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"ad_output_banner: "},{"type":"text","text":"Shows a message informing when disabling the user succed or failed"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"ad_output_factset: "},{"type":"text","text":"Detailed information about the user such as account status, "}]}]}'
+    - uuid: c1785258-d289-4543-a724-4308a6190242
+      x: 738
+      "y": 4177
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Okta Data in Adaptive Card for activating a user"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"okta_output_banner: "},{"type":"text","text":"Shows a message informing when the password reset was successful or not. When an account"},{"type":"text","marks":[{"type":"bold"}],"text":" is not "},{"type":"text","text":"in "},{"type":"text","marks":[{"type":"code"}],"text":"DEPROVISIONED"},{"type":"text","text":" status, then WF will not attempt to ENABLE again."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"okta_output_factset: "},{"type":"text","text":"Detailed information about the user such as account status and Error details when action has failed. After the account is deactivated, the status of the account is refreshed. Factset will show the las available status that can be "},{"type":"text","marks":[{"type":"code"}],"text":"STAGED"},{"type":"text","text":" or "},{"type":"text","marks":[{"type":"code"}],"text":"DEPROVISIONED"}]}]}'
+    - uuid: e27e07d4-207c-46b1-aecb-bf6b36eed1db
+      x: -43
+      "y": 2326
+      attachedStepId: 26f4ecb7-7881-4e19-bb0b-d9bd43d199e0
+      attachedDistance:
+        x: -236
+        "y": 44
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"AD Data in Adaptive Card for activating a User"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"ad_output_banner: "},{"type":"text","text":"Shows a message informing when activating the user succeed or failed"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"ad_output_factset: "},{"type":"text","text":"Detailed information about the user such as account status, "}]}]}'
+  output_schema: '{}'
+root: true

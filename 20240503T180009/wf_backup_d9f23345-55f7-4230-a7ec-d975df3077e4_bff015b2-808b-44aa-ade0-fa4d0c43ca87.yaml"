@@ -1,0 +1,65 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: d9f23345-55f7-4230-a7ec-d975df3077e4
+name: wf_backup
+trigger:
+  internalEventTrigger:
+    scenarioId: REQUEST_FOR_REVIEW
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: ""
+                operator: OPERATOR_EQUALS
+                rvalue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq/retrieve-a-workflow:1.1.0
+      id: retrieve_a_workflow
+      env:
+        WORKFLOW_ID: '{{ $.event.workflow_id }}'
+      envFrom:
+        integrationRef: torq_api
+      uuid: 13260012-b8e4-4673-9c1b-23e011458055
+      pretty_name: Retrieve a workflow
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            BODY: ""
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN","WORKFLOW_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v1alpha/workflows/{{ .WORKFLOW_ID | urlEnc }}
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/apidocs/retrieve-a-workflow
+      manifestId: d2ad1941-ef4d-57ae-a012-811cd39547c1
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/aws_s3/write-file:3.2.1
+      id: write_file
+      env:
+        BUCKET_NAME: ""
+        FILE_NAME: ""
+        INPUT_TYPE: none
+        REGION: ""
+      envFrom:
+        integrationRef: s3buckets
+      uuid: 58e3c372-b564-4f1f-be95-83eb0fcf7c99
+      pretty_name: Write File
+      options: {}
+      manifestId: 12c33373-15d8-5404-bdf3-fd95a6f29077
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+  output_schema: '{}'
+root: true

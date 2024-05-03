@@ -1,0 +1,976 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: c4b02f87-be10-4089-9e95-bfff0f9374de
+name: Vultr Menu
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: action
+          required: true
+          prettyName: Action
+          singleSelect:
+            options:
+              - Start Remote Desktop
+              - Get Billing Details
+              - Show All Active Resources
+              - Cleanup RDP
+              - Start Torq Runner
+            defaultValue: Start Remote Desktop
+    onSubmitActionType: next_webform_page
+    formName: Vultr Automation Menu
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: wfctx
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: '{"key":"3JHC6VHKN5R2BAPK6H54ZTGJW6LRA55JC7GA"}'
+        VARIABLE_NAME: data
+      uuid: 0232f415-57fe-470d-97e1-c1f1e4bef0a2
+      pretty_name: wfctx
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: 9b3327fc-d6c5-48f7-abbf-8d1823edbc13
+        pretty_name: Switch
+        cases:
+          - id: 649f2032-fc52-4906-aacb-2cff83be8ed7
+            pretty_name: Billing
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: Get Billing Details
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_billing_history
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/billing/history
+                uuid: a7b22d31-7422-4d86-81d5-111fc4c6dfd8
+                pretty_name: Get Billing History
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                id: billing_history
+                env:
+                  CONCLUDE_WEB_FORM_WITH: Next form
+                  DESCRIPTION: '{{ $.get_billing_history.api_object.billing_history }}'
+                  FORM_NAME: Billing History
+                  PARAMETERS: '[{"name":"next","prettyName":"NEXT","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                uuid: d3140b28-ad28-4bca-87c9-82d5b4a14376
+                pretty_name: Billing History
+                options:
+                  executor:
+                    name: utils_forms_send_form_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: account_info
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/account
+                uuid: 00e626a1-0bc1-4433-bfd2-9cd0164f453d
+                pretty_name: Account Info
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                id: account_info
+                env:
+                  CONCLUDE_WEB_FORM_WITH: Close form
+                  DESCRIPTION: '{{ $.account_info.api_object.account }}'
+                  FORM_NAME: Account Info
+                  PARAMETERS: '[{"name":"close","prettyName":"Close","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                uuid: aa2215a1-917e-419f-a081-4591fecdfdf2
+                pretty_name: Account Info
+                options:
+                  executor:
+                    name: utils_forms_send_form_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: f6b5e5bb-7086-4c95-b2b5-9220b66676fd
+            pretty_name: Start Remote Desktop
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: Start Remote Desktop
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: Start Torq Runner
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_regions
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/regions
+                uuid: 7452e3d3-5074-4b66-a958-6ea2e40eeeba
+                pretty_name: Get Regions
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - parallel:
+                  uuid: 7ae3a81c-221b-4e53-8a81-49028d7e2f6b
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: c445e9b7-0ff4-4af1-aef3-31c6ce576a4e
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.6.1
+                          id: regionsid
+                          env:
+                            INPUT: '{{ $.get_regions.api_object.regions }}'
+                            JSON_QUERY: '.[] | "\(.id) : \(.city) \(.country), \(.continent)"'
+                          uuid: 380baa69-0cc7-426b-9aa0-174021ff0df3
+                          pretty_name: 'RegionsID '
+                          options:
+                            executor:
+                              name: jq_infra_v_3_6_1
+                              env:
+                                COMMAND: jq_command
+                              sync: true
+                              disable: false
+                          documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                          manifestId: 2b76f88c-430e-51ad-9485-5e859484f954
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - uuid: f6373520-1eb9-442b-847f-29765922bb7f
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.2
+                          id: randomid
+                          env:
+                            LENGTH: "6"
+                            STRING_FORMAT: Alphanumeric with only upper
+                          uuid: ede143b0-7789-4123-9562-0757bcfec587
+                          pretty_name: RandomID
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_44
+                              env:
+                                COMMAND: generate_alphanumeric
+                              sync: true
+                              disable: false
+                          manifestId: f3c7e87c-9d61-4db9-95bb-c0c99ef58b16
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+              - switch:
+                  uuid: 27028741-8a50-417c-9bb0-b770921a2804
+                  pretty_name: Switch
+                  cases:
+                    - id: 7578fa1b-0cb0-4cc0-901e-08fdbe3a99ee
+                      pretty_name: Remote Desktop
+                      conditions:
+                        or:
+                          - and:
+                              - lvalue: '{{ $.event.action }}'
+                                operator: EQUALS
+                                rvalue: Start Remote Desktop
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.1.2
+                          id: rdp_configuration
+                          env:
+                            CONCLUDE_WEB_FORM_WITH: Next form
+                            FORM_NAME: RDP Configuration
+                            PARAMETERS: '[{"name":"desktop_environment","prettyName":"Desktop Environment","description":"Select desktop environment","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":["fedora-kde","fedora-mate","ubuntu-xfce","ubuntu-mate","ubuntu-kde"],"defaultValue":"fedora-kde","optionsTemplate":""}},{"name":"rdp_ttl","prettyName":"RDP TTL","description":"Time to Live in minutes for this Desktop, Default is 50 minutes","required":true,"defaultValue":"","optionsList":[],"type":6,"integer":{"defaultValue":50}},{"name":"regions","prettyName":"Regions","description":"","required":true,"defaultValue":"","optionsList":[],"type":13,"uiPlaceholder":"","singleSelect":{"optionsList":[],"defaultValue":"","optionsTemplate":"{{ jsonEscape $.regionsid.output }}"}}]'
+                          uuid: d6acf36b-66bf-473e-9537-9c8c17b3344d
+                          pretty_name: RDP Configuration
+                          options:
+                            executor:
+                              name: utils_forms_send_form_v_4_1_2
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: 9d6c13ca-659f-5078-b893-5e1eda021c11
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/split-text:1.1.2
+                          id: region
+                          env:
+                            INPUT: '{{ $.rdp_configuration.answers.regions }}'
+                            SEPARATOR: ' : '
+                          uuid: 0db84fea-650d-4e8d-a668-b2a8ab9f4305
+                          pretty_name: Region
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_39
+                              env:
+                                COMMAND: split_text
+                              sync: true
+                              disable: false
+                          manifestId: 28047e6e-0866-4508-aa69-b60d18c9a593
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                          id: dockercmd_start_container
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: sudo docker run -d --name rdesktop -p 3389:3389 -e PUID=1000 -e PGID=1000 -e TZ=Etc/UTC --device /dev/dri:/dev/dri --shm-size='2gb' lscr.io/linuxserver/rdesktop:{{ $.rdp_configuration.answers.desktop_environment }}
+                            VARIABLE_NAME: cmd
+                          uuid: 8608975d-24b1-4e2f-ab71-ba55bf32c0d2
+                          pretty_name: DockerCMD Start Container
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_3_44
+                              env:
+                                COMMAND: set_variable
+                                SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                              sync: true
+                              disable: false
+                          manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                          id: create_instance
+                          env:
+                            AUTHORIZATION: Bearer
+                            BODY: "{\n\"region\": \"{{ $.region.result.0 }}\",\n\"plan\": \"vhp-1c-2gb-intel\",\n\"label\": \"TempRDP {{ $.randomid.result }}\",\n\"image_id\":\"docker\", \n\"user_data\": \"QmFzZTY0IEV4YW1wbGUgRGF0YQ==\",\n\"backups\": \"disabled\",\n\"hostname\": \"remotedesktop-{{ $.randomid.result }}\",\n\"tags\": [\"{{ $.rdp_configuration.answers.desktop_environment }}\"]\n}"
+                            CONTENT_TYPE: application/json; charset=utf-8
+                            HEADERS: ""
+                            METHOD: POST
+                            TOKEN: '{{ $.wfctx.data.key}}'
+                            URL: https://api.vultr.com/v2/instances
+                          uuid: 4f47e6e2-24f9-4e52-9954-4511bc278c0e
+                          pretty_name: Create Instance
+                          options:
+                            executor:
+                              name: http_request_v_4_3_1
+                              env:
+                                FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                GO_TEMPLATE_BODY_PARSING: "false"
+                                RESPONSE_API_OBJECT_ONLY: "false"
+                              sync: true
+                              disable: false
+                          icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                          manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                          skip: false
+                  default:
+                    id: ec96035b-cfe6-47b3-98bc-297a49a1a5e4
+                    steps:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                        id: runner_configuration
+                        env:
+                          CONCLUDE_WEB_FORM_WITH: Next form
+                          FORM_NAME: Runner Configuration
+                          PARAMETERS: '[{"name":"regions","prettyName":"Regions","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"singleSelect":{"optionsList":[],"defaultValue":"","optionsTemplate":"{{ jsonEscape $.regionsid.output }}"}},{"name":"runner_docker_cmd","prettyName":"Runner Docker CMD","description":"","required":true,"defaultValue":"","optionsList":[],"type":9,"uiPlaceholder":"","longText":{"defaultValue":""}}]'
+                        uuid: 100ae992-2ade-4a31-9e7b-dde68a0024ee
+                        pretty_name: Runner Configuration
+                        options:
+                          executor:
+                            name: utils_forms_send_form_v_4_0_0
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/split-text:1.1.2
+                        id: region
+                        env:
+                          INPUT: '{{ $.runner_configuration.answers.regions }}'
+                          SEPARATOR: ' : '
+                        uuid: 93793df3-5ecd-4268-9488-f26be8ec0634
+                        pretty_name: Region
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_3_39
+                            env:
+                              COMMAND: split_text
+                            sync: true
+                            disable: false
+                        manifestId: 28047e6e-0866-4508-aa69-b60d18c9a593
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                        id: dockercmd_start_container
+                        env:
+                          DATA_TYPE: string
+                          VALUE_STRING: sudo {{ jsonEscape $.runner_configuration.answers.runner_docker_cmd }}
+                          VARIABLE_NAME: cmd
+                        uuid: 0146d1d2-43de-435e-928c-68e30f9dc471
+                        pretty_name: DockerCMD Start Container
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_3_44
+                            env:
+                              COMMAND: set_variable
+                              SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                            sync: true
+                            disable: false
+                        manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                        id: create_instance
+                        env:
+                          AUTHORIZATION: Bearer
+                          BODY: "{\n\"region\": \"{{ $.region.result.0 }}\",\n\"plan\": \"vhp-1c-2gb-intel\",\n\"label\": \"Runner {{ $.randomid.result }}\",\n\"image_id\":\"docker\", \n\"user_data\": \"QmFzZTY0IEV4YW1wbGUgRGF0YQ==\",\n\"backups\": \"disabled\",\n\"hostname\": \"runner-{{ $.randomid.result }}\",\n\"tags\": [\"Javier-Dev\", \"Runner {{ $.randomid.result }}\"]\n}"
+                          CONTENT_TYPE: application/json; charset=utf-8
+                          HEADERS: ""
+                          METHOD: POST
+                          TOKEN: '{{ $.wfctx.data.key}}'
+                          URL: https://api.vultr.com/v2/instances
+                        uuid: aa83ee7d-4282-4a04-a231-30d7e8c2e45f
+                        pretty_name: Create Instance
+                        options:
+                          executor:
+                            name: http_request_v_4_3_1
+                            env:
+                              FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                              GO_TEMPLATE_BODY_PARSING: "false"
+                              RESPONSE_API_OBJECT_ONLY: "false"
+                            sync: true
+                            disable: false
+                        icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                        manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                        isPrivate: false
+                        isPrivateUrl: true
+                        mock_output:
+                          enabled: false
+                        skip: false
+                    pretty_name: Runner
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.create_instance.status_code }}'
+                            operator: EQUALS
+                            rvalue: "202"
+                  then: []
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                      id: close
+                      env:
+                        CONCLUDE_WEB_FORM_WITH: Close form
+                        DESCRIPTION: '{{ $.create_instance.api_object }}'
+                        FORM_NAME: There Was an Issue Creating RDP
+                        PARAMETERS: '[{"name":"close","prettyName":"Close","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                        TIMEOUT: 1m
+                      uuid: c0ef203e-687c-4489-ad67-e6261af0a16f
+                      pretty_name: Close
+                      options:
+                        executor:
+                          name: utils_forms_send_form_v_4_0_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - exit:
+                        success: "true"
+                        pretty_name: Exit
+                        output: '{}'
+                        uuid: 175af186-b319-4e37-83ad-6086f2e0a644
+                  uuid: a903fe8a-283c-43ff-b4a9-bb733c19e917
+                  pretty_name: If Instance Created Successfully
+              - wait:
+                  id: wait
+                  pretty_name: Wait
+                  uuid: df29ac13-3c24-4db3-a028-94ceb0f6ba46
+                  time_unit: "2"
+                  duration: "4"
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_instance_details
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/instances/{{ $.create_instance.api_object.instance.id }}
+                uuid: d55f77ec-1fde-45f5-b1f7-553469d17fca
+                pretty_name: Get Instance Details
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - loop:
+                  key: loop_2_key
+                  value: loop_2_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.2.2
+                      id: start_rdp_container
+                      env:
+                        PYTHON_CODE: "import paramiko\n\nhostname = '{{ $.get_instance_details.api_object.instance.main_ip }}'\nport = 22\nusername = 'root'\npassword = '''{{ $.create_instance.api_object.instance.default_password }}'''\n\ns = paramiko.SSHClient()\ns.set_missing_host_key_policy(paramiko.AutoAddPolicy())\ns.load_system_host_keys()\ns.connect(hostname, port, username, password)\nstdin, stdout, stderr = s.exec_command(\"{{ $.dockercmd_start_container.cmd }}\")\n#for line in stdout.readlines():\n#  print line \ns.close\nprint(stdout.readlines())"
+                        REQUIREMENTS: paramiko
+                      ignoreFailure: true
+                      uuid: 988baee5-4947-4145-805a-36d7f84f0b6d
+                      pretty_name: Start RDP Container
+                      options:
+                        executor:
+                          name: ""
+                          env: {}
+                          sync: false
+                          disable: false
+                      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                      manifestId: cc7704ca-8b9c-408f-b927-c4711c687652
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.start_rdp_container.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.event.action }}'
+                                        operator: EQUALS
+                                        rvalue: Start Remote Desktop
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+                                  id: send_message
+                                  env:
+                                    MESSAGE_TEXT: |+
+                                      New RDP {{ $.rdp_configuration.answers.desktop_environment }} environment!
+
+                                      IP: {{ $.get_instance_details.api_object.instance.main_ip }}
+
+                                    RECIPIENT: '#vultr'
+                                  envFrom:
+                                    integrationRef: wolken
+                                  uuid: 60924ba3-f38e-4198-b8ae-6777c5114a10
+                                  pretty_name: Send Message
+                                  options:
+                                    executor:
+                                      name: slack_message_message_v_2_0_5
+                                      env: {}
+                                      sync: true
+                                      disable: false
+                                  manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+                                  id: send_message_1
+                                  env:
+                                    MESSAGE_TEXT: |+
+                                      New Runner @ `{{ $.runner_configuration.answers.regions }}`
+
+                                      IP: {{ $.get_instance_details.api_object.instance.main_ip }}
+
+                                    RECIPIENT: '#vultr'
+                                  envFrom:
+                                    integrationRef: wolken
+                                  uuid: b5b854d4-8880-45e9-acc5-4733007515f0
+                                  pretty_name: Send Message 1
+                                  options:
+                                    executor:
+                                      name: slack_message_message_v_2_0_5
+                                      env: {}
+                                      sync: true
+                                      disable: false
+                                  manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              uuid: 4c1bf12d-e1f5-45d3-9501-1b1eeb9adffc
+                              pretty_name: If
+                          - break:
+                              pretty_name: Break
+                              uuid: 15c2d5ac-617f-448d-9ac1-8f6afa2d81f9
+                        else:
+                          - wait:
+                              id: wait_1
+                              pretty_name: Wait 1
+                              uuid: 8557a67b-0702-4d4c-a030-5151bbc49c6f
+                              time_unit: "1"
+                              duration: "30"
+                        uuid: a73bb50a-202d-41b7-b8d6-0cd9f20ae48b
+                        pretty_name: If
+                  uuid: 40121825-2f07-4ab8-b4d8-5ba517e30ef2
+                  pretty_name: Loop 2
+                  range:
+                    start: "1"
+                    end: "20"
+                    interval: "1"
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.action }}'
+                            operator: EQUALS
+                            rvalue: Start Remote Desktop
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                      id: send_form
+                      env:
+                        CONCLUDE_WEB_FORM_WITH: Close form
+                        DESCRIPTION: |-
+                          New RDP {{ $.rdp_configuration.answers.desktop_environment }} environment in {{ $.get_instance_details.api_object.instance.region }}!
+
+                          IP: {{ $.get_instance_details.api_object.instance.main_ip }}
+
+                          It will be alive for {{ $.rdp_configuration.answers.rdp_ttl }} minutes.
+                        FORM_NAME: New RDP Environment
+                        PARAMETERS: '[{"name":"next","prettyName":"Next","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                      uuid: 526e3764-445b-4317-b6b3-902d9c58816a
+                      pretty_name: Send Form
+                      options:
+                        executor:
+                          name: utils_forms_send_form_v_4_0_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                      id: send_form
+                      env:
+                        CONCLUDE_WEB_FORM_WITH: Close form
+                        DESCRIPTION: |-
+                          New Runner @ `{{ $.runner_configuration.answers.regions }}`
+
+                          IP: {{ $.get_instance_details.api_object.instance.main_ip }}
+                        FORM_NAME: New RDP Environment
+                        PARAMETERS: '[{"name":"next","prettyName":"Next","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                      uuid: 15c8a4d2-55c2-4ca1-9781-543986d09e5a
+                      pretty_name: Send Form
+                      options:
+                        executor:
+                          name: utils_forms_send_form_v_4_0_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 2cd62758-3466-475c-a749-8b9d859d0e2c
+                  pretty_name: If
+          - id: 4f903118-8415-49ca-b87b-b185000a4e6c
+            pretty_name: Show All Active Resources
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: Show All Active Resources
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_instances
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/instances
+                uuid: 680353d8-4a4b-48f7-b478-74f35096a214
+                pretty_name: Get Instances
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_instance_details
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/instances/89363cb7-fe79-43f5-aae1-28cc9b1e02c1
+                uuid: 70a60490-a681-4e34-80d7-c523ddf70c2b
+                pretty_name: Get Instance Details
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/extract_to_sparse_object:1.0.5
+                id: extract_fields_to_sparse_objects
+                env:
+                  INPUT: '{{ $.get_instances.api_object.instances }}'
+                  PATHS: region,plan,label,power_status,main_ip
+                uuid: 0983fde4-6ec7-41f5-99e8-4dda695b5ca4
+                pretty_name: Extract Fields to Sparse Objects
+                options:
+                  executor:
+                    name: jq_infra_v_3_1_12
+                    env:
+                      COMMAND: extract_to_sparse_object
+                    sync: true
+                    disable: false
+                manifestId: be081eff-2c6d-4de8-a8e9-6c452f8812f3
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                id: send_form_1
+                env:
+                  CONCLUDE_WEB_FORM_WITH: Close form
+                  DESCRIPTION: '{{ $.extract_fields_to_sparse_objects.result }}'
+                  FORM_NAME: Resources
+                  PARAMETERS: '[{"name":"close","prettyName":"Close","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                uuid: 77502f21-61a8-4c45-9055-b6ce726dda4c
+                pretty_name: Send Form 1
+                options:
+                  executor:
+                    name: utils_forms_send_form_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 8c285b8b-de32-4a5b-b289-3378df72ae4b
+            pretty_name: Cleanup RDP
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: Cleanup RDP
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: get_instances
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: GET
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/instances
+                uuid: 2607dbf6-8313-4162-90b4-baf1e082370a
+                pretty_name: Get Instances
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.2.0
+                id: filter_temprdp_label
+                env:
+                  INPUT: '{{ $.get_instances.api_object.instances }}'
+                  JSON_QUERY: '[.[]| select(.label | contains("TempRDP"))|.label]'
+                uuid: b43e5a53-1dba-462d-afbd-9ebc39ed2fa5
+                pretty_name: Filter TempRDP label
+                options:
+                  executor:
+                    name: jq_infra_v_3_2_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 0be108d5-058a-4694-a8cc-abb5890c55f3
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                id: rdps_list
+                env:
+                  CONCLUDE_WEB_FORM_WITH: Next form
+                  FORM_NAME: Remove Temporal RDP
+                  PARAMETERS: '[{"name":"rdp_label","prettyName":"RDP Label","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"singleSelect":{"optionsList":[],"defaultValue":"","optionsTemplate":"{{ jsonEscape $.filter_temprdp_label.output }}"}}]'
+                uuid: 920344dc-df60-4e8f-98fc-b38b903b4b53
+                pretty_name: RDPs List
+                options:
+                  executor:
+                    name: utils_forms_send_form_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.2.0
+                id: filter_temprdp_id
+                env:
+                  INPUT: '{{ $.get_instances.api_object.instances }}'
+                  JSON_QUERY: .[]| select(.label | contains("{{ $.rdps_list.answers.rdp_label }}"))|.id
+                uuid: 48bf119b-b9a0-4014-9428-988bc97a9296
+                pretty_name: Filter TempRDP ID
+                options:
+                  executor:
+                    name: jq_infra_v_3_2_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 0be108d5-058a-4694-a8cc-abb5890c55f3
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+                id: delete_instance
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: ""
+                  METHOD: DELETE
+                  TOKEN: '{{ $.wfctx.data.key}}'
+                  URL: https://api.vultr.com/v2/instances/{{ $.filter_temprdp_id.output }}
+                uuid: ed8ac903-fcbd-4739-80d7-b2817ab86ebd
+                pretty_name: Delete Instance
+                options:
+                  executor:
+                    name: http_request_v_4_3_1
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+                manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.delete_instance.status_code }}'
+                            operator: EQUALS
+                            rvalue: "204"
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/forms/send_form:4.0.0
+                      id: send_form
+                      env:
+                        CONCLUDE_WEB_FORM_WITH: Close form
+                        DESCRIPTION: Alles in Ordnung
+                        FORM_NAME: OK
+                        PARAMETERS: '[{"name":"close","prettyName":"Close","description":"","required":true,"defaultValue":"","optionsList":[],"type":6,"pb_boolean":{"defaultValue":true}}]'
+                        TIMEOUT: 1m
+                      uuid: e049eeb5-3b3e-414c-ba0a-2a8bc68c2fe3
+                      pretty_name: Send Form
+                      options:
+                        executor:
+                          name: utils_forms_send_form_v_4_0_0
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: 6e0f2a75-6dc2-4d6c-959a-71eeee0818ee
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else: []
+                  uuid: 94ec433e-0833-45de-ac69-cc859915c4fb
+                  pretty_name: If
+        default:
+          id: 3c12b3fd-c37f-426b-8e7b-b0306c63b071
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+              id: get_plans
+              env:
+                AUTHORIZATION: Bearer
+                HEADERS: ""
+                METHOD: GET
+                TOKEN: '{{ $.wfctx.data.key}}'
+                URL: https://api.vultr.com/v2/plans
+              uuid: d815aec7-b525-4df8-8337-378055fcd7d2
+              pretty_name: Get Plans
+              options:
+                executor:
+                  name: http_request_v_4_3_1
+                  env:
+                    FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                    GO_TEMPLATE_BODY_PARSING: "false"
+                    RESPONSE_API_OBJECT_ONLY: "false"
+                  sync: true
+                  disable: false
+              icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+              manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+              isPrivate: false
+              isPrivateUrl: true
+              mock_output:
+                enabled: false
+              skip: false
+            - name: us-docker.pkg.dev/stackpulse/public/http/request:4.3.1
+              id: list_applications
+              env:
+                AUTHORIZATION: Bearer
+                HEADERS: ""
+                METHOD: GET
+                TOKEN: '{{ $.wfctx.data.key}}'
+                URL: https://api.vultr.com/v2/applications
+              uuid: 938458e7-9dd4-4b11-a5ab-8699e1425a5d
+              pretty_name: List Applications
+              options:
+                executor:
+                  name: http_request_v_4_3_1
+                  env:
+                    FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                    GO_TEMPLATE_BODY_PARSING: "false"
+                    RESPONSE_API_OBJECT_ONLY: "false"
+                  sync: true
+                  disable: false
+              icon: https://seeklogo.com/images/V/vultr-logo-B513C27910-seeklogo.com.png
+              manifestId: 065361ad-9da0-43fc-bb28-d387d0417243
+              isPrivate: false
+              isPrivateUrl: true
+              mock_output:
+                enabled: false
+              skip: false
+  output_schema: '{}'
+root: true

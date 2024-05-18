@@ -1,0 +1,136 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 50f86292-4f48-42b4-aa29-47de15108932
+name: 'Languages: Enrich an ESP vorto'
+trigger:
+  integrationTrigger:
+    integration:
+      name: wolken_slash
+      typeId: custom_slack_slash_commands
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.command }}'
+                operator: OPERATOR_EQUALS
+                rvalue: /langesp
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "prefix_to_trigger_de": "langde",
+            "prefix_to_trigger_es": "langes",
+            "chatbot_name": "Lehrer ChatBot",
+          "mongo_key":"U6gSigqEDh35ORvwNlSG912LrXqnzsmCiP7LVfWJ95b2VuYWmhFQScdC6poOozg6"
+          }
+        VARIABLE_NAME: datumoj
+      uuid: 29bfca80-f08d-4d5c-89b0-89376f1321e7
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: lookup_vorto
+      env:
+        AUTHORIZATION: None
+        BODY: |-
+          {
+            "dataSource": "Cluster0",
+            "database": "esperanto",
+            "collection": "espdic",
+            "filter": {
+                  "esp": "{{ $.event.text }}"
+                }
+            }
+        CONTENT_TYPE: application/json; charset=utf-8
+        HEADERS: '{"api-key":"{{ $.workflow_context.datumoj.mongo_key }}","Content-Type":"application/json"}'
+        METHOD: POST
+        URL: https://us-east-2.aws.data.mongodb-api.com/app/data-jjryo/endpoint/data/v1/action/findOne
+      uuid: d3961b58-71aa-41d7-9814-943404cbc493
+      pretty_name: Lookup Vorto
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: send_translation
+      env:
+        BLOCKS: |-
+          {
+          	"blocks": [
+          		{
+          			"type": "section",
+          			"text": {
+          				"type": "mrkdwn",
+          				"text": "ESP: {{ $.lookup_vorto.api_object.document.esp }} "
+          			}
+          		},
+              {
+          			"type": "section",
+          			"text": {
+          				"type": "mrkdwn",
+          				"text": ":flag-us: {{ $.lookup_vorto.api_object.document.en }} "
+          			}
+          		}
+          	]
+          }
+        ICON_URL: https://b.thumbs.redditmedia.com/DjaGPcIxLZykh9Mt25ro6HDFL09ejMtlja9nP4vpi3U.png
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#esperanto'
+        USERNAME: Esperanto Dictionary
+      envFrom:
+        integrationRef: wolken
+      uuid: 0ac97a97-9f36-4750-b7c0-66a9bcd394bf
+      pretty_name: Send Translation
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 7a0b973b-6df6-4f33-b19c-a76d17520ebb
+  annotations:
+    - uuid: ff04c585-5241-4519-8f22-044bcf3805e8
+      x: -1545
+      "y": 1804
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true

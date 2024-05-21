@@ -1,0 +1,41 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 6ec4bf93-f9bd-4170-a312-b49744d3a8cd
+name: slack_ir_menu
+trigger:
+  integrationTrigger:
+    integration:
+      name: ir_menu
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/async-ask-a-question:3.1.5
+      id: ask_a_question
+      env:
+        QUESTION: |-
+          This is channel # {{ $.event.channel_name.0 }}
+
+          You can run this options:
+        RECIPIENT: '#{{ $.event.channel_id.0 }}'
+        RESPONSES: WF1,WF2,WF3,Close
+        SELECTOR_TYPE: BUTTONS_SELECT
+      envFrom:
+        integrationRef: wolken
+      uuid: a01591e5-1806-4e3a-9d3a-1ca079c15a64
+      pretty_name: Ask a Question
+      options:
+        executor:
+          name: slack_message_async-ask-a-question_v_3_1_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: dd556413-97f8-5ba5-8c8f-bc161b280b23
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+  output_schema: '{}'
+root: true

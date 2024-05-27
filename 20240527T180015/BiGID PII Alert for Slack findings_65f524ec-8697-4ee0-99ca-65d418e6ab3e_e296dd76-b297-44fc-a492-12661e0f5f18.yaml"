@@ -1,0 +1,367 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 65f524ec-8697-4ee0-99ca-65d418e6ab3e
+name: BiGID PII Alert for Slack findings
+trigger:
+  integrationTrigger:
+    integration:
+      name: bigid_slack_findings
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |
+          {
+           "aws_integration_name":"s3buckets",
+            "slack_integration_name":"wolken",
+            "slack_channel_alerts":"bigid-alerts",
+            "bigid_host":"667c-177-247-114-170.ngrok.io"
+          }
+        VARIABLE_NAME: data
+      uuid: fdad2677-ae66-4fea-9238-688fc6949d3a
+      pretty_name: Workflow_Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.1.1
+      id: refresh_the_session_token
+      env:
+        AUTHORIZATION: None
+        HEADERS: '{"Authorization":"{{ secret "bigid_api_token" }}"}'
+        METHOD: GET
+        URL: https://{{ $.workflow_context.data.bigid_host }}/api/v1/refresh-access-token
+      uuid: a0d02906-6727-48f8-90c9-2212cbc656c8
+      pretty_name: Refresh the Session Token
+      icon: https://www.bing.com/th?id=OIP.bWwrgfAYW4X5zGWqI3w0rwAAAA&w=250&h=250&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2
+      manifestId: 7491850f-62aa-4c0a-8565-1b4f6272693f
+      isPrivate: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/encoding_utils/encode-url:1.1.0
+      id: encode_url
+      env:
+        INPUT: '{{ $.event.triggerQuery }}'
+      uuid: abae3069-8a4e-48c0-b424-5caec4eac27c
+      pretty_name: Encode URL
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_32
+          env:
+            COMMAND: encode_url
+          sync: true
+          disable: false
+      manifestId: e758ec64-8f0a-48cb-bee3-8959a223a9f8
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        key: loop_key
+        value: loop_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.1.1
+            id: query_datacatalog_with_filter
+            env:
+              AUTHORIZATION: None
+              HEADERS: '{"Authorization":"{{ $.refresh_the_session_token.api_object.systemToken }}"}'
+              METHOD: GET
+              URL: https://{{ $.workflow_context.data.bigid_host }}/api/v1/data-catalog/?format=json&limit=100&skip={{ mul $.loop_key 100 }}&sort=&filter={{ $.encode_url.result }}
+            uuid: eb9c2e62-247f-49c3-81aa-b84324b419eb
+            pretty_name: Query DataCatalog with Filter
+            icon: https://www.bing.com/th?id=OIP.bWwrgfAYW4X5zGWqI3w0rwAAAA&w=250&h=250&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2
+            manifestId: 7491850f-62aa-4c0a-8565-1b4f6272693f
+            isPrivate: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.query_datacatalog_with_filter.api_object.results }}'
+                        operator: IS_EMPTY
+                        rvalue: ""
+              then:
+                - break:
+                    uuid: 2788aec9-f6da-4aed-a73f-b3e5ea2b769b
+              else:
+                - collector:
+                    id: collect
+                    uuid: c57f3302-cceb-4092-8b9b-e000e7b18ecd
+                    pretty_name: Collect
+                    expression: '{{ $.query_datacatalog_with_filter.api_object.results }}'
+                    flatten: true
+              uuid: 2ebf3f74-f7d9-4e94-a5d5-0f69c94baecc
+              pretty_name: If
+        uuid: 6d240aec-0cec-4a25-b362-73fb5078f145
+        pretty_name: Loop
+        range:
+          start: "0"
+          end: "100"
+          interval: "1"
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: send_message
+      env:
+        MESSAGE_TEXT: We found `{{ $.collect.length }}` files violating Policy `{{ $.event.name }}`
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.slack_integration_name }}'
+      uuid: 3651deaf-b087-44a9-854c-2c2f01075b73
+      pretty_name: Send Message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/extract-field-from-records:1.1.2
+      id: extract_list_of_filenames
+      env:
+        FIELD_PATH: .fullyQualifiedName
+        INPUT: '{{ $.collect.result }}'
+      uuid: 2b6f514f-cbc9-4b20-9c6d-9d22113f0996
+      pretty_name: Extract List of Filenames
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_15
+          env:
+            COMMAND: extract_field_from_records
+          sync: true
+          disable: false
+      documentationUrl: https://docs.torq.io/getting-started/utilities#extract-field-from-records
+      manifestId: 336d04b0-dc54-4d91-9259-05baca6ed273
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.9
+      id: full_list_of_files
+      env:
+        CONTENT: '{{ toPrettyJson $.extract_list_of_filenames.output }}'
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.slack_integration_name }}'
+      uuid: 5407d488-42f6-49e2-a4ee-c873d8036ad2
+      pretty_name: Full list of files
+      options:
+        executor:
+          name: slack_message_snippet_v_1_3_9
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 8d38e1b8-f7a5-4a78-b140-5abcf08d9ab2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        in: '{{ $.collect.result }}'
+        key: loop_2_key
+        value: loop_2_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+            id: send_message_1
+            env:
+              MESSAGE_TEXT: |+
+                Container Name {{ $.loop_2_value.containerName }}
+
+                ObjectName {{ $.loop_2_value.objectName }}
+
+
+                FQN {{ $.loop_2_value.fullyQualifiedName }}
+
+                Full Obj Name {{ $.loop_2_value.fullObjectName }}
+
+              RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+            envFrom:
+              integrationRef: wolken
+            uuid: 17112d9d-f0a5-4c7e-8dff-a5c6c36d056a
+            pretty_name: Send Message 1
+            options:
+              executor:
+                name: slack_message_message_v_2_0_5
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/slack/list-users:1.1.5
+            id: list_users
+            envFrom:
+              integrationRef: wolken
+            uuid: 47a27c0a-f497-42f5-ba8a-823d6da3cf49
+            pretty_name: List Users
+            options:
+              executor:
+                name: http_request_v_4_2_4
+                env:
+                  BODY: '[{"key": "token", "type": "text", "value": "{{ .apikey | jsonEscape | rawB64Dec }}", "should_exists_var": "apikey"}, {"key": "limit", "type": "text", "value": "{{ .LIMIT }}", "should_exists_var": "LIMIT"}, {"key": "presence", "type": "text", "value": "false"}, {"key": "cursor", "type": "text", "value": "{{ .CURSOR | jsonEscape }}", "should_exists_var": "CURSOR"}, {"key": "include_locale", "type": "text", "value": "true"}]'
+                  CONTENT_TYPE: application/x-www-form-urlencoded
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["apikey"]'
+                  TIMEOUT: "30"
+                  URL: https://slack.com/api/users.list
+                sync: true
+                disable: false
+            documentationUrl: https://api.slack.com/methods/users.list
+            manifestId: 86c207f1-561c-4717-a3e4-818ab7534853
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-by-regex:3.1.0
+            id: extract_all_using_a_regex_pattern
+            env:
+              FILE: ""
+              INPUT: '{{ $.loop_2_value.containerName }}'
+              REGEX: (U\w*)
+            uuid: a80326e8-5030-4653-b743-06c0d0cc7036
+            pretty_name: Extract all using a regex pattern
+            options:
+              executor:
+                name: utils_infrastructure_v_1_2_0
+                env:
+                  COMMAND: extract_all_by_regex
+                sync: true
+                disable: false
+            manifestId: e4c4230d-3335-43e6-8301-3e843e2a859d
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+            id: achtung
+            env:
+              MESSAGE_TEXT: You have a private msg or file!!  PII!! PII!  Achtung!
+              RECIPIENT: '#{{ $.extract_all_using_a_regex_pattern.results.0 }}'
+            envFrom:
+              integrationRef: wolken
+            uuid: 58537d8f-7740-476f-a198-acb0705d0dfb
+            pretty_name: Achtung!
+            options:
+              executor:
+                name: slack_message_message_v_2_0_5
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        uuid: aa12f4bb-59d0-4a7b-a4a2-fadc1de9baf5
+        pretty_name: Loop trough events
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: remediation_done_message
+      env:
+        MESSAGE_TEXT: ':rotating_light: Remediation Done'
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+      envFrom:
+        integrationRef: wolken
+      uuid: 178e1e0e-fc9e-4941-b4e3-536b6a177b67
+      pretty_name: Remediation Done message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        uuid: f37f2440-7736-4984-a449-dc8e8249150f
+  annotations:
+    - uuid: 5aef826c-13c0-483d-a0f3-471c09341c2a
+      x: -530
+      "y": 108
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"BiGID PII Alert for Slack findings"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"All public exposure is removed from each file in S3 found by the BigID Policy. "}]},{"type":"paragraph","content":[{"type":"text","text":"Remediation is also valid for nested objects inside an S3 bucket."}]},{"type":"orderedList","attrs":{"start":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Authenticate to BigID Tenant and get a session token."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Reads the triggerQuery from the BigID event and fetch the full list of violating files from BigID Catalog."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Send a First Slack message with the actual list of files."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Ask the user if the revocation should happen for all the files or each event will be reviewed."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Make the file Private or Skip to the next file as per the response."}]}]}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://www.bing.com/th?id=OIP.bWwrgfAYW4X5zGWqI3w0rwAAAA&w=250&h=250&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2","alt":null,"title":null}}]},{"type":"paragraph"}]}'
+    - uuid: b87fcdf1-cbd1-4c7e-b467-949e08eb2951
+      x: 486
+      "y": 95
+      attachedStepId: fdad2677-ae66-4fea-9238-688fc6949d3a
+      attachedDistance:
+        x: -486
+        "y": 35
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Workflow Variables"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"slack_integration_name"},{"type":"text","text":" - Name of the integration with Slack"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"slack_channel_alerts"},{"type":"text","text":" - Name of Channel where alerts will be sent"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"bigid_host"},{"type":"text","text":" - Name of the integration with JumpCloud"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"aws_integration_name"},{"type":"text","text":" - Name of the integration with AWS"}]}]}]}]}'
+    - uuid: b13f2674-857d-4b53-a868-eae38b8fc4ec
+      x: 483
+      "y": 346
+      attachedStepId: a0d02906-6727-48f8-90c9-2212cbc656c8
+      attachedDistance:
+        x: -483
+        "y": -84
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Refresh the session token with BigID.   The user is required to have a session token that is setup in the UI."}]},{"type":"paragraph","content":[{"type":"text","text":"Docs - "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://api.bigid.com/index-apis.html#auth","target":"_blank","class":null}}],"text":"https://api.bigid.com/index-apis.html#auth"}]}]}'
+    - uuid: 43172139-b855-429c-a991-32747aab82e3
+      x: 481
+      "y": 503
+      attachedStepId: abae3069-8a4e-48c0-b424-5caec4eac27c
+      attachedDistance:
+        x: -481
+        "y": -110
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"URL Encode the filter that was is received via the event for use in the query of the DataCatalog"}]}]}'
+    - uuid: 251c9ec4-35a6-4f63-b2df-277794d1c525
+      x: 478
+      "y": 635
+      attachedStepId: 6d240aec-0cec-4a25-b362-73fb5078f145
+      attachedDistance:
+        x: -478
+        "y": -111
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Loop over filter with pagination to collect all results."}]}]}'
+    - uuid: 0bffe268-167d-4f72-8cab-ec735d6a2668
+      x: 770
+      "y": 786
+      attachedStepId: eb9c2e62-247f-49c3-81aa-b84324b419eb
+      attachedDistance:
+        x: -490
+        "y": -118
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Query the Data Catalog using the following parameters"}]},{"type":"paragraph","content":[{"type":"text","text":"Since the Policy event from BigID does not contain details of the actual files that violates the Policy, subsequent calls will fetch from the catalog the full list of exposed files in S3."}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Limit: defaults to 100"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Skip: defaults to 100 used for pagination"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Filter: Triggering Query"}]}]}]}]}'
+    - uuid: 89668184-47d4-43e8-8e8a-5037cc8a318a
+      x: 350
+      "y": 1428
+      attachedStepId: 3651deaf-b087-44a9-854c-2c2f01075b73
+      attachedDistance:
+        x: -350
+        "y": -118
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Message to slack with the count of files and name of Policy"}]}]}'
+    - uuid: b2602266-91cc-45e1-8e0d-c133ad4d7fa2
+      x: 1137
+      "y": 2475
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Make Files Private"}]},{"type":"paragraph","content":[{"type":"text","text":"The full path of the file is first extracted so files within a folder will be also considered for remediation."}]},{"type":"paragraph","content":[{"type":"text","text":"Each file is updated with a Private ACL"}]}]}'
+root: true

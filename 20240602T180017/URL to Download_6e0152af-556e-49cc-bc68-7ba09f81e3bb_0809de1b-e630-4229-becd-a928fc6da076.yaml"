@@ -1,0 +1,359 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 6e0152af-556e-49cc-bc68-7ba09f81e3bb
+name: URL to Download
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: url
+          description: What to download...
+          required: true
+          prettyName: url
+          shortText:
+            defaultValue: ""
+        - name: media_type
+          required: true
+          prettyName: media_type
+          singleSelect:
+            options:
+              - audio
+              - video
+            defaultValue: audio
+        - name: channel
+          description: slack channel to report
+          required: true
+          prettyName: channel
+          singleSelect:
+            options:
+              - dwl-musik
+              - dwl-youtube
+            defaultValue: dwl-musik
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: wfctxt
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {"slack_ytdefault_channel":"dwl-youtube",
+           "slack_ytmusik_channel":"dwl-musik",
+           "slack_ytdevel_channel":"dwl-tech",
+           "slack_ytcn_channel":"dwl-cannabis",
+          "image":"dwldr5",
+          "vultr_bucket":"https://sjc1.vultrobjects.com/ytautomation/",
+          "services":[
+              {"service_name":"tl-labs.a2hosted.com",
+              "service_smtp":"az1-ss104.a2hosting.com",
+              "service_smtp_port":465,
+              "service_username":"engine@tl-labs.a2hosted.com",
+              "service_passwd":"zEdMkAFqv6XZ"},
+              {"service_name":"tl-labs.a2hosted.com",
+              "service_smtp":"az1-ss104.a2hosting.com",
+              "service_smtp_port":465,
+              "service_username":"marketing_advisor@tl-labs.a2hosted.com",
+              "service_passwd":"chjqxsVcLBM0"}]
+          }
+        VARIABLE_NAME: data
+      uuid: cf85642a-81e7-4e04-9922-e58e3e194667
+      pretty_name: wfctxt
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - trigger:
+        id: ytdlp_download
+        playbook_id: 39728aef-572f-4630-af40-741c8c97a5df
+        pretty_name: YTDLP-Download
+        uuid: 3baf3033-3ff8-4522-bc41-0ecbb8301154
+        input: |-
+          {
+            "url": "{{ $.event.url }}",
+            "media_type": "{{ $.event.media_type }}"
+          }
+        playbook_name: YTDLP-Download
+        mock_output:
+          enabled: false
+          payload: '{}'
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+      id: get_info_json
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.ytdlp_download.fileurl }}.json'
+      uuid: 927cef2f-e86b-4fc6-97a0-119a700b14ea
+      pretty_name: Get Info Json
+      options:
+        executor:
+          name: http_request_v_4_2_11
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: d1a6efa5-4460-4a62-b2fd-933be424982a
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: d9b9d849-718b-459c-8ea0-feb2099841c6
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: mediablock
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "{{ jsonEscape $.get_info_json.api_object.title }}",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "image",
+                          "image_url": "{{ $.get_info_json.api_object.thumbnail }}",
+                          "alt_text": "{{ jsonEscape $.get_info_json.api_object.title }}"
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "Length: `{{ $.get_info_json.api_object.duration_string }}`"
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "Media: {{ $.ytdlp_download.fileurl }}"
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "Playlist: {{ $.ytdlp_download.fileurl }}.m3u"
+                          }
+                        }
+                      ]
+                    }
+                  VARIABLE_NAME: data
+                uuid: 416b5595-a40c-4f3b-a620-822167fcf0c2
+                pretty_name: MediaBlock
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: video_block
+                env:
+                  BLOCKS: '{{ $.mediablock.data }}'
+                  ICON_URL: https://seeklogo.com/images/Y/youtube-square-logo-3F9D037665-seeklogo.com.png
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  USERNAME: Video Download On Demand"
+                envFrom:
+                  integrationRef: wolken
+                ignoreFailure: true
+                uuid: 68b5d92e-2e47-4bc7-a1c8-9151ac4432fd
+                pretty_name: Video Block
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: 12e0df9c-6688-46a1-a6bd-d7aa612aae97
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: emailcontent
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: |-
+                    {{ $.get_info_json.api_object.title }}
+                    {{ $.get_info_json.api_object.thumbnail }}
+                    Length: {{ $.get_info_json.api_object.duration_string }}
+                    Media: {{ $.ytdlp_download.fileurl }}
+                    Playlist: {{ $.ytdlp_download.fileurl }}.m3u
+                  VARIABLE_NAME: data
+                ignoreFailure: true
+                uuid: cc16cfb6-69f9-4169-821e-a25bbb409ca3
+                pretty_name: EmailContent
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.2.2
+                id: sendemail_to_player
+                env:
+                  PYTHON_CODE: |-
+                    import smtplib
+                    from email.message import EmailMessage
+
+                    def send(msg = None):
+                      result={}
+                      try:
+                        server = smtplib.SMTP_SSL(host='{{ $.wfctxt.data.services.0.service_smtp }}', port='{{ $.wfctxt.data.services.0.service_smtp_port }}')
+                        server.login('{{ $.wfctxt.data.services.0.service_username }}','{{ $.wfctxt.data.services.0.service_passwd }}')
+                        server.send_message(msg)
+                        # server.sendmail(efrom, send_to, email.as_string())
+                        server.close()
+                        result["results"]="ok"
+                      except Exception as e:
+                        result["results"]="no no"
+                        print(e)
+
+                    msg = EmailMessage()
+                    msg.set_content('''{{ $.emailcontent.data }}''')
+
+                    msg['Subject'] = f'{{ jsonEscape $.get_info_json.api_object.title }}'
+                    msg['From'] = "engine@tl-labs.a2hosted.com"
+                    msg['To'] = "dergraf.player@gmail.com"
+
+                    send(msg)
+                ignoreFailure: true
+                uuid: 2509b7f1-ba2b-4546-ac60-cdf7b1f2fc28
+                pretty_name: SendEmail to Player
+                options:
+                  executor:
+                    name: ""
+                    env: {}
+                    sync: false
+                    disable: false
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: cc7704ca-8b9c-408f-b927-c4711c687652
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+                id: emailcontent
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: "<!DOCTYPE html>\n<html>\n<body>\n\n<h1>{{ $.get_info_json.api_object.title }}</h1>\n<img src=\"{{ $.get_info_json.api_object.thumbnail }}\">\n\n<p>Length: {{ $.get_info_json.api_object.duration_string }}</p>\n<p>Media: {{ $.ytdlp_download.fileurl }}</p>   \n<p>Playlist:{{ $.ytdlp_download.fileurl }}.m3u</p>   \n\n</body>\n</html>"
+                  VARIABLE_NAME: data
+                uuid: ae3c25d0-e9c7-43c0-90c9-792b13556579
+                pretty_name: EmailContent
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_44
+                    env:
+                      COMMAND: set_variable
+                      SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                    sync: true
+                    disable: false
+                manifestId: aff12938-d053-4518-abc0-0a947c43da01
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.2.2
+                id: send_html_message
+                env:
+                  PYTHON_CODE: |-
+                    import smtplib
+                    from email.message import EmailMessage
+                    from email import encoders
+                    from email.message import EmailMessage
+                    from email.mime.audio import MIMEAudio
+                    from email.mime.base import MIMEBase
+                    from email.mime.image import MIMEImage
+                    from email.mime.multipart import MIMEMultipart
+                    from email.mime.application import MIMEApplication
+                    from email.mime.text import MIMEText
+
+                    import json
+
+                    def send(msg = None):
+                      result={}
+                      try:
+                        server = smtplib.SMTP_SSL(host='{{ $.wfctxt.data.services.0.service_smtp }}', port='{{ $.wfctxt.data.services.0.service_smtp_port }}')
+                        server.login('{{ $.wfctxt.data.services.0.service_username }}','{{ $.wfctxt.data.services.0.service_passwd }}')
+                        server.send_message(msg)
+                        server.close()
+                        result["results"]="ok"
+                      except Exception as e:
+                        result["results"]="no no"
+                        print(e)
+
+                    msg = MIMEMultipart()
+                    msg.attach( MIMEText('''{{ $.emailcontent.data }}''', 'html') )
+                    msg['Subject'] = f'{{ $.get_info_json.api_object.title }}'
+                    msg['From'] = "engine@tl-labs.a2hosted.com"
+
+                    msg['To'] = "dergraf.player@gmail.com"
+
+                    step_result = send(msg)
+                  REQUIREMENTS: ""
+                uuid: ae478d54-6744-40bd-a7ec-295767262f4f
+                pretty_name: Send HTML Message
+                options:
+                  executor:
+                    name: ""
+                    env: {}
+                    sync: false
+                    disable: false
+                icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                manifestId: cc7704ca-8b9c-408f-b927-c4711c687652
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+  annotations:
+    - uuid: 7010d41e-24f3-42b4-9434-87d56da7cb83
+      x: 283
+      "y": 637
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+    - uuid: faf8ebd2-442f-4913-84af-9a85520611aa
+      x: 314
+      "y": 784
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true

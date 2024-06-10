@@ -1,0 +1,807 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 9f59e367-484d-4ff6-b201-e9a68828ae16
+name: YTDLP-WABot-03-HelpNConfig
+trigger:
+  integrationTrigger:
+    integration:
+      name: pcwahook
+      typeId: whatsapp_cloud_monitoring
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.type }}'
+                operator: OPERATOR_EQUALS
+                rvalue: text
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                operator: OPERATOR_EQUALS
+                rvalue: help
+          - expression:
+              - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                operator: OPERATOR_EQUALS
+                rvalue: '#config'
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/replace-text:2.0.2
+      id: number_fix
+      env:
+        INPUT: '{{ $.event.entry.0.changes.0.value.messages.0.from }}'
+        INSTANCES: "1"
+        NEW_TEXT: "52"
+        OLD_TEXT: "521"
+      uuid: ad3a541b-9a2b-4f38-9bef-e44fe6bb415b
+      pretty_name: Number Fix
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: replace_text
+          sync: true
+          disable: false
+      manifestId: 0fcc9b41-a46c-4405-923f-b5d30622a85d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.3
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "openai_integration":"openaijrp",
+            "slack_integration":"wolken",
+            "slack_channel":"whatsapp",
+            "whatsapp_integration":"pcwa",
+            "customer_phone_number": "{{ $.number_fix.result }}",
+            "central_location":"19.558850755425006, -99.21671356946366"
+          }
+        VARIABLE_NAME: data
+      uuid: 63eb0625-010d-4b84-a560-4d44ead254eb
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: aff12938-d053-4518-abc0-0a947c43da01
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/mark-message-as-read:1.0.0
+      id: mark_message_as_read
+      env:
+        MESSAGE_ID: '{{ $.event.entry.0.changes.0.value.messages.0.id }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.whatsapp_integration }}'
+      uuid: 96fc9af7-7f46-4ce1-919c-ed63720fcf6b
+      pretty_name: Mark Message as Read
+      options:
+        executor:
+          name: http_request_v_4_2_11
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "message_id": "{{ .MESSAGE_ID | jsonEscape }}",
+                "messaging_product": "whatsapp",
+                "status": "read"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MESSAGE_ID","FACEBOOK_ACCESS_TOKEN","WHATSAPP_PHONE_NUMBER_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/mark-message-as-read
+      manifestId: eb08c6f7-3f74-4ab3-8f00-b1bfc92330b3
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - switch:
+        uuid: 62695794-69c1-4925-9e6a-62d5171b12cb
+        pretty_name: Switch
+        cases:
+          - id: 586575a7-2ba5-43fe-95f8-6792687c595b
+            pretty_name: Help
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                      operator: EQUALS
+                      rvalue: help
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+                id: send_ack_message
+                env:
+                  RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+                  TEXT: "\U0001F916 Hi There! YTBot v.0.0.2\nYour assistance for fetching great resources.\n- Drop an yt URL to download the audio.\n- add video prefix to download .. the video.. yes\n\n#config - to change bot configurations\n#stats   - get usage statistics\n\nlast.10.19.2023"
+                envFrom:
+                  integrationRef: pcwa
+                uuid: 0d5e1884-4782-4b9c-9ffc-61b148d00525
+                pretty_name: Send ACK Message
+                options:
+                  executor:
+                    name: http_request_v_4_0_2
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                            "messaging_product": "whatsapp",
+                            "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                            "type": "text",
+                            "text": {
+                                "body": "{{ .TEXT | jsonEscape }}"
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                      URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+                manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: e3f12594-857c-44c1-8088-3b0b34ebc24c
+            pretty_name: Config
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+                      operator: EQUALS
+                      rvalue: '#config'
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+                id: send_ack_message_2
+                env:
+                  RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+                  TEXT: "\U0001F916 YTBot #Config\n\n#cfg mp3 - Set MP3 as default\n#cfg ogg - Set Vorbis as default\n#cfg de - Deutsch\n#cfg pr - Portugues\n#add"
+                envFrom:
+                  integrationRef: pcwa
+                uuid: 61adbeda-84fb-41af-9312-342bed9d35ee
+                pretty_name: Send ACK Message 2
+                options:
+                  executor:
+                    name: http_request_v_4_0_2
+                    env:
+                      AUTHORIZATION: Bearer
+                      BODY: |-
+                        {
+                            "messaging_product": "whatsapp",
+                            "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                            "type": "text",
+                            "text": {
+                                "body": "{{ .TEXT | jsonEscape }}"
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: '{}'
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                      URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                    sync: true
+                    disable: false
+                documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+                manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: eb5f47a4-8467-4676-81cc-3147ff4b508a
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+              id: send_ack_message_3
+              env:
+                RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+                TEXT: "\U0001F916 Hi There This is the YTBot... Default Branch!"
+              envFrom:
+                integrationRef: pcwa
+              uuid: cfe0fd80-6924-49f0-9417-a81def93feb3
+              pretty_name: Send ACK Message 3
+              options:
+                executor:
+                  name: http_request_v_4_0_2
+                  env:
+                    AUTHORIZATION: Bearer
+                    BODY: |-
+                      {
+                          "messaging_product": "whatsapp",
+                          "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                          "type": "text",
+                          "text": {
+                              "body": "{{ .TEXT | jsonEscape }}"
+                          }
+                      }
+                    CONTENT_TYPE: application/json
+                    HEADERS: '{}'
+                    METHOD: POST
+                    PARSE_HJSON: "true"
+                    REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                    TIMEOUT: "30"
+                    TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                    URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                  sync: true
+                  disable: false
+              documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+              manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 7b69d569-f92e-40fb-bea2-cfcd498998b6
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+      id: get_profile
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.ytdlp_wabot_02_download.fileurl }}.json'
+      runner: vultrwarsaw
+      ignoreFailure: true
+      uuid: 0cc4b756-d32b-49c2-80f0-710e8d203d65
+      pretty_name: Get Profile
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-image-message:1.0.0
+      id: send_image_message
+      env:
+        IMAGE_URL: '{{ $.get_profile.api_object.thumbnails.0.url }}'
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+      envFrom:
+        integrationRef: pcwa
+      ignoreFailure: true
+      uuid: 32f54e16-b18c-4303-85e7-ba129730b87e
+      pretty_name: Send Image Message
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "image": {
+                  "link": "{{ .IMAGE_URL | jsonEscape }}"
+                },
+                "messaging_product": "whatsapp",
+                "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                "type": "image"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: ""
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID","IMAGE_URL","RECIPIENT_PHONE_NUMBER","FACEBOOK_ACCESS_TOKEN"]'
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages
+      manifestId: 611a6bbe-a8c4-4e8d-95ce-b4e7c2501263
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+      id: send_ack_message_1
+      env:
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEXT: |-
+          {{ $.get_profile.api_object.fulltitle }}
+          {{ $.ytdlp_wabot_02_download.fileurl }}
+      envFrom:
+        integrationRef: pcwa
+      ignoreFailure: true
+      uuid: aa48590e-fcaf-4e03-a42f-dc052cef4fdb
+      pretty_name: Send ACK Message 1
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "text",
+                  "text": {
+                      "body": "{{ .TEXT | jsonEscape }}"
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-template-message:1.0.0
+      id: send_template_message
+      env:
+        LANGUAGE_CODE: en_US
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEMPLATE_NAME: welcome_service_request
+      envFrom:
+        integrationRef: socialmanager_wolken
+      uuid: a5e3ee9c-79c2-4afe-8a56-1e8db5e30b69
+      pretty_name: Send Template Message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "template",
+                  "template": {
+                      "name": "{{ .TEMPLATE_NAME | jsonEscape }}",
+                      "language": {
+                          "code": "{{ .LANGUAGE_CODE | jsonEscape }}"
+                      }
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEMPLATE_NAME", "LANGUAGE_CODE", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e363075e-094a-4918-908b-d5f33d9502be
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+      id: send_interactive_message
+      env:
+        AUTHORIZATION: Bearer
+        BODY: "{\n  \"messaging_product\": \"whatsapp\",\n  \"recipient_type\": \"individual\",\n  \"to\" : \"{{ $.workflow_context.data.customer_phone_number }}\",\n  \"type\": \"interactive\", \n  \"interactive\":{\n  \"type\": \"list\",\n  \"header\": {\n    \"type\": \"text\",\n    \"text\": \"Fetch from YT\"\n  },\n  \"body\": {\n    \"text\": \"Choose the format for conversion.\"\n  },\n  \"footer\": {\n    \"text\": \"...\"\n  },\n  \"action\": {\n    \"button\": \"Opciones\",\n    \"sections\":[\n      {\n        \"title\":\"Audio Conversion\",\n        \"rows\": [\n          {\n            \"id\":\"audio_convert\",\n            \"title\": \"Audio\",\n            \"description\": \"Converto to mp3 file.\",           \n          }\n        ]\n      },\n      {\n        \"title\":\"Video Conversion\",\n        \"rows\": [\n          {\n            \"id\":\"video_convert\",\n            \"title\": \"Video\",\n            \"description\": \"Converto to mp4 file.\",           \n          }\n        ]\n      }\n    ]\n  }\n}\n}\n"
+        CONTENT_TYPE: application/json
+        HEADERS: '{}'
+        METHOD: POST
+        TIMEOUT: "30"
+        TOKEN: '{{ $.integrations.''pcwa''.facebook_access_token }}'
+        URL: https://graph.facebook.com/v13.0/{{ $.integrations.'pcwa'.phone_number_id }}/messages
+      ignoreFailure: true
+      uuid: 3e5352fb-d04b-443e-a37a-c0467aceb7a6
+      pretty_name: Send Interactive Message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      icon: https://cdn.torq.io/vendors/whatsapp.svg
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-image-message:1.0.0
+      id: send_image_message
+      env:
+        IMAGE_URL: '{{ $.create_static_map.api_object.url }}'
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.whatsapp_integration }}'
+      uuid: a3fb8e1e-83c5-4d73-8942-9be7f0bddeda
+      pretty_name: Send Image Message
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                "image": {
+                  "link": "{{ .IMAGE_URL | jsonEscape }}"
+                },
+                "messaging_product": "whatsapp",
+                "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                "type": "image"
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: ""
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID","IMAGE_URL","RECIPIENT_PHONE_NUMBER","FACEBOOK_ACCESS_TOKEN"]'
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages
+      manifestId: 611a6bbe-a8c4-4e8d-95ce-b4e7c2501263
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+      id: send_form_url_in_a_text_message
+      env:
+        RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+        TEXT: '{{ $.metadata.form_url }}'
+      envFrom:
+        integrationRef: socialmanager_wolken
+      uuid: 45adb9d0-96de-402d-b418-3be32f77ad2b
+      pretty_name: Send Form URL in a Text message
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+                  "messaging_product": "whatsapp",
+                  "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                  "type": "text",
+                  "text": {
+                      "body": "{{ .TEXT | jsonEscape }}"
+                  }
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+            URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+          sync: true
+          disable: false
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+      id: send_interactive_message_1
+      env:
+        AUTHORIZATION: Bearer
+        BODY: |-
+          {
+              "messaging_product": "whatsapp",
+              "text": {
+                  "body": "{{ $.create_image.api_object.error.message }}"
+              },
+              "to": "{{ $.workflow_context.data.customer_phone_number }}",
+              "type": "text"
+          }
+        CONTENT_TYPE: application/json
+        HEADERS: '{}'
+        METHOD: POST
+        TIMEOUT: "30"
+        TOKEN: '{{ $.integrations.''socialmanager_wolken''.facebook_access_token }}'
+        URL: https://graph.facebook.com/v13.0/{{ $.integrations.'socialmanager_wolken'.phone_number_id }}/messages
+      uuid: a0d4fafc-d85a-4366-88dd-457c166000ff
+      pretty_name: Send Interactive Message 1
+      options:
+        executor:
+          name: http_request_v_4_0_2
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      icon: https://cdn.torq.io/vendors/whatsapp.svg
+      documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+      manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/trim-prefix:1.1.2
+      id: prompt
+      env:
+        INPUT: '{{ $.event.entry.0.changes.0.value.messages.0.text.body }}'
+        PREFIX: 'Image:'
+      uuid: 277bee15-52ec-447b-acb8-e9a7a78fe458
+      pretty_name: Prompt
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: trim_prefix
+          sync: true
+          disable: false
+      manifestId: 092c0fcc-e224-489f-bc4b-749fd8581af1
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: send_message
+      env:
+        ICON_URL: https://cdn-icons-png.flaticon.com/512/124/124034.png?w=360
+        MESSAGE_TEXT: |-
+          From: `{{ $.event.entry.0.changes.0.value.messages.0.from }}`
+          OpenAI Prompt:
+          {{ $.prompt.result }}
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel }}'
+        USERNAME: WhatsApp
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.slack_integration }}'
+      uuid: 623d45c9-4874-480f-a39a-f7f4fe6f4a4e
+      pretty_name: Send Message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/openai/create-image:1.0.0
+      id: create_image
+      env:
+        IMAGE_FORMAT: url
+        IMAGE_SIZE: 512x512
+        PROMPT: '{{ $.prompt.result }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.openai_integration }}'
+      ignoreFailure: true
+      uuid: 6882cc51-83af-458d-bb46-01314235e950
+      pretty_name: Create Image
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            BODY: |-
+              {
+              {{ if .NUMBER_OF_IMAGES }}  "n": {{ .NUMBER_OF_IMAGES }},{{ end }}
+                "prompt": "{{ .PROMPT | jsonEscape }}",
+              {{ if .IMAGE_FORMAT }}  "response_format": "{{ .IMAGE_FORMAT | jsonEscape }}",{{ end }}
+              {{ if .IMAGE_SIZE }}  "size": "{{ .IMAGE_SIZE | jsonEscape }}",{{ end }}
+              {{ if .OPENAI_USERNAME }}  "user": "{{ .OPENAI_USERNAME | jsonEscape }}"{{ end }}
+              }
+            CONTENT_TYPE: application/json
+            HEADERS: '{}'
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["PROMPT","OPENAI_API_KEY", "IMAGE_FORMAT"]'
+            TOKEN: '{{ .OPENAI_API_KEY }}'
+            URL: https://api.openai.com/v1/images/generations
+          sync: true
+          disable: false
+      documentationUrl: https://platform.openai.com/docs/api-reference/images/create
+      manifestId: 80f4dbea-6f24-4bd7-a6d9-7a63f7459ab8
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.create_image.step_status.code }}'
+                  operator: EQUALS
+                  rvalue: "1"
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+            id: send_image
+            env:
+              ICON_URL: https://ph-files.imgix.net/b739ac93-2899-4cc1-a893-40ea8afde77e.png
+              MESSAGE_TEXT: '{{ $.create_image.api_object.data.0.url }}'
+              RECIPIENT: '#{{ $.workflow_context.data.slack_channel }}'
+              USERNAME: OpenAI
+            envFrom:
+              integrationRef: '{{ $.workflow_context.data.slack_integration }}'
+            uuid: cb8738ba-095a-4839-a33b-ad5d1264d478
+            pretty_name: Send Image
+            options:
+              executor:
+                name: slack_message_message_v_2_0_5
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/whatsapp/send-text-message:1.0.0
+            id: send_text_message
+            env:
+              RECIPIENT_PHONE_NUMBER: '{{ $.workflow_context.data.customer_phone_number }}'
+              TEXT: '{{ $.create_image.api_object.error.message }}'
+            envFrom:
+              integrationRef: socialmanager_wolken
+            uuid: cd923a62-305b-45cb-b003-848d4b7f94d7
+            pretty_name: Send Text Message
+            options:
+              executor:
+                name: http_request_v_4_0_2
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                        "messaging_product": "whatsapp",
+                        "to": "{{ .RECIPIENT_PHONE_NUMBER | jsonEscape }}",
+                        "type": "text",
+                        "text": {
+                            "body": "{{ .TEXT | jsonEscape }}"
+                        }
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["WHATSAPP_PHONE_NUMBER_ID", "RECIPIENT_PHONE_NUMBER", "TEXT", "FACEBOOK_ACCESS_TOKEN"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .FACEBOOK_ACCESS_TOKEN }}'
+                  URL: https://graph.facebook.com/v13.0/{{ .WHATSAPP_PHONE_NUMBER_ID | urlEnc }}/messages
+                sync: true
+                disable: false
+            documentationUrl: https://developers.facebook.com/docs/whatsapp/on-premises/reference/messages
+            manifestId: e6b8c3f2-f1ef-4819-b636-9da658c3059b
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+            id: send_error_message
+            env:
+              ICON_URL: https://ph-files.imgix.net/b739ac93-2899-4cc1-a893-40ea8afde77e.png
+              MESSAGE_TEXT: |-
+                From: `{{ $.event.entry.0.changes.0.value.messages.0.from }}`
+                OpenAI Prompt:
+                {{ $.prompt.result }}
+              RECIPIENT: '#{{ $.workflow_context.data.slack_channel }}'
+              USERNAME: OpenAI
+            envFrom:
+              integrationRef: '{{ $.workflow_context.data.slack_integration }}'
+            uuid: 13465c98-0e2c-4b5c-b06e-937c0be2e704
+            pretty_name: Send Error Message
+            options:
+              executor:
+                name: slack_message_message_v_2_0_5
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: 29639e1c-c031-46b4-b450-dfec768282bc
+        pretty_name: If Image Successfully Created
+    - name: us-docker.pkg.dev/stackpulse/public/torq/list-audit-logs:8.0.2
+      id: list_audit_logs_1
+      envFrom:
+        integrationRef: torq_api
+      uuid: fa661f55-8988-4f71-8bc4-073f6236b9cb
+      pretty_name: List audit logs 1
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.torq.io/public/v1alpha/audit_logs?{{ if or .START_TIME }}&start_time={{ .START_TIME }}{{ end }}{{ if or .END_TIME }}&end_time={{ .END_TIME }}{{ end }}{{ if or .PAGE_SIZE }}&page_size={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&page_token={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .SORT_ORDER }}&order={{ .SORT_ORDER | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      documentationUrl: https://docs.torq.io/torq-public-api/ref#listauditlogs
+      manifestId: 7251c643-286d-4db6-8fdf-808bbad600bc
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+      id: list_audit_logs
+      env:
+        AUTHORIZATION: Bearer
+        HEADERS: '{}'
+        METHOD: GET
+        TIMEOUT: "30"
+        TOKEN: '{{ $.integrations.''torq_api''.access_token }}'
+        URL: https://api.torq.io/public/v1alpha/audit_logs?
+      uuid: c1c2eb8d-1067-47e5-8b6a-9758ea206226
+      pretty_name: List audit logs
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      icon: https://cdn.torq.io/vendors/torq.svg
+      documentationUrl: https://docs.torq.io/torq-public-api/ref#listauditlogs
+      manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 2902128f-416b-411b-aaf6-c9f170bcd6fc
+  annotations:
+    - uuid: ae07694a-00b8-41e4-abef-42d3e78febf2
+      x: 359
+      "y": 662
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Video"}]}]}'
+    - uuid: db1005d9-ceea-45e8-aee9-6a1090f25edd
+      x: -348
+      "y": 610
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Audio"}]}]}'
+  output_schema: '{}'
+root: true

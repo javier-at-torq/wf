@@ -1,0 +1,108 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: f6bb0f9d-053d-4af5-af12-27c5b99ea184
+name: case_new_features
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_TAGS_UPDATED
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.cases.current.tags.0 }}'
+                operator: OPERATOR_EQUALS
+                rvalue: example
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.7
+      id: first_interaction
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"}, {"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""}, {"name":"user_action_button","type":"BUTTONS","buttons":[{"text":"Submit"},{"text":"Skip"}]}]}'
+        FORM_TITLE: First Interaction
+        HAS_NEXT: "true"
+        TIMEOUT: 1m
+      uuid: a64f71be-7736-4bbf-8f0d-d92654eeca28
+      pretty_name: First Interaction
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_7
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 6626cade-1a14-542f-a0d1-8c1a2844e749
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.first_interaction.answers.user_action_button }}'
+                  operator: NOT_EQUALS
+                  rvalue: Skip
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.7
+            id: second_interaction
+            env:
+              CASE_ID: '{{ $.metadata.case.id }}'
+              FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"}, {"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""}, {"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+              FORM_TITLE: Second Interaction
+              HAS_NEXT: "true"
+              TIMEOUT: 1m
+            uuid: af92b366-b740-43a9-92c7-6bf9d8422e5a
+            pretty_name: Second Interaction
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_7
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 6626cade-1a14-542f-a0d1-8c1a2844e749
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        else:
+          - exit:
+              success: "true"
+              pretty_name: Exit
+              output: '{}'
+              uuid: 7c1fc7af-99e1-4aee-8e8b-95e9fc3e2a35
+        uuid: 5ca2c4ff-0fc2-4aef-ad2b-ac3f5af36761
+        pretty_name: If
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.7
+      id: third_interaction
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"}, {"name":"parameter_1","type":"FILE","prettyName":"Parameter 1","value":"","allowMultipleFiles":true}, {"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+        FORM_TITLE: Third Interaction
+        HAS_NEXT: "false"
+        TIMEOUT: 1m
+      uuid: 172fa533-7d5a-458a-9145-63a931bfd72e
+      pretty_name: Third Interaction
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_7
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 6626cade-1a14-542f-a0d1-8c1a2844e749
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  annotations:
+    - uuid: 4f9f0d02-76ac-499e-8517-f85ac92bbcb7
+      x: -346
+      "y": 120
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"New for Interactitons"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Flow Settings to cancel Tasks."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Multiple Buttons"}]}]},{"type":"listItem","content":[{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"date time - multipel bttoms - download presets,"}]}]}]},{"type":"paragraph","content":[{"type":"text","text":"\\"}]}]}'
+  output_schema: '{}'
+root: true

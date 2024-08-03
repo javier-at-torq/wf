@@ -1,0 +1,499 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 9b247fed-b726-4b8c-b6fb-e8a1ce8774e6
+name: process_cases
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: cases
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: |-
+          id,name,type,severity,status,owner,playbookId,occurred,dueDate,sourceInstance,sourceBrand,Alert Title,details,created
+          634573,ServiceNow Incident INC4935817,Report,Medium,Closed,suchithraparamashivam,Prod_Scheduled_Reports,"Sun, 31 Dec 2023 18:01:05 UTC",,reports,ServiceNow v2,Report: Rogue APs(Updated) - All Rogue APs in all FICO locations,"{""promoted_by"": """", ""parent"": """", ""caused_by"": """", ""watch_list"": """", ""upon_reject"": ""cancel"", ""sys_updated_on"": ""2023-12-31 18:01:06"", ""u_escalation_required"": ""false"", ""origin_table"": """", ""approval_history"": """", ""skills"": """", ""number"": ""INC4935817"", ""proposed_by"": """", ""u_preferred_time_to_contact"": """", ""lessons_learned"": """", ""state"": ""1"", ""u_reminder_email"": """", ""u_alert_number"": """", ""u_time_to_classify"": """", ""sys_created_by"": ""Prime_Infrastructure@cisapppri45080.net."", ""knowledge"": ""false"", ""order"": """", ""u_mass_closed"": ""false"", ""u_classified_by"": """", ""u_gut_score"": """", ""cmdb_ci"": """", ""delivery_plan"": """", ""contract"": """", ""impact"": """", ""active"": ""true"", ""u_flag_article"": ""false"", ""u_project"": """", ""work_notes_list"": """", ""priority"": ""4"", ""u_best_time_to_contact"": """", ""business_duration"": """", ""group_list"": """", ""u_time_to_acknowledge"": """", ""approval_set"": """", ""major_incident_state"": """", ""needs_attention"": ""false"", ""universal_request"": """", ""short_description"": ""Report: Rogue APs(Updated) - All Rogue APs in all FICO locations"", ""u_jira_assignee"": """", ""correlation_display"": """", ""work_start"": """", ""u_incident_reported_time"": """", ""additional_assignee_list"": """", ""u_dispatch_number"": """", ""u_sr_number"": """", ""notify"": ""1"", ""service_offering"": """", ""sys_class_name"": ""incident"", ""closed_by"": """", ""follow_up"": """", ""parent_incident"": """", ""reopened_by"": """", ""u_expedite_request"": """", ""u_shift_handover"": """", ""u_monitor_id"": """", ""reassignment_count"": ""0"", ""u_csm_case"": """", ""assigned_to"": """", ""u_region"": """", ""u_incident_start_time"": """", ""sla_due"": """", ""comments_and_work_notes"": """", ""u_time_to_respond"": """", ""u_preferred_method_of_contact"": """", ""u_delivered"": ""false"", ""u_flag_comments"": """", ""u_microsoft_application"": """", ""u_jira_status"": """", ""u_quarter_closed"": """", ""escalation"": ""0"", ""upon_approval"": ""proceed"", ""correlation_id"": """", ""timeline"": """", ""u_lead_assigned_to"": """", ""u_corpit_escalated"": ""false"", ""u_unknown_reason"": """", ""promoted_on"": """", ""child_incidents"": ""0"", ""task_effective_number"": ""INC4935817"", ""u_corp_it_detail"": """", ""resolved_by"": """", ""u_business_service"": """", ""sys_updated_by"": ""Prime_Infrastructure@cisapppri45080.net."", ""u_first_response"": """", ""opened_by"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user/770e380edbadbf04fc8efabfaa96191b"", ""value"": ""770e380edbadbf04fc8efabfaa96191b""}, ""user_input"": """", ""sys_created_on"": ""2023-12-31 18:01:05"", ""u_escalation_groups"": """", ""sys_domain"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user_group/global"", ""value"": ""global""}, ""u_detail"": """", ""proposed_on"": """", ""u_time_to_own"": ""1970-01-01 00:00:00"", ""actions_taken"": """", ""u_tdo_assigned"": """", ""u_has_incident_communication_plan"": ""false"", ""route_reason"": """", ""calendar_stc"": """", ""closed_at"": """", ""u_ci_environment"": """", ""u_microsoft_product"": """", ""u_files_attached"": ""false"", ""business_impact"": """", ""rfc"": """", ""time_worked"": """", ""expected_start"": """", ""opened_at"": ""2023-12-31 18:01:05"", ""u_close_notes"": """", ""work_end"": """", ""caller_id"": ""nirmalkumarbalasubramanian@fico.com"", ""reopened_time"": """", ""resolved_at"": """", ""u_phone_number"": """", ""u_unknown_ci"": ""false"", ""u_esc_comments"": """", ""subcategory"": """", ""work_notes"": """", ""u_expedited_on"": """", ""u_knowledge_search"": """", ""close_code"": """", ""u_last_assignment_group_change"": ""2023-12-31 18:01:05"", ""assignment_group"": ""Cyber Security Center"", ""u_kb_attached"": ""false"", ""business_stc"": """", ""cause"": """", ""description"": """", ""u_first_assigned_to"": """", ""origin_id"": """", ""calendar_duration"": """", ""u_product_support_case"": """", ""close_notes"": """", ""sys_id"": ""676a0e84db637954d9abc35913961991"", ""contact_type"": ""email"", ""incident_state"": ""1"", ""urgency"": ""3"", ""problem_id"": """", ""u_details"": """", ""u_temp_detail_related_kb"": """", ""company"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/core_company/aa22e39ab5c97400bb05d180e23126b0"", ""value"": ""aa22e39ab5c97400bb05d180e23126b0""}, ""activity_due"": """", ""action_status"": """", ""severity"": ""3"", ""overview"": """", ""u_waiting_on_customer"": """", ""comments"": """", ""approval"": ""not requested"", ""due_date"": """", ""sys_mod_count"": ""1"", ""reopen_count"": ""0"", ""sys_tags"": """", ""u_corp_it_notification_sent"": ""false"", ""u_reminder"": """", ""u_tdo_required"": ""false"", ""u_netcool_id"": """", ""location"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/cmn_location/258522c6b52c3000bb05d180e231268c"", ""value"": ""258522c6b52c3000bb05d180e231268c""}, ""category"": """", ""mirror_direction"": null, ""mirror_tags"": [""comments"", null, ""ForServiceNow"", null, ""work_notes"", null], ""mirror_instance"": ""reports""}","Sun, 31 Dec 2023 18:01:17 UTC"
+          634572,TRAP_List_Cleanup,Job,Unknown,Closed,svc_demistopoc,Job_Update_ProofPoint_Trap,"Sun, 31 Dec 2023 17:23:56 UTC",,,,,,"Sun, 31 Dec 2023 17:23:56 UTC"
+          634571,Guardduty IOC Update,Job,Unknown,Closed,svc_demistopoc,Job_Production_IOC_s2g,"Sun, 31 Dec 2023 17:22:41 UTC",,,,,,"Sun, 31 Dec 2023 17:22:41 UTC"
+          634570,ATP_USB,Job,Low,Closed,svc_demistopoc,Job_ATP_USB,"Sun, 31 Dec 2023 17:06:31 UTC",,,,,,"Sun, 31 Dec 2023 17:06:31 UTC"
+          634569,ServiceNow Incident INC4935799,Report,Medium,Closed,suchithraparamashivam,Prod_Scheduled_Reports,"Sun, 31 Dec 2023 17:01:35 UTC",,reports,ServiceNow v2,Report: Rogue APs(Updated) - On-Net Rogue APs in all FICO locations,"{""promoted_by"": """", ""parent"": """", ""caused_by"": """", ""watch_list"": """", ""upon_reject"": ""cancel"", ""sys_updated_on"": ""2023-12-31 17:01:35"", ""u_escalation_required"": ""false"", ""origin_table"": """", ""approval_history"": """", ""skills"": """", ""number"": ""INC4935799"", ""proposed_by"": """", ""u_preferred_time_to_contact"": """", ""lessons_learned"": """", ""state"": ""1"", ""u_reminder_email"": """", ""u_alert_number"": """", ""u_time_to_classify"": """", ""sys_created_by"": ""Prime_Infrastructure@cisapppri45080.net."", ""knowledge"": ""false"", ""order"": """", ""u_mass_closed"": ""false"", ""u_classified_by"": """", ""u_gut_score"": """", ""cmdb_ci"": """", ""delivery_plan"": """", ""contract"": """", ""impact"": """", ""active"": ""true"", ""u_flag_article"": ""false"", ""u_project"": """", ""work_notes_list"": """", ""priority"": ""4"", ""u_best_time_to_contact"": """", ""business_duration"": """", ""group_list"": """", ""u_time_to_acknowledge"": """", ""approval_set"": """", ""major_incident_state"": """", ""needs_attention"": ""false"", ""universal_request"": """", ""short_description"": ""Report: Rogue APs(Updated) - On-Net Rogue APs in all FICO locations"", ""u_jira_assignee"": """", ""correlation_display"": """", ""work_start"": """", ""u_incident_reported_time"": """", ""additional_assignee_list"": """", ""u_dispatch_number"": """", ""u_sr_number"": """", ""notify"": ""1"", ""service_offering"": """", ""sys_class_name"": ""incident"", ""closed_by"": """", ""follow_up"": """", ""parent_incident"": """", ""reopened_by"": """", ""u_expedite_request"": """", ""u_shift_handover"": """", ""u_monitor_id"": """", ""reassignment_count"": ""0"", ""u_csm_case"": """", ""assigned_to"": """", ""u_region"": """", ""u_incident_start_time"": """", ""sla_due"": """", ""comments_and_work_notes"": """", ""u_time_to_respond"": """", ""u_preferred_method_of_contact"": """", ""u_delivered"": ""false"", ""u_flag_comments"": """", ""u_microsoft_application"": """", ""u_jira_status"": """", ""u_quarter_closed"": """", ""escalation"": ""0"", ""upon_approval"": ""proceed"", ""correlation_id"": """", ""timeline"": """", ""u_lead_assigned_to"": """", ""u_corpit_escalated"": ""false"", ""u_unknown_reason"": """", ""promoted_on"": """", ""child_incidents"": ""0"", ""task_effective_number"": ""INC4935799"", ""u_corp_it_detail"": """", ""resolved_by"": """", ""u_business_service"": """", ""sys_updated_by"": ""Prime_Infrastructure@cisapppri45080.net."", ""u_first_response"": """", ""opened_by"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user/770e380edbadbf04fc8efabfaa96191b"", ""value"": ""770e380edbadbf04fc8efabfaa96191b""}, ""user_input"": """", ""sys_created_on"": ""2023-12-31 17:01:35"", ""u_escalation_groups"": """", ""sys_domain"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user_group/global"", ""value"": ""global""}, ""u_detail"": """", ""proposed_on"": """", ""u_time_to_own"": ""1970-01-01 00:00:00"", ""actions_taken"": """", ""u_tdo_assigned"": """", ""u_has_incident_communication_plan"": ""false"", ""route_reason"": """", ""calendar_stc"": """", ""closed_at"": """", ""u_ci_environment"": """", ""u_microsoft_product"": """", ""u_files_attached"": ""false"", ""business_impact"": """", ""rfc"": """", ""time_worked"": """", ""expected_start"": """", ""opened_at"": ""2023-12-31 17:01:35"", ""u_close_notes"": """", ""work_end"": """", ""caller_id"": ""nirmalkumarbalasubramanian@fico.com"", ""reopened_time"": """", ""resolved_at"": """", ""u_phone_number"": """", ""u_unknown_ci"": ""false"", ""u_esc_comments"": """", ""subcategory"": """", ""work_notes"": """", ""u_expedited_on"": """", ""u_knowledge_search"": """", ""close_code"": """", ""u_last_assignment_group_change"": ""2023-12-31 17:01:35"", ""assignment_group"": ""Cyber Security Center"", ""u_kb_attached"": ""false"", ""business_stc"": """", ""cause"": """", ""description"": """", ""u_first_assigned_to"": """", ""origin_id"": """", ""calendar_duration"": """", ""u_product_support_case"": """", ""close_notes"": """", ""sys_id"": ""ffccfd481ba331946e5399bc1d4bcb59"", ""contact_type"": ""email"", ""incident_state"": ""1"", ""urgency"": ""3"", ""problem_id"": """", ""u_details"": """", ""u_temp_detail_related_kb"": """", ""company"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/core_company/aa22e39ab5c97400bb05d180e23126b0"", ""value"": ""aa22e39ab5c97400bb05d180e23126b0""}, ""activity_due"": """", ""action_status"": """", ""severity"": ""3"", ""overview"": """", ""u_waiting_on_customer"": """", ""comments"": """", ""approval"": ""not requested"", ""due_date"": """", ""sys_mod_count"": ""1"", ""reopen_count"": ""0"", ""sys_tags"": """", ""u_corp_it_notification_sent"": ""false"", ""u_reminder"": """", ""u_tdo_required"": ""false"", ""u_netcool_id"": """", ""location"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/cmn_location/258522c6b52c3000bb05d180e231268c"", ""value"": ""258522c6b52c3000bb05d180e231268c""}, ""category"": """", ""mirror_direction"": null, ""mirror_tags"": [""comments"", null, ""ForServiceNow"", null, ""work_notes"", null], ""mirror_instance"": ""reports""}","Sun, 31 Dec 2023 17:02:16 UTC"
+          634568,ServiceNow Incident SCA0612851,Amazon web services,Medium,Closed,svc_demistopoc,Prod_GuardDuty,"Sun, 31 Dec 2023 16:31:50 UTC","Sun, 07 Jan 2024 16:32:18 UTC",Security_Alert,ServiceNow v2,EC2 instance i-034f24793e738ad57 communicating with disallowed IP address.,"{""parent"": """", ""watch_list"": """", ""upon_reject"": ""cancel"", ""sys_updated_on"": ""2023-12-31 16:31:50"", ""approval_history"": """", ""source_ip"": ""94.102.61.10"", ""skills"": """", ""number"": ""SCA0612851"", ""hostname"": ""i-034f24793e738ad57"", ""state"": ""1"", ""sys_created_by"": ""system"", ""knowledge"": ""false"", ""order"": """", ""u_gut_score"": """", ""cmdb_ci"": """", ""delivery_plan"": """", ""contract"": """", ""impact"": """", ""recipient_email"": """", ""active"": ""true"", ""u_project"": """", ""work_notes_list"": """", ""priority"": ""4"", ""business_duration"": """", ""filename"": """", ""group_list"": """", ""user_id"": """", ""domain"": """", ""approval_set"": """", ""miter_attack_category"": """", ""needs_attention"": ""false"", ""universal_request"": """", ""short_description"": """", ""u_jira_assignee"": """", ""correlation_display"": """", ""work_start"": """", ""additional_assignee_list"": """", ""miter_attack"": """", ""service_offering"": """", ""sys_class_name"": ""x_fair_security_al_x_fair_security_alert_table"", ""closed_by"": """", ""follow_up"": """", ""u_expedite_request"": """", ""alert_title"": ""EC2 instance i-034f24793e738ad57 communicating with disallowed IP address."", ""reassignment_count"": ""0"", ""assigned_to"": """", ""sensor_url"": """", ""time_stamp"": ""12/31/23"", ""sla_due"": """", ""comments_and_work_notes"": """", ""raw_log"": ""[{\""version\"":\""0\"",\""id\"":\""f66a1a4d-7e98-6636-5018-86ba151a6e2f\"",\""detail-type\"":\""GuardDuty Finding\"",\""source\"":\""aws.guardduty\"",\""account\"":\""913511275171\"",\""time\"":\""2023-12-31T16:00:02Z\"",\""region\"":\""us-east-2\"",\""resources\"":[],\""detail\"":{\""schemaVersion\"":\""2.0\"",\""accountId\"":\""279610621124\"",\""region\"":\""us-east-2\"",\""partition\"":\""aws\"",\""id\"":\""68c592d107a9d545346d0ebdb9bdb3b6\"",\""arn\"":\""arn:aws:guardduty:us-east-2:279610621124:detector/34c3857b32825500b11aed2cd83a534d/finding/68c592d107a9d545346d0ebdb9bdb3b6\"",\""type\"":\""UnauthorizedAccess:EC2/MaliciousIPCaller.Custom\"",\""resource\"":{\""resourceType\"":\""Instance\"",\""instanceDetails\"":{\""instanceId\"":\""i-034f24793e738ad57\"",\""instanceType\"":\""r4.2xlarge\"",\""launchTime\"":\""2023-04-03T14:59:49.000Z\"",\""platform\"":null,\""productCodes\"":[],\""iamInstanceProfile\"":null,\""networkInterfaces\"":[{\""ipv6Addresses\"":[],\""networkInterfaceId\"":\""eni-0576587d1dbc448fa\"",\""privateDnsName\"":\""ip-172-31-27-92.us-east-2.compute.internal\"",\""privateIpAddress\"":\""172.31.27.92\"",\""privateIpAddresses\"":[{\""privateDnsName\"":\""ip-172-31-27-92.us-east-2.compute.internal\"",\""privateIpAddress\"":\""172.31.27.92\""}],\""subnetId\"":\""subnet-00daab45881f60405\"",\""vpcId\"":\""vpc-001ddd49e08fb2a9b\"",\""securityGroups\"":[{\""groupName\"":\""default\"",\""groupId\"":\""sg-010e96daa9ee856d4\""}],\""publicDnsName\"":\""ec2-18-223-245-146.us-east-2.compute.amazonaws.com\"",\""publicIp\"":\""18.223.245.146\""}],\""outpostArn\"":null,\""tags\"":[{\""key\"":\""Name\"",\""value\"":\""GMF-MCC-DEV1-APM\""}],\""instanceState\"":\""running\"",\""availabilityZone\"":\""us-east-2b\"",\""imageId\"":\""ami-00363e359b19aadfd\"",\""imageDescription\"":\""[Copied ami-071214ca568d77f8f (APM_DEV_rhel7) from us-east-1] APM-DEV410\""}},\""service\"":{\""serviceName\"":\""guardduty\"",\""detectorId\"":\""34c3857b32825500b11aed2cd83a534d\"",\""action\"":{\""actionType\"":\""NETWORK_CONNECTION\"",\""networkConnectionAction\"":{\""connectionDirection\"":\""INBOUND\"",\""remoteIpDetails\"":{\""ipAddressV4\"":\""94.102.61.10\"",\""organization\"":{\""asn\"":\""202425\"",\""asnOrg\"":\""IP Volume inc\"",\""isp\"":\""IP Volume\"",\""org\"":\""IP Volume\""},\""country\"":{\""countryName\"":\""Netherlands\""},\""city\"":{\""cityName\"":\""Amersfoort\""},\""geoLocation\"":{\""lat\"":52.1674,\""lon\"":5.3879}},\""remotePortDetails\"":{\""port\"":48390,\""portName\"":\""Unknown\""},\""localPortDetails\"":{\""port\"":80,\""portName\"":\""HTTP\""},\""protocol\"":\""TCP\"",\""blocked\"":false,\""localIpDetails\"":{\""ipAddressV4\"":\""172.31.27.92\""}}},\""resourceRole\"":\""TARGET\"",\""additionalInfo\"":{\""threatName\"":\""Customer Threat Intel\"",\""threatListName\"":\""Splunk_IOC_improved\"",\""value\"":\""{\\\""threatName\\\"":\\\""Customer Threat Intel\\\"",\\\""threatListName\\\"":\\\""Splunk_IOC_improved\\\""}\"",\""type\"":\""default\""},\""evidence\"":{\""threatIntelligenceDetails\"":[{\""threatNames\"":[\""Customer Threat Intel\""],\""threatListName\"":\""Splunk_IOC_improved\""}]},\""eventFirstSeen\"":\""2023-10-12T20:35:16.000Z\"",\""eventLastSeen\"":\""2023-12-31T15:47:39.000Z\"",\""archived\"":false,\""count\"":94},\""severity\"":5,\""createdAt\"":\""2023-10-12T20:44:19.667Z\"",\""updatedAt\"":\""2023-12-31T15:54:22.093Z\"",\""title\"":\""EC2 instance i-034f24793e738ad57 communicating with disallowed IP address.\"",\""description\"":\""EC2 instance i-034f24793e738ad57 is communicating with a disallowed IP address 94.102.61.10 on the list Splunk_IOC_improved.\""},\""awsRequestId\"":\""2ace74a6-649c-4b04-9d9f-a5eec9da7752\""},{\""account_bunit\"":\""null\""},{\""account_mailid\"":\""null\""},{\""aws_account_name\"":\""null\""}]"", ""u_time_to_respond"": """", ""uri"": """", ""url"": """", ""u_jira_status"": """", ""u_quarter_closed"": """", ""file_hash"": """", ""escalation"": ""0"", ""upon_approval"": ""proceed"", ""correlation_id"": """", ""cyber_kill_change"": """", ""task_effective_number"": ""SCA0612851"", ""u_business_service"": """", ""destination_ip"": """", ""sys_updated_by"": ""system"", ""u_first_response"": """", ""opened_by"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user/system"", ""value"": ""system""}, ""user_input"": """", ""sys_created_on"": ""2023-12-31 16:31:50"", ""sys_domain"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user_group/global"", ""value"": ""global""}, ""signature_name"": ""EC2 instance i-034f24793e738ad57 is communicating with a disallowed IP address 94.102.61.10 on the l"", ""u_time_to_own"": ""1970-01-01 00:00:00"", ""u_tdo_assigned"": """", ""alert_classification"": """", ""route_reason"": """", ""sender_email"": """", ""closed_at"": """", ""u_files_attached"": ""false"", ""time_worked"": """", ""expected_start"": """", ""opened_at"": ""2023-12-31 16:31:50"", ""u_close_notes"": """", ""work_end"": """", ""work_notes"": """", ""u_expedited_on"": """", ""u_last_assignment_group_change"": ""2023-12-31 16:31:50"", ""assignment_group"": ""Cyber Security Center"", ""destination_port"": ""48390"", ""description"": """", ""calendar_duration"": """", ""detection_name"": ""Prod - AWS_Guardduty_Snow_Non_HBI"", ""close_notes"": """", ""sys_id"": ""c406fdc0dbe3f55423c87d84f3961962"", ""contact_type"": """", ""alert"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/em_alert/12d575881b2331946e5399bc1d4bcb43"", ""value"": ""12d575881b2331946e5399bc1d4bcb43""}, ""urgency"": ""3"", ""source_port"": ""94.102.61.10"", ""company"": """", ""detection_id"": ""2ace74a6-649c-4b04-9d9f-a5eec9da7752"", ""activity_due"": """", ""action_status"": """", ""severity"": ""2"", ""comments"": """", ""approval"": ""not requested"", ""due_date"": """", ""sys_mod_count"": ""0"", ""sys_tags"": """", ""u_tdo_required"": ""false"", ""location"": """", ""incident"": ""false"", ""sensor_name"": ""guardduty"", ""mirror_direction"": null, ""mirror_tags"": [""comments"", ""CommentFromServiceNow"", ""ForServiceNow"", ""FromServiceNow"", ""work_notes"", ""WorkNoteFromServiceNow""], ""mirror_instance"": ""Security_Alert""}","Sun, 31 Dec 2023 16:32:18 UTC"
+          634567,ServiceNow Incident SCA0612850,Amazon web services,Low,Closed,svc_demistopoc,Prod_GuardDuty,"Sun, 31 Dec 2023 16:31:47 UTC","Sun, 07 Jan 2024 16:32:15 UTC",Security_Alert_Lows,ServiceNow v2,Unprotected port on EC2 instance i-0087ae40b0411b875 is being probed.,"{""parent"": """", ""watch_list"": """", ""upon_reject"": ""cancel"", ""sys_updated_on"": ""2023-12-31 16:31:47"", ""approval_history"": """", ""source_ip"": ""79.124.58.142"", ""skills"": """", ""number"": ""SCA0612850"", ""hostname"": ""i-0087ae40b0411b875"", ""state"": ""1"", ""sys_created_by"": ""system"", ""knowledge"": ""false"", ""order"": """", ""u_gut_score"": """", ""cmdb_ci"": """", ""delivery_plan"": """", ""contract"": """", ""impact"": """", ""recipient_email"": """", ""active"": ""true"", ""u_project"": """", ""work_notes_list"": """", ""priority"": ""4"", ""business_duration"": """", ""filename"": """", ""group_list"": """", ""user_id"": ""Devendran Rethinavelu"", ""domain"": """", ""approval_set"": """", ""miter_attack_category"": """", ""needs_attention"": ""false"", ""universal_request"": """", ""short_description"": """", ""u_jira_assignee"": """", ""correlation_display"": """", ""work_start"": """", ""additional_assignee_list"": """", ""miter_attack"": """", ""service_offering"": """", ""sys_class_name"": ""x_fair_security_al_x_fair_security_alert_table"", ""closed_by"": """", ""follow_up"": """", ""u_expedite_request"": """", ""alert_title"": ""Unprotected port on EC2 instance i-0087ae40b0411b875 is being probed."", ""reassignment_count"": ""0"", ""assigned_to"": """", ""sensor_url"": """", ""time_stamp"": ""12/31/23"", ""sla_due"": """", ""comments_and_work_notes"": """", ""raw_log"": ""[{\""version\"":\""0\"",\""id\"":\""5b70ef4d-2762-5245-5ba7-07993b64637f\"",\""detail-type\"":\""GuardDuty Finding\"",\""source\"":\""aws.guardduty\"",\""account\"":\""913511275171\"",\""time\"":\""2023-12-31T16:20:12Z\"",\""region\"":\""us-west-2\"",\""resources\"":[],\""detail\"":{\""schemaVersion\"":\""2.0\"",\""accountId\"":\""780944133628\"",\""region\"":\""us-west-2\"",\""partition\"":\""aws\"",\""id\"":\""eac66054db8f11d45d638ec8ecab2597\"",\""arn\"":\""arn:aws:guardduty:us-west-2:780944133628:detector/acb657daf78a3b5580c6869ea444a1c6/finding/eac66054db8f11d45d638ec8ecab2597\"",\""type\"":\""Recon:EC2/PortProbeUnprotectedPort\"",\""resource\"":{\""resourceType\"":\""Instance\"",\""instanceDetails\"":{\""instanceId\"":\""i-0087ae40b0411b875\"",\""instanceType\"":\""m5.2xlarge\"",\""launchTime\"":\""2023-12-28T10:25:24.000Z\"",\""platform\"":null,\""productCodes\"":[],\""iamInstanceProfile\"":{\""arn\"":\""arn:aws:iam::780944133628:instance-profile/eks-3ac62427-58d9-0d1d-9b9b-28eb5dc203eb\"",\""id\"":\""AIPA3LU7FZX6EGZUKV5MT\""},\""networkInterfaces\"":[{\""ipv6Addresses\"":[],\""networkInterfaceId\"":\""eni-05441a79eaca6a3b8\"",\""privateDnsName\"":\""ip-10-121-33-212.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.33.212\"",\""privateIpAddresses\"":[{\""privateDnsName\"":\""ip-10-121-33-212.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.33.212\""},{\""privateDnsName\"":\""ip-10-121-50-29.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.50.29\""},{\""privateDnsName\"":\""ip-10-121-46-65.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.46.65\""},{\""privateDnsName\"":\""ip-10-121-56-211.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.56.211\""},{\""privateDnsName\"":\""ip-10-121-60-173.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.60.173\""},{\""privateDnsName\"":\""ip-10-121-58-126.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.58.126\""},{\""privateDnsName\"":\""ip-10-121-51-214.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.51.214\""},{\""privateDnsName\"":\""ip-10-121-53-14.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.53.14\""},{\""privateDnsName\"":\""ip-10-121-35-62.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.35.62\""},{\""privateDnsName\"":\""ip-10-121-44-188.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.44.188\""},{\""privateDnsName\"":\""ip-10-121-34-189.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.34.189\""},{\""privateDnsName\"":\""ip-10-121-61-65.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.61.65\""},{\""privateDnsName\"":\""ip-10-121-50-92.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.50.92\""},{\""privateDnsName\"":\""ip-10-121-60-228.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.60.228\""},{\""privateDnsName\"":\""ip-10-121-57-152.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.57.152\""}],\""subnetId\"":\""subnet-0c8bb044974310a08\"",\""vpcId\"":\""vpc-008de8ed6740c89d2\"",\""securityGroups\"":[{\""groupName\"":\""dms-k8s-int-commonSecurityGroup-EKS\"",\""groupId\"":\""sg-0cb1ad16df0ff9000\""},{\""groupName\"":\""GTS-Common-Services\"",\""groupId\"":\""sg-018a2450f6a810047\""},{\""groupName\"":\""dms-k8s-int-WorkerNodeSecurityGroup\"",\""groupId\"":\""sg-0d9a31cff8e603bf8\""}]},{\""ipv6Addresses\"":[],\""networkInterfaceId\"":\""eni-026f23accbf4887c6\"",\""privateDnsName\"":\""ip-10-121-38-80.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.38.80\"",\""privateIpAddresses\"":[{\""privateDnsName\"":\""ip-10-121-38-80.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.38.80\""},{\""privateDnsName\"":\""ip-10-121-46-181.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.46.181\""},{\""privateDnsName\"":\""ip-10-121-55-160.us-west-2.compute.internal\"",\""privateIpAddress\"":\""10.121.55.160\""}],\""subnetId\"":\""subnet-0c8bb044974310a08\"",\""vpcId\"":\""vpc-008de8ed6740c89d2\"",\""securityGroups\"":[{\""groupName\"":\""dms-k8s-int-commonSecurityGroup-EKS\"",\""groupId\"":\""sg-0cb1ad16df0ff9000\""},{\""groupName\"":\""GTS-Common-Services\"",\""groupId\"":\""sg-018a2450f6a810047\""},{\""groupName\"":\""dms-k8s-int-WorkerNodeSecurityGroup\"",\""groupId\"":\""sg-0d9a31cff8e603bf8\""}]}],\""outpostArn\"":null,\""tags\"":[{\""key\"":\""TlsCipherSuite2\"",\""value\"":\""ES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256\""},{\""key\"":\""k8s.io/cluster-autoscaler/dms-k8s-int-EKS-Cluster\"",\""value\"":\""owned\""},{\""key\"":\""aws:autoscaling:groupName\"",\""value\"":\""eks-dms-k8s-int-eks125-157-devnodeondemand-2-3ac62427-58d9-0d1d-9b9b-28eb5dc203eb\""},{\""key\"":\""aws:ec2launchtemplate:version\"",\""value\"":\""1\""},{\""key\"":\""eks:nodegroup-name\"",\""value\"":\""dms-k8s-int-eks125-157-devnodeondemand-2\""},{\""key\"":\""fico:eks:cwagent\"",\""value\"":\""true\""},{\""key\"":\""environmentName\"",\""value\"":\""dms-k8s-int\""},{\""key\"":\""fico:ec2:rhim_grp\"",\""value\"":\""cis_nonprod_\""},{\""key\"":\""fico:ec2:amzn\"",\""value\"":\""2\""},{\""key\"":\""eks:cluster-name\"",\""value\"":\""dms-k8s-int-EKS-Cluster\""},{\""key\"":\""Name\"",\""value\"":\""dms-k8s-int-eks125-157-devnodeondemand-2\""},{\""key\"":\""kubernetes.io/cluster/dms-k8s-int-EKS-Cluster\"",\""value\"":\""owned\""},{\""key\"":\""k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage\"",\""value\"":\""60Gi\""},{\""key\"":\""TlsCipherSuite1\"",\""value\"":\""--tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_A\""},{\""key\"":\""aws:eks:cluster-name\"",\""value\"":\""dms-k8s-int-EKS-Cluster\""},{\""key\"":\""fico:ec2:baseline_version\"",\""value\"":\""1.57.0\""},{\""key\"":\""k8s.io/cluster-autoscaler/enabled\"",\""value\"":\""true\""},{\""key\"":\""aws:ec2launchtemplate:id\"",\""value\"":\""lt-096f4a4b9b2e34f83\""},{\""key\"":\""aws:ec2:fleet-id\"",\""value\"":\""fleet-a63e3417-c6ad-cead-0e32-ab0a6e3feb3f\""},{\""key\"":\""k8s.io/clusterAutoScaler/cluster_auto_scaler_default\"",\""value\"":\""enabled\""},{\""key\"":\""k8s.io/cluster-autoscaler/node-template/label/group\"",\""value\"":\""DevNodeOnDemand\""},{\""key\"":\""fico:eks:install-daemon-role\"",\""value\"":\""csteam-GTSEKSDaemonIAMRole-GTSEKSDaemonIAMRole-1GH6T44ITSUS4\""}],\""instanceState\"":\""running\"",\""availabilityZone\"":\""us-west-2b\"",\""imageId\"":\""ami-05f32a828935da059\"",\""imageDescription\"":\""FICO EKS Nodegroup Baseline - Built on ami-0ab7e008642dc9101 [11:44:52 10 Nov 2023]\""}},\""service\"":{\""serviceName\"":\""guardduty\"",\""detectorId\"":\""acb657daf78a3b5580c6869ea444a1c6\"",\""action\"":{\""actionType\"":\""PORT_PROBE\"",\""portProbeAction\"":{\""portProbeDetails\"":[{\""localPortDetails\"":{\""port\"":30180,\""portName\"":\""Unknown\""},\""remoteIpDetails\"":{\""ipAddressV4\"":\""79.124.58.142\"",\""organization\"":{\""asn\"":\""50360\"",\""asnOrg\"":\""Tamatiya EOOD\"",\""isp\"":\""Tamatiya EOOD\"",\""org\"":\""Tamatiya EOOD\""},\""country\"":{\""countryName\"":\""Bulgaria\""},\""city\"":{\""cityName\"":\""\""},\""geoLocation\"":{\""lat\"":42.696,\""lon\"":23.332}}}],\""blocked\"":false}},\""resourceRole\"":\""TARGET\"",\""additionalInfo\"":{\""threatListName\"":\""ProofPoint\"",\""value\"":\""{\\\""threatListName\\\"":\\\""ProofPoint\\\""}\"",\""type\"":\""default\""},\""evidence\"":{\""threatIntelligenceDetails\"":[{\""threatListName\"":\""ProofPoint\"",\""threatNames\"":[]}]},\""eventFirstSeen\"":\""2023-12-31T16:13:50.000Z\"",\""eventLastSeen\"":\""2023-12-31T16:14:22.000Z\"",\""archived\"":false,\""count\"":1},\""severity\"":2,\""createdAt\"":\""2023-12-31T16:16:37.150Z\"",\""updatedAt\"":\""2023-12-31T16:16:37.150Z\"",\""title\"":\""Unprotected port on EC2 instance i-0087ae40b0411b875 is being probed.\"",\""description\"":\""EC2 instance has an unprotected port which is being probed by a known malicious host.\""},\""awsRequestId\"":\""302fd25d-e1c1-4fc8-883d-835df4b3e0e3\""},{\""account_bunit\"":\""Product and Technology Org (PTO)\""},{\""account_mailid\"":\""ML_GTS_DEVOPS_SRE_PLATFORM@fico.com\""},{\""aws_account_name\"":\""DMS INT (Engineering)\""}]"", ""u_time_to_respond"": """", ""uri"": """", ""url"": """", ""u_jira_status"": """", ""u_quarter_closed"": """", ""file_hash"": """", ""escalation"": ""0"", ""upon_approval"": ""proceed"", ""correlation_id"": """", ""cyber_kill_change"": """", ""task_effective_number"": ""SCA0612850"", ""u_business_service"": """", ""destination_ip"": """", ""sys_updated_by"": ""system"", ""u_first_response"": """", ""opened_by"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user/system"", ""value"": ""system""}, ""user_input"": """", ""sys_created_on"": ""2023-12-31 16:31:47"", ""sys_domain"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user_group/global"", ""value"": ""global""}, ""signature_name"": ""EC2 instance has an unprotected port which is being probed by a known malicious host."", ""u_time_to_own"": ""1970-01-01 00:00:00"", ""u_tdo_assigned"": """", ""alert_classification"": """", ""route_reason"": """", ""sender_email"": """", ""closed_at"": """", ""u_files_attached"": ""false"", ""time_worked"": """", ""expected_start"": """", ""opened_at"": ""2023-12-31 16:31:47"", ""u_close_notes"": """", ""work_end"": """", ""work_notes"": """", ""u_expedited_on"": """", ""u_last_assignment_group_change"": ""2023-12-31 16:31:47"", ""assignment_group"": ""Cyber Security Center"", ""destination_port"": """", ""description"": """", ""calendar_duration"": """", ""detection_name"": ""Prod - AWS_Guardduty_Snow_Non_HBI"", ""close_notes"": """", ""sys_id"": ""9bf5bdc0dbe3f55423c87d84f396195e"", ""contact_type"": """", ""alert"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/em_alert/85d535881b2331946e5399bc1d4bcb23"", ""value"": ""85d535881b2331946e5399bc1d4bcb23""}, ""urgency"": ""3"", ""source_port"": ""79.124.58.142"", ""company"": """", ""detection_id"": ""302fd25d-e1c1-4fc8-883d-835df4b3e0e3"", ""activity_due"": """", ""action_status"": """", ""severity"": ""1"", ""comments"": """", ""approval"": ""not requested"", ""due_date"": """", ""sys_mod_count"": ""0"", ""sys_tags"": """", ""u_tdo_required"": ""false"", ""location"": """", ""incident"": ""false"", ""sensor_name"": ""guardduty"", ""mirror_direction"": null, ""mirror_tags"": [""comments"", ""CommentFromServiceNow"", ""ForServiceNow"", ""FromServiceNow"", ""work_notes"", ""WorkNoteFromServiceNow""], ""mirror_instance"": ""Security_Alert_Lows""}","Sun, 31 Dec 2023 16:32:15 UTC"
+          634566,ServiceNow Incident SCA0612849,Code42 Security Alert,Medium,Closed,suchithraparamashivam,Prod_code42_main,"Sun, 31 Dec 2023 16:06:52 UTC","Thu, 04 Jan 2024 16:08:17 UTC",Security_Alert,ServiceNow v2,Prod- Document Exposure on Cloud - avinutkis@fico.com,"{""parent"": """", ""watch_list"": """", ""upon_reject"": ""cancel"", ""sys_updated_on"": ""2023-12-31 16:06:52"", ""approval_history"": """", ""source_ip"": """", ""skills"": """", ""number"": ""SCA0612849"", ""hostname"": """", ""state"": ""1"", ""sys_created_by"": ""system"", ""knowledge"": ""false"", ""order"": """", ""u_gut_score"": """", ""cmdb_ci"": """", ""delivery_plan"": """", ""contract"": """", ""impact"": """", ""recipient_email"": """", ""active"": ""true"", ""u_project"": """", ""work_notes_list"": """", ""priority"": ""4"", ""business_duration"": """", ""filename"": """", ""group_list"": """", ""user_id"": ""avinutkis@fico.com"", ""domain"": """", ""approval_set"": """", ""miter_attack_category"": """", ""needs_attention"": ""false"", ""universal_request"": """", ""short_description"": """", ""u_jira_assignee"": """", ""correlation_display"": """", ""work_start"": """", ""additional_assignee_list"": """", ""miter_attack"": """", ""service_offering"": """", ""sys_class_name"": ""x_fair_security_al_x_fair_security_alert_table"", ""closed_by"": """", ""follow_up"": """", ""u_expedite_request"": """", ""alert_title"": ""Prod- Document Exposure on Cloud - avinutkis@fico.com"", ""reassignment_count"": ""0"", ""assigned_to"": """", ""sensor_url"": ""https://console.us2.code42.com/app/#/investigation/user-activity?userId=1075066484877639935"", ""time_stamp"": ""31-12-23 16:05:00"", ""sla_due"": """", ""comments_and_work_notes"": """", ""raw_log"": ""Username=avinutkis@fico.com\nDestination Category=Cloud Storage\nDestination Name=iCloud\nFileCount=3\nFileSize=909.97\nosHostName=GV14RG2LM2\nsyncDestinationUsername=anutkis@icloud.com anutkis@me.com avi@nutkis.com\nmanager=GloriaWallner@fico.com"", ""u_time_to_respond"": """", ""uri"": """", ""url"": """", ""u_jira_status"": """", ""u_quarter_closed"": """", ""file_hash"": """", ""escalation"": ""0"", ""upon_approval"": ""proceed"", ""correlation_id"": """", ""cyber_kill_change"": """", ""task_effective_number"": ""SCA0612849"", ""u_business_service"": """", ""destination_ip"": """", ""sys_updated_by"": ""system"", ""u_first_response"": """", ""opened_by"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user/system"", ""value"": ""system""}, ""user_input"": """", ""sys_created_on"": ""2023-12-31 16:06:52"", ""sys_domain"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/sys_user_group/global"", ""value"": ""global""}, ""signature_name"": ""Document Exposure on Cloud"", ""u_time_to_own"": ""1970-01-01 00:00:00"", ""u_tdo_assigned"": """", ""alert_classification"": """", ""route_reason"": """", ""sender_email"": """", ""closed_at"": """", ""u_files_attached"": ""false"", ""time_worked"": """", ""expected_start"": """", ""opened_at"": ""2023-12-31 16:06:52"", ""u_close_notes"": """", ""work_end"": """", ""work_notes"": """", ""u_expedited_on"": """", ""u_last_assignment_group_change"": ""2023-12-31 16:06:52"", ""assignment_group"": ""Cyber Security Center"", ""destination_port"": """", ""description"": """", ""calendar_duration"": """", ""detection_name"": ""Prod - Document Exposure on Cloud"", ""close_notes"": """", ""sys_id"": ""52407dcc1baffd546e5399bc1d4bcb7c"", ""contact_type"": """", ""alert"": {""link"": ""https://ficoitservices.service-now.com/api/now/table/em_alert/b81039081ba7b5949ff6edf5624bcbf5"", ""value"": ""b81039081ba7b5949ff6edf5624bcbf5""}, ""urgency"": ""3"", ""source_port"": """", ""company"": """", ""detection_id"": """", ""activity_due"": """", ""action_status"": """", ""severity"": ""2"", ""comments"": """", ""approval"": ""not requested"", ""due_date"": """", ""sys_mod_count"": ""0"", ""sys_tags"": """", ""u_tdo_required"": ""false"", ""location"": """", ""incident"": ""false"", ""sensor_name"": ""Code42-Document Exposure on Cloud"", ""mirror_direction"": null, ""mirror_tags"": [""comments"", ""CommentFromServiceNow"", ""ForServiceNow"", ""FromServiceNow"", ""work_notes"", ""WorkNoteFromServiceNow""], ""mirror_instance"": ""Security_Alert""}","Sun, 31 Dec 2023 16:08:17 UTC"
+        VARIABLE_NAME: csv
+      uuid: e399595e-c500-4e98-abb1-7204906b8a9b
+      pretty_name: cases
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/encoding_utils/csv-to-json:4.2.0
+      id: convert_csv_to_json
+      env:
+        __TQ_FILE_ENV_PARSER__FILE: plain-text
+        FILE: '{{ $.cases.csv }}'
+      uuid: 6fa4be3f-c9f3-4673-97e7-73d1f0fad3dd
+      pretty_name: Convert CSV to JSON
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: csv_to_json
+          sync: true
+          disable: false
+      manifestId: 4ea6c4f6-17de-521e-8d96-874e83fb12b9
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - loop:
+        in: '{{ $.convert_csv_to_json.result }}'
+        key: case_key
+        value: case_item
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+            id: case_details
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: '{{ $.case_item.details }}'
+              VARIABLE_NAME: json
+            ignoreFailure: true
+            uuid: 97a77a44-66d5-47bb-adc0-dfd6f6b799f5
+            pretty_name: Case Details
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.case_details.step_status.code }}'
+                        operator: EQUALS
+                        rvalue: "1"
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+                  id: casedetails_list
+                  env:
+                    __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                    INPUT: '{{ $.case_details.json }}'
+                    JSON_QUERY: to_entries
+                  uuid: f6397f27-2d91-48e9-8714-118c6f7413d3
+                  pretty_name: CaseDetails List
+                  options:
+                    executor:
+                      name: jq_infra_v_3_13_0
+                      env:
+                        COMMAND: jq_command
+                      sync: true
+                      disable: false
+                  documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                  manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+                  isPrivate: false
+                  isPrivateUrl: true
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - parallel:
+                    uuid: 4981383b-ef52-4384-a983-ff89a039241e
+                    pretty_name: Parallel Executions
+                    threads:
+                      - uuid: dc257369-7d47-4143-ae72-914e11a2152b
+                        steps:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.case_details.json.raw_log }}'
+                                        operator: NOT_EMPTY
+                                        rvalue: ""
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                  id: raw_log
+                                  env:
+                                    DATA_TYPE: JSON
+                                    VALUE_JSON: '{{ $.case_details.json.raw_log }}'
+                                    VARIABLE_NAME: data
+                                  ignoreFailure: true
+                                  uuid: 5d2efbbe-f106-436a-9370-3e301386ffd5
+                                  pretty_name: raw_log
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                                  retry: {}
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.raw_log.step_status.code }}'
+                                              operator: EQUALS
+                                              rvalue: "1"
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+                                        id: rawlog_as_list
+                                        env:
+                                          __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                                          INPUT: '{{ $.raw_log.data }}'
+                                          JSON_QUERY: .[] | to_entries
+                                        ignoreFailure: true
+                                        uuid: 47188b03-6358-4949-a17a-ce87efd1062c
+                                        pretty_name: RawLog as List
+                                        options:
+                                          executor:
+                                            name: jq_infra_v_3_13_0
+                                            env:
+                                              COMMAND: jq_command
+                                            sync: true
+                                            disable: false
+                                        documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                                        manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+                                        isPrivate: false
+                                        isPrivateUrl: true
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                        retry: {}
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/flatten-json-object:2.1.0
+                                        id: rawlog_flatten
+                                        env:
+                                          INPUT: '{{ $.raw_log.data }}'
+                                        uuid: 99236967-2f30-4c7c-a7c1-4612cef148b5
+                                        pretty_name: RawLog_Flatten
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: flatten_json_object
+                                            sync: true
+                                            disable: false
+                                        manifestId: a605b541-7dae-5fc6-83bf-65f5f65e41c5
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                        retry: {}
+                                    else:
+                                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                        id: raw_log
+                                        env:
+                                          DATA_TYPE: string
+                                          VALUE_STRING: '{{ $.case_details.json.raw_log }}'
+                                          VARIABLE_NAME: data
+                                        ignoreFailure: true
+                                        uuid: 1e2efa13-24f1-4444-92cc-90826a20d4c5
+                                        pretty_name: raw_log
+                                        options:
+                                          executor:
+                                            name: utils_infrastructure_v_1_22_0
+                                            env:
+                                              COMMAND: set_variable
+                                            sync: true
+                                            disable: false
+                                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                        isPrivate: false
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                        retry: {}
+                                    uuid: d56948ba-0e3b-40e8-8444-da354549f3b1
+                                    pretty_name: If
+                              else: []
+                              uuid: 6f188e49-3638-413d-ba6a-d03382c3b44f
+                              pretty_name: If
+                      - uuid: 7d35dbb9-c36a-4d7c-90db-1fc1dcd53c76
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/jq/create_html_table:3.3.0
+                            id: detailslist_table
+                            env:
+                              __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                              INPUT: '{{ $.casedetails_list.output }}'
+                            uuid: fce696bd-59a0-42ae-bfcf-e7a76d38cd12
+                            pretty_name: DetailsList Table
+                            options:
+                              executor:
+                                name: jq_infra_v_3_13_0
+                                env:
+                                  COMMAND: create_html_table
+                                sync: true
+                                disable: false
+                            manifestId: 4711a9d1-2d85-5b8b-bfb6-123328397d45
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                            retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.2.0
+                  id: create_a_case
+                  env:
+                    CASE_CATEGORY: '{{ $.case_item.type }}'
+                    CASE_DESCRIPTION: '{{ $.detailslist_table.result }}'
+                    CASE_SEVERITY: '{{ $.case_item.severity }}'
+                    CASE_SLA: 24h
+                    CASE_STATE: '{{ $.case_item.status }}'
+                    CASE_TITLE: '{{ $.case_item.name }}'
+                    TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                  ignoreFailure: true
+                  uuid: ce49fdaf-1d39-4b60-ab87-df8f727a50e5
+                  pretty_name: Create a case
+                  options:
+                    executor:
+                      name: torq_cases_create-a-case_v_4_2_0
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 93d19be7-f3cd-5f22-8309-94353de6cdec
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.create_a_case.step_status.code }}'
+                              operator: NOT_EQUALS
+                              rvalue: "1"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/truncate-text:1.2.0
+                        id: truncate_text
+                        env:
+                          INPUT: '{{ $.detailslist_table.result }}'
+                          LIMIT: "12000"
+                        uuid: 7d6f8a17-546b-46ac-a834-83c34c6f0426
+                        pretty_name: Truncate text
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: truncate_text
+                            sync: true
+                            disable: false
+                        manifestId: eab907cb-52d2-5c03-a301-8db29811638a
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                        retry: {}
+                      - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.2.0
+                        id: create_a_case
+                        env:
+                          CASE_DESCRIPTION: '{{ $.truncate_text.result }}'
+                          CASE_SEVERITY: '{{ $.case_item.severity }}'
+                          CASE_SLA: 24h
+                          CASE_STATE: '{{ $.case_item.status }}'
+                          CASE_TITLE: '{{ $.case_item.name }}'
+                          TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                        ignoreFailure: true
+                        uuid: 59698fc7-5523-4393-849d-323d886d9a6f
+                        pretty_name: Create a case
+                        options:
+                          executor:
+                            name: torq_cases_create-a-case_v_4_2_0
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: 93d19be7-f3cd-5f22-8309-94353de6cdec
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                        retry: {}
+                      - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.7.0
+                        id: add_attachment_to_case
+                        env:
+                          CASE_ID: '{{ $.create_a_case.case.id }}'
+                          CONTENT_TYPE: text/html
+                          FILE_DATA: '{{ $.detailslist_table.result }}'
+                          FILE_NAME: full_description.html
+                          INPUT_TYPE: raw-data
+                        uuid: 3077a60b-7c07-4486-bdf8-f8f1fc334e01
+                        pretty_name: Add attachment to case
+                        options:
+                          executor:
+                            name: torq_cases_add-attachment_v_3_7_0
+                            env: {}
+                            sync: true
+                            disable: false
+                        manifestId: cbd91ee3-56db-5dbb-9433-6ad66574376e
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                        retry: {}
+                    else: []
+                    uuid: 4d06e7ad-becf-43fe-9618-7e6528f0176f
+                    pretty_name: If Failed to Upload Reason becaus of length
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.2.0
+                  id: create_a_case
+                  env:
+                    CASE_DESCRIPTION: NO DESCRIPTION FIELD WAS FOUND
+                    CASE_SEVERITY: '{{ $.case_item.severity }}'
+                    CASE_SLA: 24h
+                    CASE_STATE: '{{ $.case_item.status }}'
+                    CASE_TITLE: '{{ $.case_item.name }}'
+                    TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                  ignoreFailure: true
+                  uuid: 9c95e887-b4c2-43a1-a43e-7a3eb40618bd
+                  pretty_name: Create a case
+                  options:
+                    executor:
+                      name: torq_cases_create-a-case_v_4_2_0
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 93d19be7-f3cd-5f22-8309-94353de6cdec
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              uuid: 5f5ca14f-abed-4c54-9e85-7abea4a7c89f
+              pretty_name: If
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/assign-a-case:3.6.0
+            id: assign_owner_torq_automation_fico_com
+            env:
+              CASE_ASSIGNEE: torq_automation@fico.com
+              CASE_ID: '{{ $.create_a_case.case.id }}'
+            uuid: e7cee6e3-d237-4fb2-a250-95c8c6b59c2a
+            pretty_name: Assign owner (torq_automation@fico.com)
+            options:
+              executor:
+                name: torq_cases_assign-a-case_v_3_6_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 5c19192c-6639-50ae-abb0-8fe624baa8bd
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.7.0
+            id: add_attachment_original_alert
+            env:
+              CASE_ID: '{{ $.create_a_case.case.id }}'
+              CONTENT_TYPE: application/json
+              FILE_DATA: '{{ toPrettyJson $.case_item }}'
+              FILE_NAME: original_alert.json
+              INPUT_TYPE: raw-data
+            uuid: 8ff14f79-6169-4b8a-8d3b-8e4ddb576973
+            pretty_name: Add attachment Original Alert
+            options:
+              executor:
+                name: torq_cases_add-attachment_v_3_7_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: cbd91ee3-56db-5dbb-9433-6ad66574376e
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.6.0
+            id: title_cf
+            env:
+              CASE_ID: '{{ $.create_a_case.case.id }}'
+              CUSTOM_FIELD_KEY: Title
+              CUSTOM_FIELD_TYPE: short text
+              CUSTOM_FIELD_VALUE: '{{ $.case_item.''Alert Title'' }}'
+              MAX_LENGTH: ""
+              MIN_LENGTH: ""
+            uuid: d2bcc51a-010a-4570-88a7-3d47f5d79a1e
+            pretty_name: Title CF
+            options:
+              executor:
+                name: torq_cases_add-custom-field_v_5_6_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: a845ba22-b0f0-5579-b786-aea93920c50c
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.6.0
+            id: created_date_cf
+            env:
+              CASE_ID: '{{ $.create_a_case.case.id }}'
+              CUSTOM_FIELD_KEY: original_created_at
+              CUSTOM_FIELD_TYPE: short text
+              CUSTOM_FIELD_VALUE: '{{ $.case_item.created }}'
+              MAX_LENGTH: ""
+              MIN_LENGTH: ""
+            uuid: 2480fa0e-c399-436b-b656-b1ceb33f323a
+            pretty_name: Created Date CF
+            options:
+              executor:
+                name: torq_cases_add-custom-field_v_5_6_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: a845ba22-b0f0-5579-b786-aea93920c50c
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.6.0
+            id: previous_owner_cf
+            env:
+              CASE_ID: '{{ $.create_a_case.case.id }}'
+              CUSTOM_FIELD_KEY: previos_owner
+              CUSTOM_FIELD_TYPE: short text
+              CUSTOM_FIELD_VALUE: '{{ $.case_item.owner }}'
+              MAX_LENGTH: ""
+              MIN_LENGTH: ""
+            uuid: 61f97ae3-723a-4956-b133-4ab2fb787948
+            pretty_name: Previous Owner CF
+            options:
+              executor:
+                name: torq_cases_add-custom-field_v_5_6_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: a845ba22-b0f0-5579-b786-aea93920c50c
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        uuid: ab9f1722-8c29-4962-af5d-d346de724ba0
+        pretty_name: Loop
+  output_schema: '{}'
+root: true

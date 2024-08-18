@@ -1,0 +1,674 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 0fc31c51-b483-48a9-8280-9e99812511d9
+name: Torq Interact Hello World
+trigger:
+  interaction:
+    finish_strategy: CONTINUE
+    flow_timeout: 24h
+    form_group:
+      name: Main Interaction Flow
+      workflow_id: 74c27fb0-9997-446a-8c49-3e388f8fec17
+    form_schema:
+      parameters:
+        - name: parameter_2
+          pretty_name: Parameter 2
+          type: MARKDOWN_TEXT
+          value: "This demo illustrates how to utilize 'Torq Interact' to handle communications with one or more users. \n"
+        - name: parameter_3
+          pretty_name: Parameter 3
+          type: MARKDOWN_TEXT
+          value: |-
+            Please choose one of the following examples:
+            - Show My Personal Data: Interact with 1 person
+            - Show All Data: Interact with 3 persons.
+        - name: Choose next task
+          optionsList:
+            - Show My Personal Data
+            - Show All Data
+          pretty_name: Choose next task
+          required: true
+          type: SINGLE_SELECT
+          value: Show My Personal Data
+        - name: information_1
+          pretty_name: Information
+          type: MARKDOWN_TEXT
+          value: |
+            ### Main Interaction Flow Status
+            - [x] Interact Trigger
+            &nbsp;
+            - [ ] Validate Query
+            - [ ] If user is looking for his own data.
+                - [ ] Request uses cases
+                - [ ] Show data for 1 user
+            - [ ] If user is looking for all data
+                - [ ] Send Approval request to Admin and Analyst
+                - [ ] Start Admin Approval Flow
+                - [ ] Start Analyst Approval Flow
+                    - [ ] If User Allowed
+                        - [ ] Show Data & Ask for Rating
+                        - [ ] Show Rating & Goodbye
+                    - [ ] If User Not Allowed
+                        - [ ] Goodbye
+        - name: parameter_1
+          pretty_name: Parameter 1
+          type: MARKDOWN_TEXT
+          value: |-
+            ### Additional Resources
+
+            - <a href="https://pandao.github.io/editor.md/en.html" target="_blank">Online Markdown Helper external tool</a>
+
+            - <a href="https://learn.torq.io/docs/torq-interact?highlight=interact" target="_blank">Torq Interact Documentation</a>
+        - buttons:
+            - text: Run Torq
+          name: buttons
+          type: BUTTONS
+    form_title: Welcome to Torq Interact Demo
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: data
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          [
+            {
+              "name": "John Doe",
+              "age": 30,
+              "country": "United States",
+              "favorite_color": "blue",
+              "shoe_size": 10,
+              "email": "{{ $.metadata.user_email }}"
+            },
+            {
+              "name": "Alice Smith",
+              "age": 25,
+              "country": "Canada",
+              "favorite_color": "red",
+              "shoe_size": 8,
+              "email": "alice.smith@example2.com"
+            },
+            {
+              "name": "Michael Johnson",
+              "age": 45,
+              "country": "United Kingdom",
+              "favorite_color": "green",
+              "shoe_size": 9,
+              "email": "michael.johnson@example3.com"
+            },
+            {
+              "name": "Emily Brown",
+              "age": 35,
+              "country": "Australia",
+              "favorite_color": "yellow",
+              "shoe_size": 7,
+              "email": "emily.brown@example4.com"
+            },
+            {
+              "name": "Daniel Martinez",
+              "age": 28,
+              "country": "Spain",
+              "favorite_color": "purple",
+              "shoe_size": 11,
+              "email": "daniel.martinez@example5.com"
+            },
+            {
+              "name": "Sophia Kim",
+              "age": 32,
+              "country": "South Korea",
+              "favorite_color": "orange",
+              "shoe_size": 6,
+              "email": "sophia.kim@example6.com"
+            },
+            {
+              "name": "Mohammed Ali",
+              "age": 40,
+              "country": "Saudi Arabia",
+              "favorite_color": "black",
+              "shoe_size": 8,
+              "email": "mohammed.ali@example7.com"
+            },
+            {
+              "name": "Elena Ivanova",
+              "age": 29,
+              "country": "Russia",
+              "favorite_color": "white",
+              "shoe_size": 9,
+              "email": "elena.ivanova@example8.com"
+            },
+            {
+              "name": "Chen Wei",
+              "age": 27,
+              "country": "China",
+              "favorite_color": "pink",
+              "shoe_size": 7,
+              "email": "chen.wei@example9.com"
+            },
+            {
+              "name": "Luis Silva",
+              "age": 33,
+              "country": "Brazil",
+              "favorite_color": "brown",
+              "shoe_size": 10,
+              "email": "luis.silva@example10.com"
+            }
+          ]
+        VARIABLE_NAME: set
+      uuid: c1b8c26b-520f-4c1e-bbdd-3fa9a776858d
+      pretty_name: Data
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.''Choose next task'' }}'
+                  operator: EQUALS
+                  rvalue: Show My Personal Data
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+            id: no_authorization_needed
+            env:
+              CASE_ID: '{{ $.metadata.case.id }}'
+              FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"This request needs no extra Authorization. Please select the proposes for this request."}, {"name":"select_use_cases","type":"MULTI_SELECT","required":true,"prettyName":"Select Use Cases","optionsList":["Visualize","Request Modification","Sanitize Data","Validate Information"],"values":{"defaultValues":["Visualize"]}}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for his own data.\n    - [X] Request uses cases\n&nbsp;\n    - [ ] Show data for 1 user"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"_Click Next to visualize your data_"}, {"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+              FORM_TITLE: No Authorization needed
+              HAS_NEXT: "true"
+              TIMEOUT: 24h
+            uuid: 131c5d8a-0d9d-4dc6-af17-e57a5ba60c8e
+            pretty_name: No Authorization Needed
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_2
+                env: {}
+                sync: true
+                disable: false
+            manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.4.0
+            id: filter_array
+            env:
+              FIELD_PATH: email
+              FILTER_ARG: '{{ $.metadata.user_email }}'
+              FILTER_FUNC: Equals
+              INPUT: '{{ $.data.set }}'
+            uuid: 8700152c-8860-4085-b801-baa51450ca71
+            pretty_name: Filter Array
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: array_filter
+                sync: true
+                disable: false
+            documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+            manifestId: 579bcfeb-9e98-541c-8f7a-0e97bac3f54e
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+            id: create_ascii_table
+            env:
+              INPUT: '{{ $.filter_array.result }}'
+              MARKDOWN: "true"
+            uuid: 39cc1f7e-b3a3-40e4-af2b-4bf162aeda16
+            pretty_name: Create ASCII table
+            options:
+              executor:
+                name: utils_output_utils_tabulate_v_1_3_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+            id: interaction_good_bye
+            env:
+              CASE_ID: '{{ $.metadata.case.id }}'
+              FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"Requested data for {{ jsonEscape $.filter_array.length }} user"}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"Use Cases for this request:\n{{ range $item := $.no_authorization_needed.answers.select_use_cases}}\n- {{ $item }}\n{{end}}"}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"{{ jsonEscape $.create_ascii_table.tabulate_output }}"}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for his own data.\n    - [X] Request uses cases\n    - [X] Show data for 1 user"}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"Click for Markdown Examples"}]}]}'
+              FORM_TITLE: Show My Data
+              HAS_NEXT: "true"
+              TIMEOUT: 24h
+            uuid: fcfde56e-86f0-4f94-a5bd-7bb772466b38
+            pretty_name: Interaction Good Bye
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_2
+                env: {}
+                sync: true
+                disable: false
+            manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+            id: request_for_authorization
+            env:
+              CASE_ID: '{{ $.metadata.case.id }}'
+              FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"### For accesing all  data you need to get an approval. "}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"#### 1. Please Select the proposes for this request."}, {"name":"use_cases","type":"MULTI_SELECT","prettyName":"Use Cases","optionsList":["Visualize","Request Modification","Validate","Sanitize Data"],"values":{"defaultValues":["Visualize"]}}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"#### 2. Upload a file to be shared with Approvers."}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"_This File will have a public link and will be available for the next 24 hrs._\n\n <font color=\"red\"><b>Do not upload any private file for this DEMO</b></font> \n"}, {"name":"request_letter","type":"FILE","required":true,"prettyName":"Request Letter","description":"Submit a Request Letter in PDF Format","value":""}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for all data\n    - [X] Send Approval request to Admin and Analyst\n    &nbsp;\n    - [ ] Start Admin Approval Flow\n    - [ ] Start Analyst Approval Flow\n        - [ ] If User Allowed\n            - [ ] Show Data & Ask for Rating\n            - [ ] Show Rating & Goodbye\n        - [ ] If User Not Allowed\n            - [ ] Goodbye"}, {"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+              FORM_TITLE: Request for Authorization
+              HAS_NEXT: "true"
+              TIMEOUT: 24h
+            uuid: 2ab030aa-9a53-4734-a8be-21c4bcf8845b
+            pretty_name: Request for Authorization
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_2
+                env: {}
+                sync: true
+                disable: false
+            manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - parallel:
+              uuid: 4c25ce81-b4f4-456b-b7d1-6ae859442138
+              pretty_name: Parallel Executions
+              threads:
+                - uuid: f50306aa-b87c-4826-bc5a-802818018ef3
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                      id: flow_urls
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: |-
+                          {
+                            "main_flow_url":"{{ interactionFlowURL "Main Interaction Flow" }}",
+                            "admin_flow_url":"{{ interactionFlowURL "Admin Approval Flow" }}",
+                            "analyst_flow_url":"{{ interactionFlowURL "Analyst Approval Flow" }}"
+                          }
+                        VARIABLE_NAME: data
+                      uuid: 4b6d01ec-583c-4409-a32d-3e90f7c54532
+                      pretty_name: Flow URLs
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_22_0
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - uuid: 00c61656-014e-43e6-9b88-a0db5c609839
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.11.0
+                      id: public_link
+                      env:
+                        AUTHORIZATION: None
+                        HEADERS: ""
+                        METHOD: GET
+                        URL: '{{ file $.request_for_authorization.answers.request_letter }}'
+                      uuid: e5a06254-02ed-4baa-89bc-802b89e13941
+                      pretty_name: Public Link
+                      options:
+                        executor:
+                          name: http_request_v_4_11_0
+                          env:
+                            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                            GO_TEMPLATE_BODY_PARSING: "false"
+                            RESPONSE_API_OBJECT_ONLY: "false"
+                          sync: true
+                          disable: false
+                        output_to_file: true
+                      manifestId: 6a92367f-e6d6-5c08-b352-6645fd959454
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+          - parallel:
+              uuid: d3d855d9-990a-4ad0-9b12-5e916b393828
+              pretty_name: Parallel Executions
+              threads:
+                - uuid: 34e036bc-89c2-487d-b67e-81adb300ea26
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                      id: admin_approval
+                      env:
+                        CASE_ID: ""
+                        FLOW_SETTINGS: '{"name":"Admin Approval Flow","openToOrgSso":false}'
+                        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"⚠️ {{ jsonEscape $.metadata.user_email }} is requesting approval for this action. ⚠️\n\n"}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"Use Cases for this request:\n{{ range $item := $.request_for_authorization.answers.use_cases }}\n* {{ $item }}\n{{end}}"}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"[Download Request Public File]({{ jsonEscape $.public_link.api_object.url }})\n&nbsp;\n- File Name: _{{ $.public_link.api_object.filename }}_\n- File Type: _{{ $.public_link.api_object.content_type }}_\n- Size: _{{ $.public_link.api_object.size }}_ Bytes\n- MD5 Hash: _{{ $.public_link.api_object.hashes.md5 }}_\n- SHA1 Hash: _{{ $.public_link.api_object.hashes.sha1 }}_\n- SHA256 Hash: _{{ $.public_link.api_object.hashes.sha256 }}_\n"}, {"name":"response","type":"SINGLE_SELECT","required":true,"prettyName":"Response","optionsList":["APPROVE","REJECT"],"value":"REJECT"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"### Admin Approval Flow Status\n\n- [x] Start Admin Approval Flow\n- [X] Ask for approval\n- [ ] ACK Response "}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"SUBMIT"}]}]}'
+                        FORM_TITLE: ADMIN Approval
+                        HAS_NEXT: "true"
+                        TIMEOUT: 24h
+                      uuid: d4b78625-f734-4956-9317-6429bf0c6231
+                      pretty_name: Admin Approval
+                      options:
+                        executor:
+                          name: interact_send_interaction_v_2_0_2
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                      id: admin_approval_ack
+                      env:
+                        CASE_ID: ""
+                        FLOW_SETTINGS: '{"name":"Admin Approval Flow","openToOrgSso":false}'
+                        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"You choosed to {{ jsonEscape $.admin_approval.answers.response }} {{ $.metadata.user_email }} request.\n"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"\n### Admin Approval Flow Status\n\n- [x] Start Admin Approval Flow\n- [X] Ask for approval\n- [X] ACK Response "}]}'
+                        FORM_TITLE: 'Admin:  {{ $.admin_approval.answers.response }}'
+                        HAS_NEXT: "false"
+                        TIMEOUT: 24h
+                      uuid: de22251e-d5ab-40ab-b71a-c2c23703d062
+                      pretty_name: Admin Approval ACK
+                      options:
+                        executor:
+                          name: interact_send_interaction_v_2_0_2
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - uuid: e66be3c0-8c29-4a67-8795-eb493de53708
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                      id: show_approval_links
+                      env:
+                        CASE_ID: '{{ $.metadata.case.id }}'
+                        FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+                        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"For accesing all data you need the approval of two persons.\n\n**Click the following links to open approval flows in NEW tabs:**"}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"<a href=\"{{ jsonEscape $.flow_urls.data.admin_flow_url }}\" target=\"_blank\">Open Admin Approval Form in NEW Tab</a>"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"<a href=\"{{ jsonEscape $.flow_urls.data.analyst_flow_url }}\" target=\"_blank\">Open Analyst Approval Form in NEW Tab.</a>"}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"⚠️ In order to continue to next Interaction you **MUST** open the above forms and REJECT or APPROVE both forms. ⚠️"}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for all data\n    - [X] Send Approval request to Admin and Analyst\n    - [X] Start Admin Approval Flow\n    - [X] Start Analyst Approval Flow\n        - [ ] If User Allowed\n            - [ ] Show Data & Ask for Rating\n            - [ ] Show Rating & Goodbye\n        - [ ] If User Not Allowed\n            - [ ] Goodbye"}, {"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+                        FORM_TITLE: Open Approval Flows
+                        HAS_NEXT: "true"
+                        TIMEOUT: 24h
+                      uuid: 75656f82-2820-4821-ab2e-f19e03afec12
+                      pretty_name: Show Approval Links
+                      options:
+                        executor:
+                          name: interact_send_interaction_v_2_0_2
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                - uuid: 0f12d4db-82a7-4005-8ec9-7864b5c66cb7
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                      id: analyst_approval
+                      env:
+                        CASE_ID: ""
+                        FLOW_SETTINGS: '{"name":"Analyst Approval Flow","openToOrgSso":false}'
+                        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"⚠️ {{ jsonEscape $.metadata.user_email }} is requesting approval for this action. ⚠️"}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"Use Cases for this request:\n{{ range $item := $.request_for_authorization.answers.use_cases }}\n- {{ $item }}\n{{end}}"}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"[Download Request Public File]({{ jsonEscape $.public_link.api_object.url }})\n&nbsp;\n- File Name: {{ $.public_link.api_object.filename }}\n- File Type: {{ $.public_link.api_object.content_type }}\n- Size: {{ $.public_link.api_object.size }} Bytes\n- MD5 Hash: {{ $.public_link.api_object.hashes.md5 }}\n- SHA1 Hash: {{ $.public_link.api_object.hashes.sha1 }}\n- SHA256 Hash: {{ $.public_link.api_object.hashes.sha256 }}"}, {"name":"response","type":"SINGLE_SELECT","required":true,"prettyName":"Response","optionsList":["APPROVE","REJECT"],"value":"REJECT"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"\n### Analyst Approval Flow Status\n\n- [x] Start Analyst Approval Flow\n- [X] Ask for approval\n- [ ] ACK Response "}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"SUBMIT"}]}]}'
+                        FORM_TITLE: Analyst Approval
+                        HAS_NEXT: "true"
+                        TIMEOUT: 24h
+                      uuid: 3b8e617c-c26a-4b44-ac03-94cdceaf16da
+                      pretty_name: Analyst Approval
+                      options:
+                        executor:
+                          name: interact_send_interaction_v_2_0_2
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+                    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                      id: analyst_approval_ack
+                      env:
+                        CASE_ID: ""
+                        FLOW_SETTINGS: '{"name":"Analyst Approval Flow","openToOrgSso":false}'
+                        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"You choosed to {{ jsonEscape $.analyst_approval.answers.response }} {{ $.metadata.user_email }} request."}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"\n### Analyst Approval Flow Status\n\n- [x] Start Analyst Approval Flow\n- [X] Ask for approval\n- [X] ACK Response "}]}'
+                        FORM_TITLE: 'Analyst:  {{ $.analyst_approval.answers.response }}'
+                        HAS_NEXT: "false"
+                        TIMEOUT: 24h
+                      uuid: 5efdfd71-4167-417a-ac59-d4c3f9f8b784
+                      pretty_name: Analyst Approval ACK
+                      options:
+                        executor:
+                          name: interact_send_interaction_v_2_0_2
+                          env: {}
+                          sync: true
+                          disable: false
+                      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                      retry: {}
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.admin_approval.answers.response }}'
+                        operator: EQUALS
+                        rvalue: APPROVE
+                      - lvalue: '{{ $.analyst_approval.answers.response }}'
+                        operator: EQUALS
+                        rvalue: APPROVE
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+                  id: create_ascii_table
+                  env:
+                    INPUT: '{{ $.data.set }}'
+                    MARKDOWN: "true"
+                  uuid: fad771e2-d312-4a82-a9ad-192b13867ad8
+                  pretty_name: Create ASCII table
+                  options:
+                    executor:
+                      name: utils_output_utils_tabulate_v_1_3_0
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                  id: interaction_show_data
+                  env:
+                    CASE_ID: '{{ $.metadata.case.id }}'
+                    FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+                    FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"Requested data for {{ len $.data.set }} users"}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"{{ jsonEscape $.create_ascii_table.tabulate_output }}"}, {"name":"choose_feedback","type":"SINGLE_SELECT","required":true,"prettyName":"Please Rate the quality of his data","optionsList":["⭐⭐⭐⭐⭐","⭐⭐⭐⭐","⭐⭐⭐","⭐⭐","⭐"],"value":"⭐⭐⭐⭐⭐"}, {"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for all data\n    - [X] Send Approval request to Admin and Analyst\n    - [X] Start Admin Approval Flow\n    - [X] Start Analyst Approval Flow\n        - [X] If User Allowed\n            - [X] Show Data & Ask for Rating\n            - [ ] Show Rating & Goodbye"}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"Done"}]}]}'
+                    FORM_TITLE: Show All Data
+                    HAS_NEXT: "true"
+                    TIMEOUT: 24h
+                  uuid: 86ea0f2f-850c-455e-a25a-c162e35dbcf9
+                  pretty_name: Interaction Show Data
+                  options:
+                    executor:
+                      name: interact_send_interaction_v_2_0_2
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                  id: interaction_done
+                  env:
+                    CASE_ID: '{{ $.metadata.case.id }}'
+                    FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+                    FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"You Rated this {{ jsonEscape $.interaction_show_data.answers.choose_feedback }}"}, {"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for all data\n    - [X] Send Approval request to Admin and Analyst\n    - [X] Start Admin Approval Flow\n    - [X] Start Analyst Approval Flow\n        - [X] If User Allowed\n            - [X] Show Data & Ask for Rating\n            - [X] Show Rating & Goodbye"}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"Click for Markdown Examples"}]}]}'
+                    FORM_TITLE: Goodbye
+                    HAS_NEXT: "true"
+                    TIMEOUT: 24h
+                  uuid: 62d6a8df-ba1e-4706-8a37-3e70949cb0e0
+                  pretty_name: Interaction Done
+                  options:
+                    executor:
+                      name: interact_send_interaction_v_2_0_2
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                  id: not_allowed
+                  env:
+                    CASE_ID: '{{ $.metadata.case.id }}'
+                    FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+                    FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"## You are not allowed to visualize requested data."}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":" ### Main Interaction Flow Status\n- [X] Interact Trigger\n- [X] Validate Query\n- [X] If user is looking for all data\n    - [X] Send Approval request to Admin and Analyst\n    - [X] Start Admin Approval Flow\n    - [X] Start Analyst Approval Flow\n        - [X] If User Not Allowed\n            - [X] Goodbye"}, {"name":"buttons","type":"BUTTONS","buttons":[{"text":"Click for Markdown Examples"}]}]}'
+                    FORM_TITLE: You are NOT Allowed
+                    HAS_NEXT: "true"
+                    TIMEOUT: 24h
+                  uuid: 7a032bf5-d254-4859-b905-1109abbcc3af
+                  pretty_name: Not Allowed
+                  options:
+                    executor:
+                      name: interact_send_interaction_v_2_0_2
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              uuid: 277aae1f-4151-4d5f-aa8a-8cd531e5b457
+              pretty_name: If User got both Approvals
+        uuid: 6c42cec0-f85e-4767-bc8b-73e83d37c974
+        pretty_name: If show my own personal data
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+      id: markdown_examples
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        FLOW_SETTINGS: '{"name":"Main Interaction Flow","openToOrgSso":false}'
+        FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"# Headers\n---------------------------\n\n# Header 1\n\n## Header 2\n\n### Header 3\n"}, {"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"# Styling\n---------------------------\n\n*Emphasize* _emphasize_\n\n**Strong** __strong__\n\n==Marked text.==\n\n~~Mistaken text.~~\n\n> Quoted text.\n\nH~2~O is a liquid.\n\n2^10^ is 1024.\n\n <font color=\"red\"><b> This text is red using HTML formatting </b></font> \n\nNew lines: &nbsp;\n&nbsp;&nbsp;\nEnd new lines\n\n"}, {"name":"parameter_3","type":"MARKDOWN_TEXT","prettyName":"Parameter 3","value":"# Lists\n---------------------------\n\n- Item\n  * Item\n    + Item\n\n1. Item 1\n2. Item 2\n3. Item 3\n\n- [ ] Incomplete item\n- [x] Complete item\n"}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"\n# Links\n---------------------------\n\nA [markdown link](https://torq.io).\n\n<a href=\"https://torq.io\" target=\"_blank\">HTML link to open on new tab.</a>\n\nAn image: ![Alt](https://storage.googleapis.com/stackpulse-public/vendors/torq.svg)\n\nA resized image: [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/torq.svg\" height=\"80\"/>]()\n\n"}, {"name":"parameter_5","type":"MARKDOWN_TEXT","prettyName":"Parameter 5","value":"\n# Code\n---------------------------\n\nSome `inline code`.\n\n```\n// A code block\nvar foo = ''bar'';\n```\n\n"}, {"name":"parameter_6","type":"MARKDOWN_TEXT","prettyName":"Parameter 6","value":"\n# Tables\n---------------------------\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n\n| Column 1 | Column 2 |Column 3      |\n|:---------- |:--------:| -------------:|\n|left-aligned | centered | right-aligned |\n\n__Table without Headers using HTML CSS__\n\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n</div>\n\n__Table with controlled column width__\n\n<style>\ntable th:first-of-type {\n    width: 30%;\n}\ntable th:nth-of-type(2) {\n    width: 10%;\n}\ntable th:nth-of-type(3) {\n    width: 40%;\n}\n</style>\n\n<div class=\"table\">\n\nItem     | Value|Stock Count\n-------- | -----|-----\nComputer | $1600 | 15\nPhone    | $12 | 22\nAdapter     | $1 | 53\n\n</div>\n"}, {"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"\n# Footnotes\n---------------------------\n\nSome text with a footnote.[^1]\n\n[^1]: The footnote.\n\n"}]}'
+        FORM_TITLE: Markdown Examples
+        HAS_NEXT: "false"
+        TIMEOUT: 24h
+      uuid: 86170140-2b63-4a94-92f4-7711c7c707ee
+      pretty_name: Markdown Examples
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_2
+          env: {}
+          sync: true
+          disable: false
+      manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: ab03497e-f9e9-4926-a4a6-af29eaf426b0
+  annotations:
+    - uuid: fa5c953a-d6e5-4688-91d1-d769b8d5bab7
+      x: 347
+      "y": -4
+      width: 816
+      height: 428
+      attachedStepId: fcfde56e-86f0-4f94-a5bd-7bb772466b38
+      attachedDistance:
+        x: -207
+        "y": 803
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","marks":[{"type":"underline"}],"text":"Torq Interact Flows"}]},{"type":"heading","attrs":{"level":1}},{"type":"paragraph","content":[{"type":"text","text":"Torq Interact introduces the concept of "},{"type":"text","marks":[{"type":"code"}],"text":"Flow"},{"type":"text","text":", that is a unique interaction session with an end-user. "}]},{"type":"paragraph","content":[{"type":"text","text":"Workflow can use multiple flows in order to interact with multiple users.Each flow has its own URL to start an interaction. Interactions URL are created from the start of the workflow and are referenced using "},{"type":"text","marks":[{"type":"code"}],"text":"interaction_flows_url"},{"type":"text","text":"  parameter in context e.g:"},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","marks":[{"type":"code"}],"text":"{{ $.interaction_flows_url.''Admin Approval Flow'' }}"}]},{"type":"paragraph","content":[{"type":"text","text":"This demo illustrates how to utilize "},{"type":"text","marks":[{"type":"code"}],"text":"Tor Interact"},{"type":"text","text":" to handle communications with one or more users."}]},{"type":"paragraph","content":[{"type":"text","text":"You can choose between two scenarios:"}]},{"type":"heading","attrs":{"level":4},"content":[{"type":"text","text":"Show My Personal Data"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Interacts with 1 person. ( 1 Flow )"}]}]}]},{"type":"heading","attrs":{"level":4},"content":[{"type":"text","text":"Show All Data"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Interacts with 3 persons. ( 3 Flows )"}]}]}]}]}'
+    - uuid: f43f052b-ff14-414d-920e-13f073f36252
+      x: -1037
+      "y": 803
+      width: 446
+      height: 214
+      attachedStepId: 4b6d01ec-583c-4409-a32d-3e90f7c54532
+      attachedDistance:
+        x: 477
+        "y": -122
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Interaction Flow URLs"}]},{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"text","text":"All URLs to access each form are created from the beginning of the execution and can be retrieved using "},{"type":"text","marks":[{"type":"code"}],"text":"interaction_flows_url"},{"type":"text","text":" context variable followed by the name of the Flow."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"{{ $.interaction_flows_url.''Main Interaction Flow'' }}"}]}]}'
+    - uuid: f136120e-74c6-4cc8-97ec-155ee3c14ddd
+      x: -423
+      "y": 1277
+      attachedStepId: d3d855d9-990a-4ad0-9b12-5e916b393828
+      attachedDistance:
+        x: 3
+        "y": -347
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"            Start "}]},{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Approval FLOWS"}]}]}'
+    - uuid: 80180f10-b64f-49df-b549-0bac15133446
+      x: 517
+      "y": 454
+      width: 518
+      height: 177
+      attachedStepId: 131c5d8a-0d9d-4dc6-af17-e57a5ba60c8e
+      attachedDistance:
+        x: -377
+        "y": -48
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Show My Personal Data Branch"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"User is looking to see information on the dataset related to his own email."}]},{"type":"paragraph","content":[{"type":"text","text":" Email information is read from workflow metadata:"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"{{ $.metadata.user_email }}"}]},{"type":"paragraph","content":[{"type":"text","text":"This Branch uses 1 Flow from beginning to end to keep interaction with only 1 user."}]}]}'
+    - uuid: 703cc7ba-ef7b-411d-81d7-ae810e964b0f
+      x: -1037
+      "y": 457
+      width: 525
+      height: 279
+      attachedStepId: 2ab030aa-9a53-4734-a8be-21c4bcf8845b
+      attachedDistance:
+        x: 617
+        "y": -51
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Show All  Data Branch"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"User is looking to see all users information on the dataset. In order to visualize all data, user must ask for the approval of thwo persons, an Admin and a Analyst. "}]},{"type":"paragraph","content":[{"type":"text","text":"This Branch uses 3 Flows to keep interaction with 3 persons:"}]},{"type":"orderedList","attrs":{"start":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Main Interaction Flow"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Admin Approval Flow"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Analyst Approval Flow"}]}]}]}]}'
+    - uuid: a05be42a-2188-4af1-b525-aef9d2713ec0
+      x: -735
+      "y": 71
+      width: 669
+      height: 292
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Torq Interact Hello World"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This demo illustrates how to utilize "},{"type":"text","marks":[{"type":"code"}],"text":"Torq Interact"},{"type":"text","text":" to handle communications with one or more users."}]},{"type":"paragraph","content":[{"type":"text","text":" It offers two options with a different number of users involved."}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Show My Personal Data: Interact with 1 person"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Show All Data: Interact with 3 persons."}]},{"type":"paragraph","content":[{"type":"text","text":"                                                  "}]}]}]}]}'
+    - uuid: 1cfcee6c-8920-4931-83ab-8da37e7d8146
+      x: -1163
+      "y": 1155
+      width: 389
+      height: 171
+      attachedStepId: d3d855d9-990a-4ad0-9b12-5e916b393828
+      attachedDistance:
+        x: 743
+        "y": -225
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Approval Flows"}]},{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"text","text":"Approval Flows are two interactions that are started once the user request an Approval."}]},{"type":"paragraph","content":[{"type":"text","text":"These new flows run independently from the Main Interaction Flow using an unique URL, and they need to be finished for the Main flow to continue."}]}]}'
+  output_schema: '{}'
+root: true

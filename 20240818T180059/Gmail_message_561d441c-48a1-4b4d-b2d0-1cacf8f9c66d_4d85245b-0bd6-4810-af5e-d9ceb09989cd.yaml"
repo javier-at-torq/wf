@@ -1,0 +1,216 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 561d441c-48a1-4b4d-b2d0-1cacf8f9c66d
+name: Gmail_message
+trigger:
+  integrationTrigger:
+    integration:
+      name: pcwahook
+      typeId: whatsapp_cloud_monitoring
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/gmail/generate-gmail-token:3.1.0
+      id: generate_gmail_token
+      env:
+        EMAIL_TO_IMPERSONATE: javier@wolken.cloud
+        SCOPES: https://mail.google.com/
+      envFrom:
+        integrationRef: jrp_gsuite
+      uuid: 7548766d-f0c5-44e7-9914-c111b130c330
+      pretty_name: Generate Gmail Token
+      options:
+        executor:
+          name: gcp_generate-bearer-token_v_5_1_0
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://developers.google.com/identity/protocols/oauth2/scopes
+      manifestId: 7436779b-8e3b-50ad-8a29-39f1e703cfa8
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/gmail/list-messages-by-user:3.0.1
+      id: list_messages_by_user
+      env:
+        GMAIL_ACCESS_TOKEN: '{{ $.generate_gmail_token.access_token }}'
+        USER_EMAIL: javier@wolken.cloud
+      uuid: 530ce634-eaa2-4bfb-a3b1-d4734fdeb467
+      pretty_name: List Messages by User
+      options:
+        executor:
+          name: http_request_v_2_0_15
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["GMAIL_ACCESS_TOKEN", "USER_EMAIL"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .GMAIL_ACCESS_TOKEN }}'
+            URL: https://gmail.googleapis.com/gmail/v1/users/{{ .USER_EMAIL | urlEnc }}/messages?{{ if or .LIMIT }}&maxResults={{ .LIMIT | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&pageToken={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .INCLUDE_SPAM_AND_TRASH }}&includeSpamTrash={{ .INCLUDE_SPAM_AND_TRASH | urlEnc }}{{ end }}{{ if or .QUERY }}&q={{ .QUERY | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      documentationUrl: https://developers.google.com/gmail/api/reference/rest/v1/users.messages/list
+      manifestId: c9697eae-c3f0-44a9-968e-5a1236ba5507
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/gmail/get-message-details:3.1.0
+      id: get_message_details
+      env:
+        FORMAT: full
+        GMAIL_ACCESS_TOKEN: '{{ $.generate_gmail_token.access_token }}'
+        MESSAGE_ID: '{{ $.list_messages_by_user.api_object.messages.0.id }}'
+        USER_EMAIL: javier@wolken.cloud
+      uuid: 5e4d5622-17bb-4949-8d5e-d62ef384f77c
+      pretty_name: Get Message Details
+      options:
+        executor:
+          name: http_request_v_4_9_1
+          env:
+            AUTHORIZATION: Bearer
+            BODY: ""
+            CONTENT_TYPE: application/json; charset=utf-8
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["GMAIL_ACCESS_TOKEN","USER_EMAIL","MESSAGE_ID"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .GMAIL_ACCESS_TOKEN }}'
+            URL: https://gmail.googleapis.com/gmail/v1/users/{{ .USER_EMAIL | urlEnc }}/messages/{{ .MESSAGE_ID | urlEnc }}?{{ if .FORMAT }}&format={{ .FORMAT | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      documentationUrl: https://developers.google.com/gmail/api/reference/rest/v1/users.messages/get
+      manifestId: bf398a0e-376d-51c9-85b1-fdf66f2cebb2
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - loop:
+        in: '{{ $.get_message_details.api_object.payload.parts }}'
+        key: loop_key
+        value: loop_value
+        steps:
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.loop_value.body.attachmentId }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                  id: file
+                  env:
+                    DATA_TYPE: JSON
+                    VALUE_JSON: '{{ $.loop_value }}'
+                    VARIABLE_NAME: data
+                  uuid: 9b4f18b9-f766-40e3-bc69-922236b85b80
+                  pretty_name: file
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: set_variable
+                      sync: true
+                      disable: false
+                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/gmail/get-attachment:3.0.1
+                  id: get_attachment
+                  env:
+                    ATTACHMENT_ID: '{{ $.loop_value.body.attachmentId }}'
+                    GMAIL_ACCESS_TOKEN: '{{ $.generate_gmail_token.access_token }}'
+                    MESSAGE_ID: '{{ $.list_messages_by_user.api_object.messages.0.id }}'
+                    USER_EMAIL: javier@wolken.cloud
+                  uuid: 30414517-7454-4c77-8a39-141a23bdce34
+                  pretty_name: Get Attachment
+                  options:
+                    executor:
+                      name: http_request_v_2_0_15
+                      env:
+                        AUTHORIZATION: Bearer
+                        HEADERS: '{}'
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["GMAIL_ACCESS_TOKEN", "USER_EMAIL", "MESSAGE_ID", "ATTACHMENT_ID"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .GMAIL_ACCESS_TOKEN }}'
+                        URL: https://gmail.googleapis.com/gmail/v1/users/{{ .USER_EMAIL | urlEnc }}/messages/{{ .MESSAGE_ID | urlEnc }}/attachments/{{ .ATTACHMENT_ID | urlEnc }}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://developers.google.com/gmail/api/reference/rest/v1/users.messages.attachments/get
+                  manifestId: 1457d33d-3837-49a1-8b75-224b53c2e7bd
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.7.0
+                  id: add_attachment_to_case
+                  env:
+                    CASE_ID: "53"
+                    CONTENT_TYPE: '{{ $.file.data.mimeType }}'
+                    FILE: '{{ $.get_attachment.api_object.data }}'
+                    FILE_NAME: '{{ $.file.data.filename }}'
+                    INPUT_TYPE: file
+                  uuid: cec7e314-82d9-448b-85a1-7a04f245821f
+                  pretty_name: Add attachment to case
+                  options:
+                    executor:
+                      name: torq_cases_add-attachment_v_3_7_0
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: cbd91ee3-56db-5dbb-9433-6ad66574376e
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              else: []
+              uuid: 07ea6e62-7d54-4fcd-a4b2-c445c202fcb8
+              pretty_name: If
+        uuid: 583e5157-ad70-4567-b9ad-b2356e46487f
+        pretty_name: Loop
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.14.0
+      id: send_an_http_request
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: https://api.myip.com
+      runner: sv01june24
+      uuid: 18e3e7bc-d47c-4554-aeb1-b964af319629
+      pretty_name: Send an HTTP request
+      options:
+        executor:
+          name: http_request_v_4_14_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 72a92fcc-9419-5600-a006-3401c658ea08
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

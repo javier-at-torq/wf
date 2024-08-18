@@ -1,0 +1,591 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: dcc6ba5e-8e8e-408e-989b-b9d76e09f728
+name: Assign or Remove Licenses on Users for Microsoft via Graph API
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: email
+          description: Email address of user to remove the license from
+          required: true
+          prettyName: email
+          shortText:
+            defaultValue: ""
+        - name: microsoft_integration
+          description: Name of the Microsoft Integration to Use
+          required: true
+          prettyName: microsoft_integration
+          shortText:
+            defaultValue: ""
+        - name: action
+          description: Select the action to take on the users license.
+          required: true
+          prettyName: action
+          singleSelect:
+            options:
+              - assignment
+              - removal
+            defaultValue: ""
+        - name: assignment_sku
+          description: The SKU to assign to the user. Required for assignment operations.
+          prettyName: assignment_sku
+          shortText:
+            defaultValue: ""
+    nestedOnly: true
+playbook:
+  steps:
+    - switch:
+        uuid: d64f2adf-f033-43ee-9268-7c5c7d825033
+        pretty_name: Verify Input
+        cases:
+          - id: 8bc854e7-5c0e-403a-9ce7-d5291a75cd4a
+            pretty_name: Verify Requirements
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.email }}'
+                      operator: IS_EMPTY
+                      rvalue: ""
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: IS_EMPTY
+                      rvalue: ""
+                - and:
+                    - lvalue: '{{ $.event.microsoft_integration }}'
+                      operator: IS_EMPTY
+                      rvalue: ""
+            steps:
+              - exit:
+                  success: "false"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "message": "One of the required values was empty.",
+                      "status": "Failed"
+                    }
+                  uuid: 2ed518c5-8d41-4450-8ca8-37c9d366261a
+                  use_schema: true
+          - id: dd959283-ce69-468e-a299-e1e0fb1c3d6c
+            pretty_name: Verify SKU is Provided
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: assignment
+                    - lvalue: '{{ $.event.assignment_sku }}'
+                      operator: IS_EMPTY
+                      rvalue: ""
+            steps:
+              - exit:
+                  success: "false"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "message": "Assignment selected with an empty assignment SKU.",
+                      "status": "Failed"
+                    }
+                  uuid: 3cad0b30-c935-41f5-94a3-4b839d18ce8e
+                  use_schema: true
+        default:
+          id: 7d18dd10-bdd3-4ee4-8613-dbc9a7b59bdf
+          steps: []
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/generate-access-token:2.0.3
+      id: generate_access_token
+      envFrom:
+        integrationRef: '{{ $.event.microsoft_integration }}'
+      uuid: 6c6fb393-f7ef-49fc-8dff-8286b0fa2a3b
+      pretty_name: Generate Access Token
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            BODY: '[{"key": "client_id", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_ID | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_ID"}, {"key": "scope", "type": "text", "value": "https://graph.microsoft.com/.default"}, {"key": "client_secret", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_SECRET | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_SECRET"}, {"key": "grant_type", "type": "text", "value": "client_credentials"}]'
+            CONTENT_TYPE: application/x-www-form-urlencoded
+            HEADERS: |-
+              {
+                  "Content-Type": "application/x-www-form-urlencoded"
+              }
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_365_TENANT_ID", "MICROSOFT_365_CLIENT_ID", "MICROSOFT_365_CLIENT_SECRET"]'
+            TIMEOUT: "30"
+            URL: https://login.microsoftonline.com/{{ .MICROSOFT_365_TENANT_ID | urlEnc }}/oauth2/v2.0/token
+          sync: true
+          disable: false
+      manifestId: 94deb564-a701-47a1-8cc2-8460f8bf7803
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_azure_ad/search-users-by-name:4.0.0
+      id: search_users_by_name
+      env:
+        MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+        USER_NAME: '{{ $.event.email }}'
+      uuid: 2539fe85-5bab-42ee-a6f4-b994bf8d09b0
+      pretty_name: Search Users by Name
+      options:
+        executor:
+          name: http_request_v_4_2_11
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: |-
+              {
+                  "ConsistencyLevel": "eventual"
+              }
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_ACCESS_TOKEN", "USER_NAME"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+            URL: https://graph.microsoft.com/v1.0/users?&$search="displayName:{{ .USER_NAME | urlEnc }}" OR "givenName:{{ .USER_NAME | urlEnc }}" OR "surname:{{ .USER_NAME | urlEnc }}" OR "userPrincipalName:{{ .USER_NAME | urlEnc }}"{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&$skiptoken={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      documentationUrl: https://docs.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0
+      manifestId: a69b0460-96fc-49b2-9405-83aec4bd800c
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ len $.search_users_by_name.api_object.value }}'
+                  operator: EQUALS
+                  rvalue: "1"
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+            id: gather_licenses_for_user
+            env:
+              MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+              REQUEST_URL: https://graph.microsoft.com/v1.0/users/{{ $.search_users_by_name.api_object.value.0.id }}/licenseDetails
+            uuid: 8eb45563-b34b-4271-a5d1-63546534be9c
+            pretty_name: Gather Licenses for User
+            options:
+              executor:
+                name: http_request_v_4_2_3
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: |-
+                    {
+                        "ConsistencyLevel": "eventual"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                  URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                sync: true
+                disable: false
+            documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+            manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - switch:
+              uuid: 6ab63517-ffe8-4994-841f-1d6be25d1129
+              pretty_name: Assignment or Removal
+              cases:
+                - id: cebbb923-b0cd-42ff-aba5-fd77f5f11df9
+                  pretty_name: Removal
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.action }}'
+                            operator: EQUALS
+                            rvalue: removal
+                  steps:
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.gather_licenses_for_user.api_object.value }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+                            id: remove_microsoft_licenses_from_user
+                            env:
+                              AUTHORIZATION: Bearer
+                              BODY: |-
+                                {
+                                  "addLicenses":[],
+                                  "removeLicenses": {{ $.gather_licenses_for_user.api_object.value..skuId }}
+                                }
+                              CONTENT_TYPE: application/json; charset=utf-8
+                              FAIL_ON_NON_SUCCESS_RESPONSE: "true"
+                              HEADERS: |-
+                                {
+                                    "ConsistencyLevel": "eventual"
+                                }
+                              METHOD: POST
+                              TIMEOUT: "30"
+                              TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                              URL: https://graph.microsoft.com/v1.0/users/{{ $.search_users_by_name.api_object.value.0.id }}/assignLicense
+                            uuid: b6c26410-4056-42c2-a22a-e38b59748af4
+                            pretty_name: Remove Microsoft Licenses from User
+                            options:
+                              executor:
+                                name: http_request_v_4_2_3
+                                env:
+                                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                  GO_TEMPLATE_BODY_PARSING: "false"
+                                  RESPONSE_API_OBJECT_ONLY: "false"
+                                sync: true
+                                disable: false
+                            icon: https://cdn.torq.io/vendors/microsoft_365.svg
+                            documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                            manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+                            isPrivate: false
+                            isPrivateUrl: true
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.remove_microsoft_licenses_from_user.step_status.code }}'
+                                        operator: EQUALS
+                                        rvalue: "1"
+                              then:
+                                - exit:
+                                    success: "true"
+                                    pretty_name: Exit - Success
+                                    output: |-
+                                      {
+                                        "message": "Licenses were removed from {{ $.event.email }}",
+                                        "status": "Success."
+                                      }
+                                    uuid: b9132db7-9d49-4a71-b6e3-fe2d0e353ed1
+                                    use_schema: true
+                              else:
+                                - exit:
+                                    success: "false"
+                                    pretty_name: Exit - Error Removing Licenses
+                                    output: |-
+                                      {
+                                        "message": "Error removing licenses from {{ $.event.email }}.  Error: {{ $.remove_microsoft_licenses_from_user.api_object.error }}",
+                                        "status": "Failed"
+                                      }
+                                    uuid: cceb4874-51c4-4b87-b2bd-fa5baa95579f
+                                    use_schema: true
+                              uuid: 89d5b2af-487f-4295-bb63-a6cd3d9ada32
+                              pretty_name: If Successful
+                        else:
+                          - exit:
+                              success: "true"
+                              pretty_name: Exit - No License Found
+                              output: |-
+                                {
+                                  "message": "No Licenses were found assigned to the user.",
+                                  "status": "Success"
+                                }
+                              uuid: a4092550-a66a-49fe-8b24-cce6505b6f36
+                              use_schema: true
+                        uuid: 12c918cb-5e01-4118-b15d-dd37e35dcb39
+                        pretty_name: If Licenses are Found
+                - id: a5a55c66-d8ec-4b57-be2d-d8d94ed32b40
+                  pretty_name: Assignment
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.action }}'
+                            operator: EQUALS
+                            rvalue: assignment
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                      id: filter_users_assigned_skus
+                      env:
+                        FIELD_PATH: skuId
+                        FILTER_ARG: '["{{ $.event.assignment_sku }}"]'
+                        FILTER_FUNC: Equals
+                        INPUT: '{{ $.gather_licenses_for_user.api_object.value }}'
+                      uuid: 491a441c-5856-4174-b788-769c852abe17
+                      pretty_name: Filter Users Assigned SKUs
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_44
+                          env:
+                            COMMAND: array_filter
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                      manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.filter_users_assigned_skus.length }}'
+                                  operator: EQUALS
+                                  rvalue: "1"
+                        then:
+                          - exit:
+                              success: "true"
+                              pretty_name: Exit
+                              output: |-
+                                {
+                                  "message": "User is already assigned the requested SKU.",
+                                  "status": "Success"
+                                }
+                              uuid: d4552c82-2847-4e1b-a4eb-e6c3249a0123
+                              use_schema: true
+                        else:
+                          - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                            id: find_subscribed_skus
+                            env:
+                              MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                              REQUEST_URL: https://graph.microsoft.com/v1.0/subscribedSkus
+                            uuid: 923ce199-38d1-4d6a-afec-03ac7c882062
+                            pretty_name: Find Subscribed SKUs
+                            options:
+                              executor:
+                                name: http_request_v_4_2_3
+                                env:
+                                  AUTHORIZATION: Bearer
+                                  HEADERS: |-
+                                    {
+                                        "ConsistencyLevel": "eventual"
+                                    }
+                                  METHOD: GET
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                                  TIMEOUT: "30"
+                                  TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                                  URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                                sync: true
+                                disable: false
+                            documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                            manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.2.4
+                            id: filter_for_sku
+                            env:
+                              FIELD_PATH: skuId
+                              FILTER_ARG: '["{{ $.event.assignment_sku }}"]'
+                              FILTER_FUNC: Equals
+                              INPUT: '{{ $.find_subscribed_skus.api_object.value }}'
+                            uuid: 2289f24e-9420-4b25-a32a-95fa77f57a71
+                            pretty_name: Filter for SKU
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_3_44
+                                env:
+                                  COMMAND: array_filter
+                                sync: true
+                                disable: false
+                            documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                            manifestId: c1e45c54-4439-4401-b434-9cac99591f47
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.filter_for_sku.length }}'
+                                        operator: EQUALS
+                                        rvalue: "1"
+                              then:
+                                - if:
+                                    conditions:
+                                      or:
+                                        - and:
+                                            - lvalue: '{{ $.filter_for_sku.result.0.consumedUnits }}'
+                                              operator: LOWER
+                                              rvalue: '{{ $.filter_for_sku.result.0.prepaidUnits.enabled }}'
+                                    then:
+                                      - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.11
+                                        id: assign_microsoft_licenses_to_user
+                                        env:
+                                          AUTHORIZATION: Bearer
+                                          BODY: |-
+                                            {
+                                              "addLicenses":[
+                                                {
+                                                  "disabledPlans": [],
+                                                  "skuId": "{{ $.event.assignment_sku }}"
+                                                }
+                                              ],
+                                              "removeLicenses": []
+                                            }
+                                          CONTENT_TYPE: application/json; charset=utf-8
+                                          FAIL_ON_NON_SUCCESS_RESPONSE: "true"
+                                          HEADERS: |-
+                                            {
+                                                "ConsistencyLevel": "eventual"
+                                            }
+                                          METHOD: POST
+                                          TIMEOUT: "30"
+                                          TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                                          URL: https://graph.microsoft.com/v1.0/users/{{ $.search_users_by_name.api_object.value.0.id }}/assignLicense
+                                        uuid: 5038995f-2ee6-4c06-a873-cc981606ba0c
+                                        pretty_name: Assign Microsoft Licenses to User
+                                        options:
+                                          executor:
+                                            name: http_request_v_4_2_3
+                                            env:
+                                              FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                              GO_TEMPLATE_BODY_PARSING: "false"
+                                              RESPONSE_API_OBJECT_ONLY: "false"
+                                            sync: true
+                                            disable: false
+                                        icon: https://cdn.torq.io/vendors/microsoft_365.svg
+                                        documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                                        manifestId: 06ac64a3-0401-4f06-9270-6c63756a165b
+                                        isPrivate: false
+                                        isPrivateUrl: true
+                                        mock_output:
+                                          enabled: false
+                                        skip: false
+                                      - if:
+                                          conditions:
+                                            or:
+                                              - and:
+                                                  - lvalue: '{{ $.assign_microsoft_licenses_to_user.step_status.code }}'
+                                                    operator: EQUALS
+                                                    rvalue: "1"
+                                          then:
+                                            - exit:
+                                                success: "true"
+                                                pretty_name: Exit - Success
+                                                output: |-
+                                                  {
+                                                    "message": "License assigned to {{ $.event.email }} successfully",
+                                                    "status": "Success"
+                                                  }
+                                                uuid: f76f9b07-2325-4a63-aa5c-cabe4a0984b6
+                                                use_schema: true
+                                          else:
+                                            - exit:
+                                                success: "false"
+                                                pretty_name: Exit - Error Assigning License
+                                                output: |-
+                                                  {
+                                                    "message": "Error occurred assigning license: {{ $.assign_microsoft_licenses_to_user.api_object.error }}",
+                                                    "status": "Failed"
+                                                  }
+                                                uuid: 72d8823f-7afe-4352-855a-c8f0aeb322f1
+                                                use_schema: true
+                                          uuid: c99d328a-3ec1-4f49-a351-910cdd3e54f6
+                                          pretty_name: If Successful
+                                    else:
+                                      - exit:
+                                          success: "false"
+                                          pretty_name: Exit - License Pool is Full
+                                          output: |-
+                                            {
+                                              "message": "There does not appear to be licenses available to assign.",
+                                              "status": "Failed"
+                                            }
+                                          uuid: 96e3ba9b-2f0e-4861-8eda-cf5c6994aa35
+                                          use_schema: true
+                                    uuid: 850238c6-9a61-4783-a67a-710706b4b36b
+                                    pretty_name: ' If Available Licenses Exist'
+                              else:
+                                - exit:
+                                    success: "false"
+                                    pretty_name: Exit - No Matching SKU Found
+                                    output: |-
+                                      {
+                                        "message": "No SKU was found matching {{ $.event.assignment_sku }}.",
+                                        "status": "Failed"
+                                      }
+                                    uuid: bbb2431f-a354-4610-ac01-15773aac2899
+                                    use_schema: true
+                              uuid: 1762a452-a7c8-4ead-92bf-9fa8c2989a73
+                              pretty_name: If SKU was Found
+                        uuid: f7f760b7-1486-4be3-b6d3-14391cfa7c76
+                        pretty_name: If User Already has SKU Assigned
+              default:
+                id: 6c743da9-61ea-4458-99f9-bd389ad104d1
+                steps: []
+        else:
+          - exit:
+              success: "false"
+              pretty_name: Exit - No User Found
+              output: |-
+                {
+                  "message": "The user with the email of {{ $.event.email }} was not found.",
+                  "status": "Failed"
+                }
+              uuid: 74e7d7ee-f31c-436d-8245-999661718a32
+              use_schema: true
+        uuid: 83dd96f3-beb6-4c84-bb8d-6f979753fa95
+        pretty_name: If the User was Found
+  annotations:
+    - uuid: 95508743-908b-4a85-953c-7cd3deaccfcb
+      x: -771
+      "y": 120
+      width: 428
+      height: 363
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Assign or Remove Licenses on Users for Microsoft via Graph API"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow can be used as a nested workflow function to assign or remove licenses from a user when provided the license SKU."}]},{"type":"paragraph","content":[{"type":"text","text":"The SKU is only required on the assignment.  "},{"type":"text","marks":[{"type":"bold"}],"text":"Deleting licenses from a user will attempt to remove all licenses assigned to the user."}]},{"type":"paragraph","content":[{"type":"text","text":"The license SKU can be retrieved by the Graph API call "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://learn.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0&tabs=http","target":"_blank","class":null}}],"text":"List SubscribedSKUs."}]},{"type":"paragraph","content":[{"type":"text","text":"The workflow will provide output on success or failure including the action taken on the user and license."}]},{"type":"paragraph","content":[{"type":"text","text":"              "},{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/microsoft_365.svg","alt":null,"title":null}}]}]}'
+    - uuid: 0010fe94-9923-4971-bd73-880126a90bd5
+      x: 480
+      "y": 250
+      attachedStepId: d64f2adf-f033-43ee-9268-7c5c7d825033
+      attachedDistance:
+        x: -480
+        "y": -119
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Verify the required parameters are provided.  If not fail the workflow and send an error."}]}]}'
+    - uuid: 6eb5b95c-576f-472b-9042-f0da8b11853c
+      x: 391
+      "y": 732
+      width: 395
+      height: 146
+      attachedStepId: 2539fe85-5bab-42ee-a6f4-b994bf8d09b0
+      attachedDistance:
+        x: -391
+        "y": -77
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Search for the user by Name.  "}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Note:"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"italic"}],"text":"Using the step Search Users by Email will return zero results when the user is not assigned a Microsoft 365 License."}]}]}'
+    - uuid: 6d7a3ce7-ac3c-43e0-89f2-1df855266b6c
+      x: 1559
+      "y": 1360
+      attachedStepId: 491a441c-5856-4174-b788-769c852abe17
+      attachedDistance:
+        x: 400
+        "y": -155
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Check if the user already has the license assigned."}]}]}'
+    - uuid: 766a4826-3319-48c0-acc7-7edb84a13e25
+      x: 1498
+      "y": 1679
+      width: 466
+      height: 148
+      attachedStepId: 923ce199-38d1-4d6a-afec-03ac7c882062
+      attachedDistance:
+        x: -378
+        "y": -199
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Attempt to find the SKU and assign the license to the user.  The workflow will also compare the number of licenses in total and verify that there is licenses available before attempting to assign a license to a user."}]}]}'
+    - uuid: 4c11d9e2-305f-40f7-892b-b8dba0e76111
+      x: 774
+      "y": 1318
+      width: 390
+      height: 93
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Attempt to remove all licenses assigned to the user."}]}]}'
+  output_schema: |-
+    {
+        "message": {
+            "type": 8,
+            "prettyName": "message",
+            "description": ""
+        },
+        "status": {
+            "type": 8,
+            "prettyName": "status",
+            "description": "Status of the workflow."
+        }
+    }
+root: true

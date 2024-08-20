@@ -1,0 +1,126 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 9b85f878-d79e-47c3-8e63-f7d02fcec841
+name: Send CSV File to Elastic
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: a_csv_file
+          required: true
+          prettyName: a CSV File
+          file: {}
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.4
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "activity_log": true,
+            "activity_log_checkpoint_name": "elk_activity_checkpoint",
+            "audit_log": true,
+            "audit_log_checkpoint_name": "elk_audit_checkpoint",
+            "scheduled_interval": "20m",
+            "torq_integration_name": "torq",
+            "elasticsearch_ingestion_endpoint":"https:elastichost:443",
+            "torq_auditlogs_index":"search-torqaudit",
+            "torq_activitylogs_index":"search-torqactivity"
+          }
+        VARIABLE_NAME: data
+      uuid: 10d87956-4a44-434d-b35c-d0d2effaaa00
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_44
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: a7fd77fd-e655-5086-9760-07434694d352
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.workflow_context.data.audit_log }}'
+                  operator: EQUALS
+                  rvalue: "true"
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.3.0
+            id: prepare_audit_logs_in_batch
+            env:
+              INPUT: '{{ $.gather_audit_logs.output }}'
+              JSON_QUERY: |-
+                .[]  | "{\"create\":  {\"_index\": \"{{ $.workflow_context.data.torq_auditlogs_index }}\"}}
+                " + (. |tostring) +""
+              OUTPUT_AS_STRING: "true"
+            uuid: abfc7ea5-8397-4887-8dcf-3740780f3912
+            pretty_name: Prepare Audit Logs in Batch
+            options:
+              executor:
+                name: jq_infra_v_3_3_0
+                env:
+                  COMMAND: jq_command
+                sync: true
+                disable: false
+            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+            manifestId: 13e8f773-c042-5be2-8f25-a4b50d8d8be3
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.6.0
+            id: send_torq_audit_logs
+            env:
+              AUTHORIZATION: None
+              BODY: |
+                {{ $.prepare_audit_logs_in_batch.output }}
+              CONTENT_TYPE: application/json; charset=utf-8
+              HEADERS: '{"authorization":"ApiKey {{ secret "elastic_torq_audit_key" }}"}'
+              METHOD: POST
+              URL: '{{ $.workflow_context.data.elasticsearch_ingestion_endpoint }}/{{ $.workflow_context.data.torq_auditlogs_index }}/_bulk'
+            uuid: 59cc3c71-9ed5-49e2-b54f-679d20c92eee
+            pretty_name: Send Torq Audit Logs
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                  GO_TEMPLATE_BODY_PARSING: "false"
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                sync: true
+                disable: false
+            icon: https://cdn.torq.io/vendors/elastic.svg
+            manifestId: 3dbe09b5-9f21-4ddc-bae8-a4aa025854fb
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+        else: []
+        uuid: fde61346-b4a4-4e7a-b9c0-b57dd7201049
+        pretty_name: If Audit Logs Enabled
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        uuid: d22f072e-523e-4165-a4d2-9a9894748e78
+  annotations:
+    - uuid: 64e20bc9-b80f-45e3-8258-b2d1d06c3f8d
+      x: 389
+      "y": -84
+      width: 679
+      height: 477
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Workflow Context"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"torq_integration_name: "},{"type":"text","text":"The name of the configured in Torq Integrations."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"audit_log"},{"type":"text","text":": Set to TRUE to enable collecting and sending audit logs."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"activity_log: "},{"type":"text","text":"Set to TRUE to enable collecting and sending audit logs."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"audit_log_checkpoint_name:"},{"type":"text","text":" A name that will be applied to the Torq variable to track last audit log retrieved. "}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"activity_log_checkpoint_name:"},{"type":"text","text":" A name that will be applied to the Torq variable to track last activity log retrieved. "}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"scheduled_interval:"},{"type":"text","text":" How often you would like to schedule log retrieval."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"elasticsearch_ingestion_endpoint: "},{"type":"text","text":" The URL of the Elasticsearch Index created for indexes."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"torq_auditlogs_index:"},{"type":"text","text":" The name of the index for auditlogs."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"torq_activitylogs_index:"},{"type":"text","text":" The name of the index for activitylogs."}]},{"type":"paragraph"}]}'
+    - uuid: 3568d137-41b2-4c65-8868-a8a8d5243f0b
+      x: -732
+      "y": -160
+      width: 603
+      height: 492
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Send CSV to Elasticsearch"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow is an example of sending Torq Audit and/or Activity logs to Elasticsearch.  "}]},{"type":"paragraph","content":[{"type":"text","text":"Schedule the workflow to run on a specific time period, pull the logs from Torq  and send to Elasticsearch in a batch transaction, one entry per line."}]},{"type":"paragraph","content":[{"type":"text","text":"A nested workflow is used to pull the audit and/or the activity logs and save the global variable when the last time the logs were pulled."}]},{"type":"paragraph","content":[{"type":"text","text":"Logs are sent to different Indexes,"},{"type":"text","marks":[{"type":"italic"}],"text":" "},{"type":"text","text":"Create "},{"type":"text","marks":[{"type":"code"}],"text":"search-torqaudit"},{"type":"text","text":" and "},{"type":"text","marks":[{"type":"code"}],"text":"search-torqactivity"},{"type":"text","text":" indexes in Elasticsearch, per each index create an API key and their respective secrets "},{"type":"text","marks":[{"type":"code"}],"text":"elastic_torq_audit_key"},{"type":"text","text":" and "},{"type":"text","marks":[{"type":"code"}],"text":"elastic_torq_activity_key"},{"type":"text","text":" to authenticate to each index."}]},{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"text","marks":[{"type":"bold"}],"text":"Note:"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"italic"}],"text":"A global variable is set to keep a checkpoint on the last time the logs were pulled. "}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Elasticsearch_logo.svg/512px-Elasticsearch_logo.svg.png","alt":null,"title":null}}]}]}'
+root: true

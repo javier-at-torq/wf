@@ -1,0 +1,391 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: e1655881-735e-404d-a4c4-3a3689e7ce03
+name: Search In Torq Audit Logs Based on Query
+trigger:
+  interaction:
+    expose_in_cases: true
+    finish_strategy: CONTINUE
+    flow_timeout: 24h
+    form_group:
+      name: Interaction Flow
+      workflow_id: 3b51093a-c3b1-4342-ac56-91ee1fe42646
+    form_schema:
+      parameters:
+        - name: information
+          pretty_name: Information
+          type: MARKDOWN_TEXT
+          value: |-
+            **Search in Torq Audit Logs**
+            more info on [audit logs](https://learn.torq.io/docs/audit-logs)
+        - name: Event Type
+          optionsList:
+            - email
+            - action
+            - resource_name
+            - actor_type
+            - actor_name
+          pretty_name: Search Based on Type
+          required: true
+          type: SINGLE_SELECT
+          value: email
+        - description: For example, workflow/integration or email@torq.io or resource name
+          name: event_type_contains
+          pretty_name: Search Term for Type
+          required: true
+          type: SHORT_TEXT
+          value: admin@domain.com
+        - name: start_time
+          pretty_name: Start Time
+          required: true
+          type: SHORT_TEXT
+          value: "2024-03-01T08:53:32Z"
+        - description: Leave blank in case of end date = now
+          name: end_time
+          pretty_name: End Time
+          type: SHORT_TEXT
+          value: "2024-03-30T08:40:18Z"
+        - description: Show a download link with PUBLIC exposure. Download Links are valid for X hrs only.
+          name: show_download_link
+          pretty_name: Show Download Link
+          required: true
+          type: BOOLEAN
+          value: "false"
+        - buttons:
+            - text: Go Fetch
+          name: buttons
+          type: BUTTONS
+    form_title: Search Audit Logs
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "torq_integration": {
+                  "type": 17,
+                  "prettyName": "Torq Integration",
+                  "description": "",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "torq_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "torq_integration": "torq_api"
+          }
+      uuid: 01b09d37-56fa-49b5-8eb4-95da4d9181ff
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - loop:
+        key: key_loop
+        value: value_loop
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/torq/list-audit-logs:8.1.0
+            id: list_audit_logs
+            env:
+              END_TIME: '{{ $.event.end_time }}'
+              NEXT_PAGE_TOKEN: '{{ $.list_audit_logs.api_object.next_page_token }}'
+              PAGE_SIZE: "500"
+              START_TIME: '{{ $.event.start_time }}'
+            envFrom:
+              integrationRef: '{{ $.workflow_parameters.torq_integration }}'
+            ignoreFailure: true
+            uuid: 7dfd7e8d-002b-461f-a694-4d87c58567f1
+            pretty_name: List audit logs
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  AUTHORIZATION: Bearer
+                  HEADERS: '{}'
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v1alpha/audit_logs?{{ if or .START_TIME }}&start_time={{ .START_TIME }}{{ end }}{{ if or .END_TIME }}&end_time={{ .END_TIME }}{{ end }}{{ if or .PAGE_SIZE }}&page_size={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&page_token={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .SORT_ORDER }}&order={{ .SORT_ORDER | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://docs.torq.io/torq-public-api/ref#listauditlogs
+            manifestId: baeaaba4-3d1b-5a0e-bbb3-e64a56946917
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.list_audit_logs.api_object.audit_logs }}'
+                        operator: NOT_EMPTY
+                        rvalue: ""
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.4.0
+                  id: filter_array
+                  env:
+                    FIELD_PATH: '{{ $.event.''Event Type'' }}'
+                    FILTER_ARG: '{{ $.event.event_type_contains }}'
+                    FILTER_FUNC: Contains
+                    INPUT: '{{ $.list_audit_logs.api_object.audit_logs }}'
+                  uuid: fa9b3caa-29a2-46cd-945b-7d34fbf425a4
+                  pretty_name: Filter Array
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: array_filter
+                      sync: true
+                      disable: false
+                  documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                  manifestId: 579bcfeb-9e98-541c-8f7a-0e97bac3f54e
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.filter_array.result }}'
+                              operator: NOT_EMPTY
+                              rvalue: ""
+                    then:
+                      - collector:
+                          id: collect_log_pages
+                          uuid: dc1ad035-6c08-4b05-adf2-e445cd356760
+                          pretty_name: Collect Log Pages
+                          expression: '{{ $.filter_array.result }}'
+                          flatten: true
+                    else: []
+                    uuid: 483caa3c-3a28-4b34-a53f-bf5c8ce537a6
+                    pretty_name: If there are action match
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.list_audit_logs.api_object.next_page_token }}'
+                              operator: NOT_EMPTY
+                              rvalue: ""
+                    then: []
+                    else:
+                      - break:
+                          pretty_name: Break
+                          uuid: 28095633-0d1e-4c03-8c2f-c170da0d01b2
+                    uuid: 03c97bce-ae29-47f0-9bac-30c11c1042b8
+                    pretty_name: If Next Page Token Exists
+              else:
+                - break:
+                    pretty_name: Break
+                    uuid: 54159cbf-03c8-491b-97d9-22770723acef
+              uuid: ba967fe8-1f2c-46c8-874d-d3a0e2d14aad
+              pretty_name: If Audit Logs Exists
+        uuid: 388ea599-d4d6-411e-ba68-7301ac6bc8e9
+        pretty_name: Gather All Logs
+        until_break: true
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.collect_log_pages.result }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+            id: interaction_no_results
+            env:
+              CASE_ID: '{{ $.metadata.case.id }}'
+              FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"## There are no matching Results"}]}'
+              FORM_TITLE: Results
+              HAS_NEXT: "false"
+              TIMEOUT: 24h
+            uuid: 8fe12bc0-2625-4b90-a3ab-7a8ff73591b1
+            pretty_name: Interaction no Results
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_2
+                env: {}
+                sync: true
+                disable: false
+            manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+            id: extract_email_action_timestamp_resource_name
+            env:
+              __TQ_FILE_ENV_PARSER__INPUT: plain-text
+              INPUT: '{{ $.collect_log_pages.result }}'
+              JSON_QUERY: '.[] | {Email: .email, Action: .action, Date: .timestamp, Resource: .resource_name, Id: .id}'
+            ignoreFailure: true
+            uuid: acb4aa96-eaca-4dec-9209-45c7e161a338
+            pretty_name: extract email, action, timestamp, resource_name
+            options:
+              executor:
+                name: jq_infra_v_3_11_1
+                env:
+                  COMMAND: jq_command
+                sync: true
+                disable: false
+            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+            manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+            id: create_ascii_table
+            env:
+              INPUT: '{{ $.extract_email_action_timestamp_resource_name.output }}'
+              MARKDOWN: "true"
+              MAX_COLUMN_LENGTH: "16"
+            ignoreFailure: true
+            uuid: 0ef72bb8-1307-41d1-bc4d-04639609bf2c
+            pretty_name: Create ASCII table
+            options:
+              executor:
+                name: utils_output_utils_tabulate_v_1_3_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.event.show_download_link }}'
+                        operator: EQUALS
+                        rvalue: "True"
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/print:1.3.0
+                  id: download_url
+                  env:
+                    INPUT: '{{ $.extract_email_action_timestamp_resource_name.output }}'
+                  uuid: 5767d54e-dd4d-448d-9ce2-a04bb3698b5c
+                  pretty_name: Download URL
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_22_0
+                      env:
+                        COMMAND: print
+                      sync: true
+                      disable: false
+                    output_to_file: true
+                  manifestId: b2225e2e-e952-5da2-9175-8469929beb4a
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+                - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                  id: interaction_results_with_download_link
+                  env:
+                    CASE_ID: '{{ $.metadata.case.id }}'
+                    FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false}'
+                    FORM_SCHEMA: '{ "parameters": [{"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"## {{ jsonEscape $.collect_log_pages.length }} Results"}, {"name":"parameter_4","type":"MARKDOWN_TEXT","prettyName":"Parameter 4","value":"\n[Download Findings in JSON]({{ jsonEscape $.download_url.output.url }})\n\n"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"{{ jsonEscape $.create_ascii_table.tabulate_output }}"}]}'
+                    FORM_TITLE: Results
+                    HAS_NEXT: "false"
+                    TIMEOUT: 24h
+                  uuid: 52024ad5-c963-4a1f-995e-78a86950e87e
+                  pretty_name: Interaction  Results with Download Link
+                  options:
+                    executor:
+                      name: interact_send_interaction_v_2_0_2
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              else:
+                - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.2
+                  id: interaction_results
+                  env:
+                    CASE_ID: '{{ $.metadata.case.id }}'
+                    FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false}'
+                    FORM_SCHEMA: '{ "parameters": [{"name":"parameter_2","type":"MARKDOWN_TEXT","prettyName":"Parameter 2","value":"## {{ jsonEscape $.collect_log_pages.length }} Results"}, {"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"{{ jsonEscape $.create_ascii_table.tabulate_output }}"}]}'
+                    FORM_TITLE: Results
+                    HAS_NEXT: "false"
+                    TIMEOUT: 24h
+                  uuid: abf78027-2e4b-4fb6-8ce8-548d4c6153f8
+                  pretty_name: Interaction  Results
+                  options:
+                    executor:
+                      name: interact_send_interaction_v_2_0_2
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: c6611f3f-29ce-5ca8-b25f-7020e00f7c2f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                  retry: {}
+              uuid: 50c0a6f1-6dca-4545-9bfc-417723742ac7
+              pretty_name: If Download Link Enabled
+        uuid: d2fa3111-76d0-4adb-8c2a-8c9ae5e521d5
+        pretty_name: If No Results
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.collect_log_pages.result }}'
+        uuid: 80b296cb-9b4d-4780-8510-39ff08803b4b
+  annotations:
+    - uuid: 48a4e21a-2670-46ad-8ab3-21c911024ecd
+      x: -705
+      "y": 125
+      width: 641
+      height: 292
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Search In Torq Audit Logs Based on Query"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This Interactive Workflow is a quick example to search for audit event based on:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Action ( User logged in, Workflow updated, Integration updated, etc.. )"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Email ( "},{"type":"text","marks":[{"type":"link","attrs":{"href":"mailto:user@domain.com","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"user@domain.com"},{"type":"text","text":" )"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Actor Type (web_app )"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Actor Name"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Resource Name"}]}]}]},{"type":"paragraph","content":[{"type":"text","text":"                                                 "},{"type":"image","attrs":{"src":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWdZDNKgforaheSYa26AGMw5UNgNYQju-wxBqn4WWYjg&s","alt":null,"title":null}}]}]}'
+    - uuid: e7cb2b4a-f71c-48ad-829e-4fe5ce281143
+      x: 932
+      "y": 755
+      width: 410
+      height: 154
+      attachedStepId: fa9b3caa-29a2-46cd-945b-7d34fbf425a4
+      attachedDistance:
+        x: -372
+        "y": -74
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Filter Logs"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Use "},{"type":"text","marks":[{"type":"code"}],"text":"Event Type"},{"type":"text","text":" value from trigger to filter a field based on input search term."}]}]}'
+    - uuid: 42d6e8de-0b5a-496a-8fe3-e1328c6d455f
+      x: 220
+      "y": 2496
+      width: 381
+      height: 148
+      attachedStepId: 5767d54e-dd4d-448d-9ce2-a04bb3698b5c
+      attachedDistance:
+        x: -360
+        "y": -112
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Show or Hide Download Link"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"When download link is enabled, a public Torq File is generated. The link will be valid for the next 24 hrs."}]}]}'
+root: true

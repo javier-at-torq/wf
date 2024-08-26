@@ -1,0 +1,428 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 87c51188-040e-4aa4-8049-5927f052fb48
+name: RecordedFuture - IP Address Enrichment with Cache
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: ip_address
+          required: true
+          prettyName: IP Address
+          shortText:
+            defaultValue: 8.8.8.8
+        - name: recorded_future_integration
+          description: The name of the integration with Recorded Future
+          required: true
+          prettyName: Recorded Future Integration
+          integration:
+            defaultValue: recordedfuture
+            vendor: recorded_future_token
+        - name: torq_integration
+          description: The name of the integration with Torq
+          required: true
+          prettyName: Torq Integration
+          integration:
+            defaultValue: torq
+            vendor: torq_token
+        - name: provide_raw_analysis_data
+          required: true
+          prettyName: Provide Raw Analysis Data
+          boolean:
+            defaultValue: true
+    nestedOnly: true
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "cache_ttl": {
+                  "type": 11,
+                  "prettyName": "Cache TTL",
+                  "description": "The cache TTL set in hours to cache IOCs",
+                  "uiPlaceholder": "24"
+              }
+          }
+        VALUES: |-
+          {
+            "cache_ttl": 24
+          }
+      uuid: 66e433ac-0ea6-4524-91e1-c83d4c2ff150
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/calculate-sha1:2.0.0
+      id: create_sha1_of_ioc
+      env:
+        FILE: '{"source":"{{ $.event.ip_address }}","type":"default","torq_wrapper__":true}'
+      uuid: 4c318d89-9d26-4fe1-a081-151915efdaba
+      pretty_name: Create SHA1 of IoC
+      options:
+        executor:
+          name: utils_infrastructure_v_1_12_0
+          env:
+            COMMAND: calculate_sha1
+          sync: true
+          disable: false
+      manifestId: 3984d107-81b0-5b62-9868-e850cfb2ae77
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.1.0
+      id: read_ioc_cache
+      env:
+        KEY: '{{ $.metadata.workflow_id }}_{{ $.create_sha1_of_ioc.result }}'
+      envFrom:
+        integrationRef: '{{ $.event.torq_integration }}'
+      uuid: ae9eb959-59f5-483f-8339-a02a03b4dd6f
+      pretty_name: Read IOC Cache
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: Bearer
+            HEADERS: '{}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+            TIMEOUT: "30"
+            TOKEN: '{{ .ACCESS_TOKEN }}'
+            URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+          sync: true
+          disable: false
+      manifestId: 113df204-5b8d-5be4-8f22-895f9e87a732
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.read_ioc_cache.api_object.value }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/recorded_future/enrich-ip-address:3.0.4
+            id: enrich_ip_address
+            env:
+              IP_ADDRESS: '{{ $.event.ip_address }}'
+              RETURN_FIELDS: enterpriseLists,entity,intelCard,location,risk,riskMapping,sightings,timestamps
+            envFrom:
+              integrationRef: '{{ $.event.recorded_future_integration }}'
+            ignoreFailure: true
+            uuid: cbb0b49f-56dd-410e-ae2d-a3fc57d84a45
+            pretty_name: Enrich IP Address
+            options:
+              executor:
+                name: http_request_v_4_2_8
+                env:
+                  HEADERS: |-
+                    {
+                        "X-RFToken": "{{ .RECORDED_FUTURE_API_TOKEN }}"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["RETURN_FIELDS", "IP_ADDRESS", "RECORDED_FUTURE_API_TOKEN"]'
+                  TIMEOUT: "30"
+                  URL: https://api.recordedfuture.com/v2/ip/{{ .IP_ADDRESS | urlEnc }}?&fields={{ .RETURN_FIELDS | urlEnc }}{{ if or .INCLUDE_METADATA }}&metadata={{ .INCLUDE_METADATA | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://api.recordedfuture.com/v2/#!/IP/IP_Address_Lookup
+            manifestId: 4bc82716-f710-43c6-a631-8c7755d00ccb
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.enrich_ip_address.step_status.code }}'
+                        operator: EQUALS
+                        rvalue: "1"
+              then:
+                - parallel:
+                    uuid: 3d2b29bd-83a4-4017-917b-f5b7b1dd096f
+                    pretty_name: Parallel Executions
+                    threads:
+                      - uuid: 794aded7-3809-4490-9ffb-9dc62f7952ac
+                        steps:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.enrich_ip_address.api_object.data.riskMapping }}'
+                                        operator: NOT_EMPTY
+                                        rvalue: ""
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.8.0
+                                  id: ttps
+                                  env:
+                                    INPUT: '{{ $.enrich_ip_address.api_object.data.riskMapping }}'
+                                    JSON_QUERY: 'map ( {"rule":.rule, "ttps":(.categories[]|.name) } ) | group_by(.rule) | map({rule: .[0].rule, ttps: map(.ttps)})'
+                                  uuid: 0e5fc4b2-21f7-4695-ae2c-14ec64e1cae0
+                                  pretty_name: ttps
+                                  options:
+                                    executor:
+                                      name: jq_infra_v_3_8_0
+                                      env:
+                                        COMMAND: jq_command
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                                  manifestId: 44e7e0f1-b7c5-5319-bbba-c53a2954c5c3
+                                  isPrivate: false
+                                  isPrivateUrl: true
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                                  id: ttps
+                                  env:
+                                    DATA_TYPE: JSON
+                                    VALUE_JSON: '[]'
+                                    VARIABLE_NAME: output
+                                  uuid: 2b274d8d-478a-4c99-b24c-3fdbffc35a32
+                                  pretty_name: ttps
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_9_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              uuid: 5618fbfa-1ebe-4b99-b504-0450beafe29a
+                              pretty_name: If Risk Mapping Found
+                      - uuid: 6693e4a4-48ca-4427-b9de-1dddf0fe9aef
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-first-ipv4-address:1.1.3
+                            id: extract_ipv4_address
+                            env:
+                              INPUT: '{{ $.event.ip_address }}'
+                            uuid: a827469a-7147-463e-b629-6a2ff3fb2140
+                            pretty_name: Extract IPv4 address
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_9_0
+                                env:
+                                  COMMAND: extract_first_ipv4_address
+                                sync: true
+                                disable: false
+                            manifestId: ab35f8a8-bebd-5dc6-9977-ae43be071e92
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                  id: enrichment_results
+                  env:
+                    DATA_TYPE: JSON
+                    VALUE_JSON: |-
+                      {
+                        "raw_data":{{ $.enrich_ip_address.api_object.data }},
+                        "observable_type":"IP address",
+                        "observable_subtype":"{{ if $.extract_ipv4_address.result }}IPv4{{else}}IPv6{{end}}",
+                        "observable_value":"{{ $.event.ip_address }}",
+                        "observable_description":"{{ $.enrich_ip_address.api_object.data.risk.riskSummary }}",
+                        "observable_reputation": "{{ $.enrich_ip_address.api_object.data.risk.criticalityLabel }}",
+                        "mitre":{{ $.ttps.output }}
+                        }
+                    VARIABLE_NAME: output
+                  uuid: 33c57867-d770-4094-ac0a-b2bddc0001b1
+                  pretty_name: Enrichment Results
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_9_0
+                      env:
+                        COMMAND: set_variable
+                      sync: true
+                      disable: false
+                  manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+                  id: save_the_ioc_details_to_cache
+                  env:
+                    EXPIRES_IN: '{{ $.workflow_parameters.cache_ttl }}h'
+                    KEY: '{{ $.metadata.workflow_id }}_{{ $.create_sha1_of_ioc.result }}'
+                    VALUE: '{{ $.enrichment_results.output }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.torq_integration }}'
+                  uuid: 26ecaf71-9643-4379-9436-4bd152bd3044
+                  pretty_name: Save the IOC details to Cache
+                  options:
+                    executor:
+                      name: http_request_v_4_6_0
+                      env:
+                        AUTHORIZATION: Bearer
+                        BODY: |-
+                          {
+                          {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                          {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                              "value": {{ .VALUE }}
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: '{}'
+                        METHOD: POST
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .ACCESS_TOKEN }}'
+                        URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                      sync: true
+                      disable: false
+                  manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                  skip: false
+              else:
+                - exit:
+                    success: "true"
+                    pretty_name: Exit
+                    output: |-
+                      {
+                        "output": {
+                          "observable_value": "{{ $.event.ip_address }}",
+                          "observable_reputation": "Not Found"
+                        }
+                      }
+                    uuid: 493d1131-29f4-42e5-a993-3c04d18c7f93
+                    use_schema: true
+              uuid: 584a95fb-d164-465c-af65-1efacd408efe
+              pretty_name: If RecordedFuture Analysis Exists
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+            id: enrichment_results
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: '{{ $.read_ioc_cache.api_object.value }}'
+              VARIABLE_NAME: output
+            uuid: 85cff482-16f4-42f6-9304-4fc9c835121c
+            pretty_name: Enrichment Results
+            options:
+              executor:
+                name: utils_infrastructure_v_1_9_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: a2fb6135-3fdb-4b1a-8d92-922abac995ad
+        pretty_name: If IOC Cache is Empty
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.provide_raw_analysis_data }}'
+                  operator: EQUALS
+                  rvalue: "true"
+        then: []
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.8.0
+            id: enrichment_results
+            env:
+              INPUT: '{{ $.enrichment_results.output }}'
+              JSON_QUERY: del(.raw_data)
+            uuid: c7eb2143-b7ef-4942-a6cc-5a7fd2961858
+            pretty_name: Enrichment Results
+            options:
+              executor:
+                name: jq_infra_v_3_8_0
+                env:
+                  COMMAND: jq_command
+                sync: true
+                disable: false
+            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+            manifestId: 44e7e0f1-b7c5-5319-bbba-c53a2954c5c3
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+        uuid: 87494237-7c5f-484b-bb7d-5cfecab344a9
+        pretty_name: If Add Raw Analysis
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "output": {{ $.enrichment_results.output }}
+          }
+        uuid: ecc8f92e-0223-4ac7-af49-846fe87c4add
+        use_schema: true
+  annotations:
+    - uuid: efca92f8-fb2a-4a84-98a7-b3dfc32d3d25
+      x: -603
+      "y": 123
+      width: 467
+      height: 319
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"RecordedFuture - IP Address Enrichment"}]},{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"text","text":"Receive an IP address from a parent workflow and query Recorded Future for its reputation."}]},{"type":"paragraph","content":[{"type":"text","text":"This workflow utilizes a global variable as a cache to temporarily store results and actively queries for enrichment only when the observable reputation is not found in the local cache."}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://images.g2crowd.com/uploads/product/image/social_landscape/social_landscape_9d79dbf9c1e656238aabcb6f6593e8b9/recorded-future.png","alt":null,"title":null}}]}]}'
+    - uuid: da121ae0-df5e-4ccc-a962-229e849529ea
+      x: -185
+      "y": 858
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Cached Results"},{"type":"hardBreak"}]},{"type":"paragraph","content":[{"type":"text","text":"By default results are cached 24 hrs."}]},{"type":"paragraph","content":[{"type":"text","text":"If reputation is found stored in a global value, then the cached result is returned to the parent workflow."}]}]}'
+    - uuid: 64027ba3-f8a5-4fb7-a519-ffa8f5ffc6ed
+      x: 1167
+      "y": 1693
+      width: 426
+      height: 202
+      attachedStepId: 33c57867-d770-4094-ac0a-b2bddc0001b1
+      attachedDistance:
+        x: -327
+        "y": -95
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Results Summary"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Output provides a summarized version of the analysis, although the original analysis information is available as optional."},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","text":"All data is stored on local cache using the "},{"type":"text","marks":[{"type":"code"}],"text":"workflow_id"},{"type":"text","text":" and the "},{"type":"text","marks":[{"type":"code"}],"text":"hash of the observable"},{"type":"text","text":" value as the key for retrieve it later."}]}]}'
+    - uuid: 711efcc6-93f5-4b76-b720-47353ddf7231
+      x: 343
+      "y": 209
+      width: 439
+      height: 151
+      attachedStepId: 66e433ac-0ea6-4524-91e1-c83d4c2ff150
+      attachedDistance:
+        x: -343
+        "y": -78
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Cache TTL"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Set expiration time for local cache on "},{"type":"text","marks":[{"type":"code"}],"text":"Cache TTL"},{"type":"text","text":" variable"}]}]}'
+    - uuid: 88fbcb88-c2d4-40fa-a96e-ed5a8da4f4d3
+      x: 342
+      "y": 2294
+      width: 529
+      height: 235
+      attachedStepId: c7eb2143-b7ef-4942-a6cc-5a7fd2961858
+      attachedDistance:
+        x: -482
+        "y": -54
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Provide Original Analysis Output"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"When Provide "},{"type":"text","marks":[{"type":"code"}],"text":"Raw Analysis Data"},{"type":"text","text":" parameter is set to "},{"type":"text","marks":[{"type":"code"}],"text":"false"},{"type":"text","text":". Original JSON object returned by vendor API is deleted from output."}]},{"type":"paragraph","content":[{"type":"text","text":"When "},{"type":"text","marks":[{"type":"code"}],"text":"Provide Raw Analysis Data"},{"type":"text","text":" parameter is set to "},{"type":"text","marks":[{"type":"code"}],"text":"true"},{"type":"text","text":". Both, original API Response and Workflows Summary are returned to parent workflow."}]}]}'
+  output_schema: |-
+    {
+        "output": {
+            "type": 10,
+            "prettyName": "output",
+            "description": ""
+        }
+    }
+root: true

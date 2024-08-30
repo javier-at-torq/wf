@@ -1,0 +1,745 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: dd23a8b6-dddc-403d-a7bc-7d0723b1b0b0
+name: Create Att&ck Layer from TTP List
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: ttps_list
+          description: A list of TTPs external id such as ["T1102","T1104","T1204","T1496","T1547","T1608","TA0002","TA0027"]
+          required: true
+          prettyName: TTPs List
+          json:
+            defaultValue: ""
+        - name: layer_name
+          description: Name of this Layer
+          required: true
+          prettyName: Layer Name
+          shortText:
+            defaultValue: ""
+        - name: ttp_color
+          description: Color in Hex Format
+          required: true
+          prettyName: TTP Color
+          shortText:
+            defaultValue: 02bfd4
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: set_variable
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: '{{ $.metadata.execution_id }}'
+        VARIABLE_NAME: data
+      uuid: 5029707e-ab27-4a34-a878-35f2a8f0be1a
+      pretty_name: Set Variable
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+      id: filter_enterprise_attack_json
+      env:
+        INPUT: https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json
+        JSON_QUERY: '.objects[] |select(.description !=null) | select(.external_references != null) | { desc: .description, ext: .external_references, x_mitre_platforms: .x_mitre_platforms} |select(.ext[].external_id != null) | { description: .desc, external_ids: [(.ext[].external_id // empty)], x_mitre_platforms: .x_mitre_platforms}'
+      uuid: b807b615-c627-4807-9498-6ca785a9f15a
+      pretty_name: Filter Enterprise Attack JSON
+      options:
+        executor:
+          name: jq_infra_v_3_11_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 3f245a75-c596-4df2-87d4-da06b602f8a8
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 631bf445-05e8-4684-879a-4fa0783f0733
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: filter_tactics
+                env:
+                  INPUT: '{{ $.event.ttps_list }}'
+                  JSON_QUERY: '[.[] | select (. | match("^TA"))]'
+                uuid: adfaa49e-103e-45c1-a277-923df0c91471
+                pretty_name: Filter Tactics
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.filter_tactics.output }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.1.0
+                      id: tactics_filter
+                      env:
+                        DELIMITER: Pipe
+                        INPUT: '{{ $.filter_tactics.output }}'
+                      uuid: 63b0991f-56db-4590-80ad-6e589b4ee548
+                      pretty_name: Tactics Filter
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_22_0
+                          env:
+                            COMMAND: join_strings
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+                      manifestId: 74ceac7f-333f-5d60-a6ba-197751efadd8
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                      id: techniques_from_tactics
+                      env:
+                        INPUT: '{{ $.filter_enterprise_attack_json.output }}'
+                        JSON_QUERY: '[.[] | select(.description | match("{{ $.tactics_filter.output }}")) | .external_ids[] ]'
+                      uuid: 205162a1-696f-4810-9b91-c024e1af281b
+                      pretty_name: Techniques from Tactics
+                      options:
+                        executor:
+                          name: jq_infra_v_3_11_1
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  else: []
+                  uuid: 0c7bacd5-7faf-435a-8972-16fa7d9675fc
+                  pretty_name: If Tactics Found
+          - uuid: 3e045c10-488b-4a25-838d-4f8abc2fdf31
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: filter_techniques
+                env:
+                  INPUT: '{{ $.event.ttps_list }}'
+                  JSON_QUERY: '[.[] | select (. | match("^T1"))]'
+                uuid: e4c0d014-4d93-4bd8-a35f-7478e920b223
+                pretty_name: Filter Techniques
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/concat-arrays:1.2.0
+      id: all_techniques
+      env:
+        INPUT: '{{ $.techniques_from_tactics.output }}'
+        SECOND_ARRAY: '{{ $.filter_techniques.output }}'
+      uuid: 5a1138a1-0242-4ecd-ad75-b383dc2cc85a
+      pretty_name: All Techniques
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: concat_arrays
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#concat-arrays
+      manifestId: a146ddc2-7eae-537d-84d1-232b827addf7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/unique-on-array:1.2.0
+      id: all_unique_techniques
+      env:
+        INPUT: '{{ $.all_techniques.result }}'
+      uuid: 6ba5ee85-4d46-4f14-9b4b-af28420ae9cf
+      pretty_name: All Unique Techniques
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: unique_on_array
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#unique-on-array
+      manifestId: 31618e5c-5649-5a65-a117-d3ab24c30a8c
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/join-strings:2.1.0
+      id: techniques_filter
+      env:
+        DELIMITER: Pipe
+        INPUT: '{{ $.all_unique_techniques.result }}'
+      uuid: 48845628-999d-4c98-b7e7-4a91623901a2
+      pretty_name: Techniques Filter
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: join_strings
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#join-strings
+      manifestId: 74ceac7f-333f-5d60-a6ba-197751efadd8
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+      id: techniques_descriptions
+      env:
+        INPUT: '{{ $.filter_enterprise_attack_json.output }}'
+        JSON_QUERY: '.[] | select(.description | match("{{ $.techniques_filter.output }}")) '
+      uuid: ce69598b-9050-4f98-bb42-f6c99f23d5ad
+      pretty_name: Techniques Descriptions
+      options:
+        executor:
+          name: jq_infra_v_3_11_1
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.techniques_descriptions.output }}'
+                  operator: NOT_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+            id: extract_platforms
+            env:
+              INPUT: '{{ $.techniques_descriptions.output }}'
+              JSON_QUERY: '[.[]| .x_mitre_platforms | select (.!= null)| .[] ]  | unique'
+            uuid: 42d74d17-0ba4-46f3-86f7-a72e8e8aa9a6
+            pretty_name: Extract Platforms
+            options:
+              executor:
+                name: jq_infra_v_3_11_1
+                env:
+                  COMMAND: jq_command
+                sync: true
+                disable: false
+            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+            manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+            isPrivate: false
+            isPrivateUrl: true
+            mock_output:
+              enabled: false
+            skip: false
+        else: []
+        uuid: 5b58d955-d19d-4a92-966b-0ce9e4959688
+        pretty_name: If Techniques Description is not null
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.extract_platforms.output }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+            id: extract_platforms
+            env:
+              DATA_TYPE: JSON
+              VALUE_JSON: |-
+                [
+                    "IaaS",
+                    "Linux",
+                    "Network",
+                    "SaaS",
+                    "Windows",
+                    "macOS"
+                  ]
+              VARIABLE_NAME: output
+            uuid: d744fbc5-1620-4bb0-86f9-821087c7c6a0
+            pretty_name: Extract Platforms
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+        else: []
+        uuid: 13206fce-ddbd-4913-9750-39c892521527
+        pretty_name: If Platforms are Empty
+    - parallel:
+        uuid: c087c2c6-7134-4891-ba33-ed481100c3f1
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: bdea4acf-fa3f-43ec-b906-efa304d0629c
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: all_subtechniques_parents
+                env:
+                  INPUT: '{{ $.all_unique_techniques.result }}'
+                  JSON_QUERY: '[.[] | scan("^T[0-9]{4}.[0-9]{3}") | scan("^T[0-9]{4}")] | unique'
+                uuid: 887bbe3f-907d-4490-bc5a-df8b1d3079ef
+                pretty_name: All Subtechniques Parents
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: b528ce0c-9019-4c30-b9f2-370fc82eea10
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: all_single_techniques
+                env:
+                  INPUT: '{{ $.all_unique_techniques.result }}'
+                  JSON_QUERY: '[.[]  | scan("^T[0-9]{4}")] | unique'
+                uuid: bed1ad2d-d56a-4005-9157-0d2ec16c98ea
+                pretty_name: All Single Techniques
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/subtract-arrays:1.2.0
+      id: subtract_arrays
+      env:
+        LEFT_ARRAY: '{{ $.all_subtechniques_parents.output }}'
+        RIGHT_ARRAY: '{{ $.all_single_techniques.output }}'
+      uuid: ea61353e-7001-4bea-8789-3ba2888faa4b
+      pretty_name: Subtract arrays
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: array_substrut
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#subtract-arrays
+      manifestId: b75c8f4e-d5ee-5bd0-b08d-c5409edd0dde
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 9b73427e-58f5-47ac-b645-1a8c9933a904
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 5069318b-4eb2-40e6-ac8f-95382c09f750
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: all_subtechniques
+                env:
+                  INPUT: '{{ $.all_unique_techniques.result }}'
+                  JSON_QUERY: '[.[]  | scan("^T[0-9]{4}.[0-9]{3}") ] | unique'
+                uuid: 36caeb06-c00b-418b-985e-f27e6058103a
+                pretty_name: All SubTechniques
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/concat-arrays:1.2.0
+                id: all_sections_with_show_enabled
+                env:
+                  INPUT: '{{ $.subtract_arrays.intersection }}'
+                  SECOND_ARRAY: '{{ $.all_subtechniques.output }}'
+                uuid: 745cc185-8052-4bd9-80e1-72e973c449cc
+                pretty_name: All Sections with Show Enabled
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: concat_arrays
+                    sync: true
+                    disable: false
+                documentationUrl: https://learn.torq.io/docs/array-utilities#concat-arrays
+                manifestId: a146ddc2-7eae-537d-84d1-232b827addf7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: techniques_list_showsubtechniques
+                env:
+                  INPUT: '{{ $.all_sections_with_show_enabled.result | uniq }}'
+                  JSON_QUERY: '[.[] | {techniqueID: .,color: "#{{ $.event.ttp_color }}",enabled: true,showSubtechniques: true}]'
+                uuid: 36378860-560c-494d-b180-5bbabea0794c
+                pretty_name: Techniques List - showSubtechniques
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: 8ba552a8-55e8-4e48-9277-883f5f451576
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.1
+                id: techniques_list_not_showsubtechniques
+                env:
+                  INPUT: '{{ $.subtract_arrays.right_diff }}'
+                  JSON_QUERY: '[.[] | {techniqueID: .,color: "#{{ $.event.ttp_color }}",enabled: true,showSubtechniques: false}]'
+                uuid: 4e0c5cfa-c777-49e6-94ec-34d94f52080d
+                pretty_name: Techniques List - NOT showSubtechniques
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_1
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 8444ea03-99f2-502b-9fbc-869902940776
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/concat-arrays:1.2.0
+      id: all_techniques_sections
+      env:
+        INPUT: '{{ $.techniques_list_showsubtechniques.output }}'
+        SECOND_ARRAY: '{{ $.techniques_list_not_showsubtechniques.output }}'
+      uuid: 800f6b79-98b1-40fb-8794-4b9a9c5b092a
+      pretty_name: All Techniques Sections
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: concat_arrays
+          sync: true
+          disable: false
+      documentationUrl: https://learn.torq.io/docs/array-utilities#concat-arrays
+      manifestId: a146ddc2-7eae-537d-84d1-232b827addf7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 89741dc2-b61a-4f17-9bbb-9830920e5490
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: d430563d-a894-4872-ac04-9ba39d61db19
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: layertemplate
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "name": "{{ $.event.layer_name }}",
+                      "versions": {
+                        "attack": "13",
+                        "navigator": "4.8.2",
+                        "layer": "4.4"
+                      },
+                      "domain": "enterprise-attack",
+                      "description": "",
+                      "filters": {
+                        "platforms": {{ $.extract_platforms.output }}
+                      },
+                      "sorting": 0,
+                      "layout": {
+                        "layout": "side",
+                        "aggregateFunction": "average",
+                        "showID": false,
+                        "showName": true,
+                        "showAggregateScores": false,
+                        "countUnscored": false
+                      },
+                      "hideDisabled": false,
+                      "techniques": {{ $.all_techniques_sections.result }},
+                      "gradient": {
+                        "colors": [
+                          "#ff6666ff",
+                          "#ffe766ff",
+                          "#8ec843ff"
+                        ],
+                        "minValue": 0,
+                        "maxValue": 100
+                      },
+                      "legendItems": [],
+                      "metadata": [],
+                      "links": [],
+                      "showTacticRowBackground": false,
+                      "tacticRowBackground": "#dddddd",
+                      "selectTechniquesAcrossTactics": true,
+                      "selectSubtechniquesWithParent": false
+                    }
+                  VARIABLE_NAME: tmpl
+                uuid: e79d68da-d38e-4fd6-afea-81fd3a50956d
+                pretty_name: LayerTemplate
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - uuid: a4e91d2b-9c33-4e29-bf66-df96140b55ff
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: svg_template
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "name": "{{ $.event.layer_name }}",
+                      "versions": {
+                        "attack": "13",
+                        "navigator": "4.8.2",
+                        "layer": "4.3"
+                      },
+                      "domain": "enterprise-attack",
+                      "description": "",
+                      "filters": {
+                        "platforms": {{ $.extract_platforms.output }}
+                      },
+                      "sorting": 0,
+                      "layout": {
+                        "layout": "side",
+                        "aggregateFunction": "average",
+                        "showID": false,
+                        "showName": true,
+                        "showAggregateScores": false,
+                        "countUnscored": false
+                      },
+                      "hideDisabled": false,
+                      "techniques": {{ $.all_techniques_sections.result }},
+                      "gradient": {
+                        "colors": [
+                          "#ff6666ff",
+                          "#ffe766ff",
+                          "#8ec843ff"
+                        ],
+                        "minValue": 0,
+                        "maxValue": 100
+                      },
+                      "legendItems": [],
+                      "metadata": [],
+                      "links": [],
+                      "showTacticRowBackground": false,
+                      "tacticRowBackground": "#dddddd",
+                      "selectTechniquesAcrossTactics": true,
+                      "selectSubtechniquesWithParent": false
+                    }
+                  VARIABLE_NAME: tmpl
+                uuid: 0de9f853-f816-424d-b50a-513d68837594
+                pretty_name: SVG Template
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:3.3.0
+      id: create_svg_from_json_layer
+      env:
+        PYTHON_CODE: "from mitreattack.navlayers import Layer\nfrom mitreattack.navlayers import ToSvg, SVGConfig\nimport json\nimport requests\nimport base64\n\nurl = 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json'\nr = requests.get(url, allow_redirects=True)\nfjson = open('framework.json', 'w')\nfjson.write(json.dumps(r.json()))\nfjson.close()\n  \nlayer_json = '''{{ $.svg_template.tmpl }}'''\nwith open('layer.json', 'a+') as f:\n  f.write(str(layer_json))\n  f.close\nlayer = Layer()\nlayer.from_file(\"layer.json\")\n\ntosvg = ToSvg(domain='enterprise', source='local', resource='framework.json')\ntosvg.to_svg(layerInit=layer, filepath=\"layer.svg\")\n\nwith open(\"layer.svg\", \"r\") as image_file:\n  layer_svg = image_file.read().encode('utf-8')\n  layer_svg_b64 = base64.b64encode(layer_svg)\nprint(layer_svg_b64.decode('utf-8'), end='')"
+        REQUIREMENTS: |-
+          Pillow==9.5.0
+          mitreattack-python
+      uuid: 3bff41d5-08c5-4449-82e1-55709a6665a6
+      pretty_name: Create SVG from JSON Layer
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: de6ba468-c98d-5b91-b78c-b612e7ca3f39
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "layer": {{ $.layertemplate.tmpl }},
+            "svg_layer": "{{ $.create_svg_from_json_layer.output }}"
+          }
+        uuid: fd3836e6-50c6-4f25-aa4d-347ff78da05c
+        use_schema: true
+  annotations:
+    - uuid: 3b23b622-5b5e-425c-8eec-abfb645071ac
+      x: 408
+      "y": 144
+      width: 401
+      height: 193
+      attachedStepId: b807b615-c627-4807-9498-6ca785a9f15a
+      attachedDistance:
+        x: -408
+        "y": -13
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Enterprise-Attack DB"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"If the list of TTPs contains only Tactics, the WF will look to expand TA information by query associated relations of techniques in the Attack''s framework DB."}]},{"type":"paragraph","content":[{"type":"text","text":"Since the file is big to be manipulated on each step. A filtered version is crafted, which discards objects with empty and null "},{"type":"text","marks":[{"type":"code"}],"text":"description"},{"type":"text","text":" or "},{"type":"text","marks":[{"type":"code"}],"text":"external_id"},{"type":"text","text":" fileds"}]},{"type":"paragraph"}]}'
+    - uuid: c648bc65-704b-4b2a-99c6-94b4c78b25bf
+      x: 470
+      "y": 2919
+      width: 381
+      height: 264
+      attachedStepId: 9b73427e-58f5-47ac-b645-1a8c9933a904
+      attachedDistance:
+        x: -470
+        "y": -299
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Highlight & Expand Techniques"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Root Technique is added from the named Sub techniques in order to highlight and expand when appropriate"}]}]}'
+    - uuid: f09af6f9-bd86-4ddb-9717-733b70f8a8ee
+      x: -523
+      "y": 3650
+      attachedStepId: e79d68da-d38e-4fd6-afea-81fd3a50956d
+      attachedDistance:
+        x: 383
+        "y": -100
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Template Version 4.4 for MITRE Navigator"}]}]}'
+    - uuid: d863e0e8-9d14-46e3-816e-ef86a33b5232
+      x: 527
+      "y": 3652
+      width: 414
+      height: 93
+      attachedStepId: 0de9f853-f816-424d-b50a-513d68837594
+      attachedDistance:
+        x: -387
+        "y": -102
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Template Version 4.4 for mitreattack-python library"}]}]}'
+    - uuid: caa6d7f0-67fa-4843-b9e9-f0988e619a4a
+      x: 366
+      "y": 3659
+      width: 398
+      height: 234
+      attachedStepId: 3bff41d5-08c5-4449-82e1-55709a6665a6
+      attachedDistance:
+        x: -366
+        "y": 8
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"JSON to SVG"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Convert an attack layer to SVG image format using mitreattack-python library"}]},{"type":"paragraph","content":[{"type":"text","text":"GitHub:"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"https://github.com/mitre-attack/mitreattack-python","target":"_blank","class":null}}],"text":"https://github.com/mitre-attack/mitreattack-python"}]}]}'
+    - uuid: 88918f58-640f-4106-9120-8a378f90e2aa
+      x: 371
+      "y": 4302
+      attachedStepId: fd3836e6-50c6-4f25-aa4d-347ff78da05c
+      attachedDistance:
+        x: -371
+        "y": -110
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Output"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"contains a json document with two items:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"layer"},{"type":"text","text":" : JSON layer to be submitted to MITRE Navigator"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"svg_layer"},{"type":"text","text":":  Image representation of the layer in SVG format base64 encoded"}]}]}]},{"type":"paragraph"},{"type":"paragraph"}]}'
+    - uuid: f04fa20e-fc93-4d85-afc5-3429be7b20b0
+      x: -545
+      "y": 27
+      width: 508
+      height: 387
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Create Attack Layer from TTP List"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Receives a list of MITRE External ID''s Tactics and Techniques and creates an Att&ck layer in "},{"type":"text","marks":[{"type":"code"}],"text":"JSON"},{"type":"text","text":" and "},{"type":"text","marks":[{"type":"code"}],"text":"SVG"},{"type":"text","text":" format."}]},{"type":"paragraph","content":[{"type":"text","text":"Generated JSON  layer can be visualized on "},{"type":"text","marks":[{"type":"code"}],"text":"MITRE Att&ck Navigator"},{"type":"text","text":"."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"https://mitre-attack.github.io/attack-navigator/","target":"_blank","class":null}}],"text":"https://mitre-attack.github.io/attack-navigator/"}]},{"type":"paragraph"},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://attack.mitre.org/theme/images/MITRE_ATTACK_logo_Lockup-black.jpg","alt":null,"title":null}}]}]}'
+    - uuid: d9347f07-9e2d-4a7f-8654-f003a7ada139
+      x: 424
+      "y": 722
+      width: 496
+      height: 218
+      attachedStepId: 3f245a75-c596-4df2-87d4-da06b602f8a8
+      attachedDistance:
+        x: -424
+        "y": -460
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Separate Tactics from Techniques"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Separate Tactics "},{"type":"text","marks":[{"type":"code"}],"text":"(TA0002)"},{"type":"text","text":" from techniques and sub-techniques "},{"type":"text","marks":[{"type":"code"}],"text":"(T1028 or T1028.002)"}]},{"type":"paragraph","content":[{"type":"text","text":"When Tactics ID are found, perform query in mitre DB to found related techniques and sub-techiques."}]}]}'
+  output_schema: |-
+    {
+        "layer": {
+            "type": 10,
+            "prettyName": "layer",
+            "description": "Resulting MITRE Layer"
+        },
+        "svg_layer": {
+            "type": 9,
+            "prettyName": "svg layer",
+            "description": ""
+        }
+    }
+root: true

@@ -1,0 +1,69 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: c07977e2-0040-4575-89da-dec48db10260
+name: read custom fields
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-custom-fields:2.7.0
+      id: lists_custom_fields_of_a_case
+      env:
+        CASE_IDS: "151"
+      uuid: 3c4e5b0f-c112-40d8-b24f-fb62cdb21a82
+      pretty_name: Lists custom fields of a case
+      options:
+        executor:
+          name: torq_cases_list-custom-fields_v_2_7_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 660d116b-7724-5b85-867b-7d0122ae755a
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+      id: run_jq_command
+      env:
+        __TQ_FILE_ENV_PARSER__INPUT: plain-text
+        INPUT: '{{ $.lists_custom_fields_of_a_case.custom_fields }}'
+        JSON_QUERY: from_entries
+      uuid: eabbfea4-06e2-43c3-bd8f-45d22a4950bf
+      pretty_name: Run jq Command
+      options:
+        executor:
+          name: jq_infra_v_3_13_0
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "results": "{{ $.run_jq_command.output }}"
+          }
+        uuid: 03347bc9-551c-4e0a-9dd3-c628abb33afc
+        use_schema: true
+  output_schema: |-
+    {
+        "results": {
+            "type": 8,
+            "prettyName": "results",
+            "description": ""
+        }
+    }
+root: true

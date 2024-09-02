@@ -1,0 +1,259 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 53b29bc8-e6e8-4214-988d-37cbc5e17fc6
+name: BiGID S3Remediate Revoke Public Exposure for Bucket
+trigger:
+  integrationTrigger:
+    integration:
+      name: bigid_s3_revoke_public_access_buckets
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |
+          {
+           "aws_integration_name":"s3buckets",
+            "slack_integration_name":"wolken",
+            "slack_channel_alerts":"bigid-alerts",
+            "bigid_host":"667c-177-247-114-170.ngrok.io"
+          }
+        VARIABLE_NAME: data
+      uuid: fdad2677-ae66-4fea-9238-688fc6949d3a
+      pretty_name: Workflow_Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.1.1
+      id: refresh_the_session_token
+      env:
+        AUTHORIZATION: None
+        HEADERS: '{"Authorization":"{{ secret "bigid_api_token" }}"}'
+        METHOD: GET
+        URL: https://{{ $.workflow_context.data.bigid_host }}/api/v1/refresh-access-token
+      uuid: a0d02906-6727-48f8-90c9-2212cbc656c8
+      pretty_name: Refresh the Session Token
+      icon: https://www.bing.com/th?id=OIP.bWwrgfAYW4X5zGWqI3w0rwAAAA&w=250&h=250&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2
+      manifestId: 7491850f-62aa-4c0a-8565-1b4f6272693f
+      isPrivate: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/encoding_utils/encode-url:1.1.0
+      id: encode_url
+      env:
+        INPUT: '{{ $.event.triggerQuery }}'
+      uuid: abae3069-8a4e-48c0-b424-5caec4eac27c
+      pretty_name: Encode URL
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_32
+          env:
+            COMMAND: encode_url
+          sync: true
+          disable: false
+      manifestId: e758ec64-8f0a-48cb-bee3-8959a223a9f8
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        key: loop_key
+        value: loop_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/http/request:4.1.1
+            id: query_datacatalog_with_filter
+            env:
+              AUTHORIZATION: None
+              HEADERS: '{"Authorization":"{{ $.refresh_the_session_token.api_object.systemToken }}"}'
+              METHOD: GET
+              URL: https://{{ $.workflow_context.data.bigid_host }}/api/v1/data-catalog/?format=json&limit=100&skip={{ mul $.loop_key 100 }}&sort=&filter={{ $.encode_url.result }}
+            uuid: eb9c2e62-247f-49c3-81aa-b84324b419eb
+            pretty_name: Query DataCatalog with Filter
+            icon: https://www.bing.com/th?id=OIP.bWwrgfAYW4X5zGWqI3w0rwAAAA&w=250&h=250&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2
+            manifestId: 7491850f-62aa-4c0a-8565-1b4f6272693f
+            isPrivate: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.query_datacatalog_with_filter.api_object.results }}'
+                        operator: IS_EMPTY
+                        rvalue: ""
+              then:
+                - break:
+                    uuid: 2788aec9-f6da-4aed-a73f-b3e5ea2b769b
+              else:
+                - collector:
+                    id: collect
+                    uuid: c57f3302-cceb-4092-8b9b-e000e7b18ecd
+                    pretty_name: Collect
+                    expression: '{{ $.query_datacatalog_with_filter.api_object.results }}'
+                    flatten: true
+              uuid: 2ebf3f74-f7d9-4e94-a5d5-0f69c94baecc
+              pretty_name: If
+        uuid: 6d240aec-0cec-4a25-b362-73fb5078f145
+        pretty_name: Loop
+        range:
+          start: "0"
+          end: "10"
+          interval: "1"
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: send_message
+      env:
+        MESSAGE_TEXT: |+
+          The following files are violating policy : {{ $.event.name }}
+
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.slack_integration_name }}'
+      uuid: 3651deaf-b087-44a9-854c-2c2f01075b73
+      pretty_name: Send Message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/extract-field-from-records:1.1.2
+      id: list_of_filenames
+      env:
+        FIELD_PATH: .fullyQualifiedName
+        INPUT: '{{ $.collect.result }}'
+      uuid: 2b6f514f-cbc9-4b20-9c6d-9d22113f0996
+      pretty_name: List of Filenames
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_15
+          env:
+            COMMAND: extract_field_from_records
+          sync: true
+          disable: false
+      documentationUrl: https://docs.torq.io/getting-started/utilities#extract-field-from-records
+      manifestId: 336d04b0-dc54-4d91-9259-05baca6ed273
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.9
+      id: send_snippet
+      env:
+        CONTENT: '{{ $.list_of_filenames.output }}'
+        RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+      envFrom:
+        integrationRef: '{{ $.workflow_context.data.slack_integration_name }}'
+      uuid: 5407d488-42f6-49e2-a4ee-c873d8036ad2
+      pretty_name: Send Snippet
+      options:
+        executor:
+          name: slack_message_snippet_v_1_3_9
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 8d38e1b8-f7a5-4a78-b140-5abcf08d9ab2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        in: '{{ $.collect.result }}'
+        key: loop_key
+        value: loop_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:3.0.0
+            id: bucket_allowing_public_access
+            env:
+              COMMAND: s3api get-public-access-block --bucket {{ $.loop_value.containerName }}
+            envFrom:
+              integrationRef: '{{ $.workflow_context.data.aws_integration_name }}'
+            uuid: 8e20bba6-0103-41f2-be64-2e1ec0f96883
+            pretty_name: Bucket allowing public access?
+            options: {}
+            manifestId: a37ac28b-537c-47fe-bbd3-2a3a134fba54
+            isPrivate: false
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.bucket_allowing_public_access.output.PublicAccessBlockConfiguration.BlockPublicAcls }}'
+                        operator: EQUALS
+                        rvalue: "false"
+                  - and:
+                      - lvalue: '{{ $.bucket_allowing_public_access.output.PublicAccessBlockConfiguration.BlockPublicPolicy }}'
+                        operator: EQUALS
+                        rvalue: "false"
+                  - and:
+                      - lvalue: '{{ $.bucket_allowing_public_access.output.PublicAccessBlockConfiguration.IgnorePublicAcls }}'
+                        operator: EQUALS
+                        rvalue: "false"
+                  - and:
+                      - lvalue: '{{ $.bucket_allowing_public_access.output.PublicAccessBlockConfiguration.RestrictPublicBuckets }}'
+                        operator: EQUALS
+                        rvalue: "false"
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:3.0.0
+                  id: aws_cli_remove_public_permissions_command
+                  env:
+                    COMMAND: s3api put-public-access-block --bucket {{ $.loop_value.containerName }} --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+                  envFrom:
+                    integrationRef: '{{ $.workflow_context.data.aws_integration_name }}'
+                  uuid: 0551a0f7-3310-4259-94d2-8e3d57bc94f0
+                  pretty_name: AWS CLI remove public permissions command
+                  options: {}
+                  manifestId: a37ac28b-537c-47fe-bbd3-2a3a134fba54
+                  isPrivate: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.3
+                  id: send_message_to_the_s3_owner
+                  env:
+                    MESSAGE_TEXT: Hey admin! The S3 bucket "{{ $.loop_value.containerName }}" is not public anymore!
+                    RECIPIENT: '#{{ $.workflow_context.data.slack_channel_alerts }}'
+                  envFrom:
+                    integrationRef: '{{ $.workflow_context.data.slack_integration_name }}'
+                  uuid: b1566233-75e2-40b6-a0a1-3604aa2ee439
+                  pretty_name: Send Message to the s3 owner
+                  options:
+                    executor:
+                      name: slack_message_message_v_2_0_3
+                      env: {}
+                      sync: true
+                      disable: false
+                  manifestId: 1cd8e8cc-39eb-4719-9371-a0217db53db7
+                  isPrivate: false
+                  skip: false
+              else: []
+              uuid: 87023a59-9818-463b-b75d-267af54a211c
+              pretty_name: If Bucket Allows Public Access
+        uuid: 6a93aea8-3ac4-4485-8caa-710f50959d92
+        pretty_name: For each s3 grab info
+  annotations:
+    - uuid: 578f8bb1-b970-49a9-a4ac-65239657ed93
+      x: 304
+      "y": 119
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Generate Trigger intregation for BigID"}]}]}'
+root: true

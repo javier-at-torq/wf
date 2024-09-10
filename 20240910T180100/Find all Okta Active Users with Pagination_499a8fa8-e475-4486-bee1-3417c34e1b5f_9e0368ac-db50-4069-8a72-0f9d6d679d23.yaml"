@@ -1,0 +1,200 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 499a8fa8-e475-4486-bee1-3417c34e1b5f
+name: Find all Okta Active Users with Pagination
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.1
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |
+          {
+            "okta_integration_name": "oktasandbox",
+            "okta_user_limit": 100
+          }
+        VARIABLE_NAME: data
+      uuid: a46d213e-e4a4-499d-a791-8969b07d2232
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_43
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: c2acb369-d26a-465a-963d-f224700a45d6
+      isPrivate: false
+      skip: false
+    - loop:
+        key: key
+        value: value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/okta/list-users:4.0.0
+            id: list_active_users
+            env:
+              CURSOR: '{{ $.cursor.data }}'
+              LIMIT: '{{ $.workflow_context.data.okta_user_limit }}'
+              SEARCH_QUERY: status eq "ACTIVE"
+            envFrom:
+              integrationRef: '{{ $.workflow_context.data.okta_integration_name }}'
+            uuid: aeb69993-e721-4007-a7e7-48da7422453c
+            pretty_name: List Active Users
+            options:
+              executor:
+                name: http_request_v_2_0_14
+                env:
+                  HEADERS: |-
+                    {
+                        "Authorization": "SSWS {{ .OKTA_API_TOKEN }}"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["OKTA_API_TOKEN", "OKTA_DOMAIN"]'
+                  RESPONSE_API_OBJECT_ONLY: "false"
+                  TIMEOUT: "30"
+                  URL: https://{{ .OKTA_DOMAIN }}/api/v1/users?{{ if or .FILTER_QUERY }}&filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&after={{ .CURSOR | urlEnc }}{{ end }}{{ if or .SEARCH_QUERY }}&search={{ .SEARCH_QUERY | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            documentationUrl: https://developer.okta.com/docs/reference/api/users/#list-users-with-search
+            manifestId: b144dd43-7075-416c-aa00-00c69e578bc0
+            isPrivate: false
+            skip: false
+          - collector:
+              id: collect_active_users
+              uuid: 100914a7-efbc-4e57-a549-00dabf5cdae8
+              pretty_name: Collect Active Users
+              expression: '{{ $.list_active_users.api_object }}'
+              flatten: true
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.list_active_users.headers.Link }}'
+                        operator: CONTAINS
+                        rvalue: rel="next"
+              then:
+                - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/split-text:1.1.0
+                  id: split_okta_links
+                  env:
+                    INPUT: '{{ $.list_active_users.headers.Link }}'
+                    SEPARATOR: rel="self",
+                  uuid: fd9a2c19-48f1-4197-a5c3-6eceb1ca177e
+                  pretty_name: Split Okta Links
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_0_32
+                      env:
+                        COMMAND: split_text
+                      sync: true
+                      disable: false
+                  manifestId: d1f4e96c-066f-434b-9648-474121cdb39f
+                  isPrivate: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-by-regex-group:2.1.0
+                  id: extract_cursor_from_next_link
+                  env:
+                    FILE: ""
+                    INPUT: '{{ $.split_okta_links.result.1 }}'
+                    REGEX: after=\^*(.*)&+limit
+                  uuid: 10f67443-f906-4596-9deb-02ac83514af0
+                  pretty_name: Extract Cursor from Next Link
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_2_0
+                      env:
+                        COMMAND: extract_all_by_regex_group
+                      sync: true
+                      disable: false
+                  manifestId: 922c97c6-6a72-4a91-b3c5-f503c89c98b2
+                  isPrivate: false
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.0.1
+                  id: cursor
+                  env:
+                    DATA_TYPE: string
+                    VALUE_STRING: '{{ $.extract_cursor_from_next_link.results.0.groups.0 }}'
+                    VARIABLE_NAME: data
+                  uuid: ff7e268e-04cf-4c8a-be5a-bcce9ce34408
+                  pretty_name: Cursor
+                  options:
+                    executor:
+                      name: utils_infrastructure_v_1_0_43
+                      env:
+                        COMMAND: set_variable
+                        SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                      sync: true
+                      disable: false
+                  manifestId: 8d0e269f-654b-4364-b8a0-b332a30d6f73
+                  isPrivate: false
+                  skip: false
+              else:
+                - break:
+                    uuid: 48c218b5-e413-4581-a30c-57b2eb1b5640
+              uuid: 14456f6a-a248-4181-b1a8-f0949569a7dd
+              pretty_name: If Next Header Exists
+        uuid: 70ab2b2a-9eaf-42c7-9309-aa96922100c5
+        pretty_name: Loop to get all users
+        range:
+          start: "1"
+          end: "25"
+    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/concat-arrays:1.1.1
+      id: concat_arrays
+      env:
+        INPUT: '[]'
+        SECOND_ARRAY: '{{ $.collect_active_users.result }}'
+      uuid: 84a72614-8002-47ce-a300-8ca95a5ffc38
+      pretty_name: Concat Arrays
+      options:
+        executor:
+          name: utils_infrastructure_v_1_0_32
+          env:
+            COMMAND: concat_arrays
+          sync: true
+          disable: false
+      documentationUrl: https://docs.torq.io/getting-started/utilities#concat-arrays
+      manifestId: b6389637-c46c-42f3-bcb1-da8fc8e5e8e9
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        output: '{{ $.concat_arrays }}'
+        uuid: 79716f80-158b-4322-9e1a-e68a64c90e9b
+  annotations:
+    - uuid: aecf897a-645c-4683-8ceb-fac74fcfa429
+      x: -448
+      "y": 115
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Find all Okta Active Users with Pagination"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow is an example of how to use pagination with Okta to return all the results for a given query.  "}]},{"type":"paragraph","content":[{"type":"text","text":"This example will pull all Active users in Okta and loop until all results are provided."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"https://developer.okta.com/docs/reference/core-okta-api/#pagination","target":"_blank","class":null}}],"text":"Okta Pagination Documentation"}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/okta.svg","alt":null,"title":null}}]}]}'
+    - uuid: 0a8be76d-c612-4430-acaa-0ce1cc2de9eb
+      x: 355
+      "y": 248
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Set Okta Integration Name and the limit to use per request with Okta"}]}]}'
+    - uuid: 202dcbbf-6816-4081-8645-135fbf581aa1
+      x: 660
+      "y": 523
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"List the Active users in Okta and collect the results"}]}]}'
+    - uuid: 66d5c051-d535-447b-9eb5-e9b32ed4c8ae
+      x: 670
+      "y": 781
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If "},{"type":"text","marks":[{"type":"bold"}],"text":"rel=\"next\" "},{"type":"text","text":"is found in the link header there is additional users that need to be requested by the next API call."}]}]}'
+    - uuid: 1fad3008-15ae-45ad-be1e-2460f5947fa8
+      x: 768
+      "y": 934
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"This section of the workflow does the following:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Splits the provided Okta link"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Use Regex to extract the cursor from the second URL that was provided "}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Sets a variable that is used in the next Okta API call for the next set of results"}]}]}]}]}'
+    - uuid: 4fffd9a5-4591-44bc-aa6d-75241580ab86
+      x: -236
+      "y": 785
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If "},{"type":"text","marks":[{"type":"bold"}],"text":"rel=\"next\""},{"type":"text","text":" is not found then all of the users have been collected and break the loop."}]}]}'
+    - uuid: 1dbea4b2-c601-46c7-b101-afb8058950a3
+      x: 378
+      "y": 1562
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Print the number of users that were found using the length of the array."}]}]}'
+root: true

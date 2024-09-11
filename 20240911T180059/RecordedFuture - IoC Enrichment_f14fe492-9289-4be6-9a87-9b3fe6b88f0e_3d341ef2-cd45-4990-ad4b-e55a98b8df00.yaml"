@@ -1,0 +1,485 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: f14fe492-9289-4be6-9a87-9b3fe6b88f0e
+name: RecordedFuture - IoC Enrichment
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: iocs
+          description: Text containing IoCs
+          required: true
+          prettyName: IoCs
+          longText:
+            defaultValue: ""
+    nestedOnly: true
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "recorded_future_integration": {
+                  "type": 17,
+                  "prettyName": "Recorded Future Integration",
+                  "description": "",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "recorded_future_token"
+                  }
+              },
+              "torq_integration": {
+                  "type": 17,
+                  "prettyName": "Torq Integration",
+                  "description": "",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "torq_token"
+                  }
+              },
+              "provide_raw_analysis_data": {
+                  "type": 12,
+                  "prettyName": "Provide Raw Analysis Data",
+                  "description": "",
+                  "uiPlaceholder": ""
+              }
+          }
+        VALUES: |-
+          {
+            "recorded_future_integration": "recorded_future",
+            "torq_integration": "torq_api",
+            "provide_raw_analysis_data": true
+          }
+      uuid: 75432471-c73e-47cf-869c-ae3d895bba61
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:3.2.0
+      id: extract_multiple_observables
+      env:
+        PYTHON_CODE: "import re\nimport json\nimport requests\n\ndef extract(raw_text='', expand = False, validate_tld = True):\n    if validate_tld == True:\n      try:\n        iana = \"https://data.iana.org/TLD/tlds-alpha-by-domain.txt\"\n        tlds = requests.get(iana)\n        if tlds.status_code == 200:\n          tlds = tlds.text.splitlines()[1:]\n        else:\n          tlds = []\n      except:\n         tlds = []\n    else:\n      tlds = []\n      \n    observables = []\n    grouped = []\n    private_ip_list = []\n    filename_list = []\n\n    \n    EmailRegex  = r'\\b[A-Za-z0-9][A-Za-z0-9._%+-]{0,63}@(?:[A-Za-z0-9-]{1,63}\\.){1,12}[a-zA-Z]{2,63}\\b'\n    URLRegex    = r'''(((https?|ftp|file)://|www\\.)[-a-zA-Z0-9:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?::\\d{2,5})?((?:[/+]|\\?)[-a-zA-Z0-9()@%_\\+\\*'.~#?,;:!&\\/=\\-$]*)?\\b)'''\n    IPv4Regex   = r'\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b'\n    IPv6Regex   = r'\\b(?:(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){6})(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:::(?:(?:(?:[0-9a-fA-F]{1,4})):){5})(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})))?::(?:(?:(?:[0-9a-fA-F]{1,4})):){4})(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,1}(?:(?:[0-9a-fA-F]{1,4})))?::(?:(?:(?:[0-9a-fA-F]{1,4})):){3})(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,2}(?:(?:[0-9a-fA-F]{1,4})))?::(?:(?:(?:[0-9a-fA-F]{1,4})):){2})(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,3}(?:(?:[0-9a-fA-F]{1,4})))?::(?:(?:[0-9a-fA-F]{1,4})):)(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,4}(?:(?:[0-9a-fA-F]{1,4})))?::)(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9]))\\.){3}(?:(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])))))))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,5}(?:(?:[0-9a-fA-F]{1,4})))?::)(?:(?:[0-9a-fA-F]{1,4})))|(?:(?:(?:(?:(?:(?:[0-9a-fA-F]{1,4})):){0,6}(?:(?:[0-9a-fA-F]{1,4})))?::))))\\b'\n    MD5Regex    = r'\\b[a-fA-F\\d]{32}\\b'\n    SHA1Regex   = r'\\b[a-fA-F\\d]{40}\\b'\n    SHA256Regex = r'\\b[a-fA-F\\d]{64}\\b'\n    MACRegex = r'(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})'\n    EmailDomainRegex = r'[A-Za-z0-9][A-Za-z0-9._%+-]{0,63}@((?:[A-Za-z0-9-]{1,63}\\.){1,12}[a-zA-Z]{2,63})'\n    FQDNRegex      = r'(?:[a-zA-Z0-9]+[a-zA-Z0-9\\-]*)(?:\\.[a-zA-Z0-9\\-]*[a-zA-Z0-9]+)*(?:\\.[a-zA-Z]{2,})'\n    RootDomainRegex      = r'(?:\\.[a-zA-Z0-9\\-]*[a-zA-Z0-9]+)*(?:\\.[a-zA-Z]{2,})'\n    CVERegex         = r'\\bCVE-\\d{4}-\\d{4,5}\\b'\n    PrivateIPs       = r'\\b(?:127\\.\\d{1,3}|10\\.\\d{1,3}|172\\.(?:1[6-9]|2[0-9]|3[0-1])|192\\.168)\\.\\d{1,3}\\.\\d{1,3}\\b'\n    FileExtRegex      = r'(?:[a-zA-Z0-9]+[a-zA-Z0-9\\-]*\\.)?(?:[a-zA-Z0-9]+[a-zA-Z0-9\\-]*\\.)(?:png|jpg|gif|pdf|ico|svg|php|jpeg|aspx|css|js|exe|hta|doc|docx|xlsx|xls|bat|py|ps1|sh|pl|css|html|htm|ini|dll|sys|zip|rar|tar|tgz|gz|7z|txt|log|json)\\b'\n    \n    \n    extractors = [\n        {'MD5': MD5Regex},\n        {'SHA1': SHA1Regex},\n        {'SHA256': SHA256Regex},\n        {'File name':FileExtRegex},\n        {'IPv4': IPv4Regex},\n        {'IPv6': IPv6Regex},\n        {'Private IP Address':PrivateIPs},\n        {'MAC Address':MACRegex},\n        {'Email Address':EmailRegex},\n        {'FQDN':FQDNRegex},\n        {'CVE':CVERegex},\n        {'URL':URLRegex}]\n\n    for engine in extractors:\n        key = list(engine.keys())\n        regex = engine[key[0]]\n        extraction = re.findall(regex, raw_text)\n        extraction = list(dict.fromkeys(extraction))\n        \n        if len(extraction) > 0:\n            data = {}\n            grouped_list = []\n            for item in extraction:\n                ioc_item={}\n                ioc_item['type'] = key[0]\n                if key[0] == 'URL':\n                    ioc_item['value'] = item[0]\n                    grouped_list.append(item[0])\n                    observables.append(ioc_item)\n                elif key[0] == 'Private IP Address':\n                    ioc_item['value'] = item\n                    private_ip_list.append(item)\n                    grouped_list.append(item)\n                    observables.append(ioc_item)\n                elif key[0] == 'File name':\n                    ioc_item['value'] = item\n                    filename_list.append(item)\n                    grouped_list.append(item)\n                    observables.append(ioc_item)\n                elif key[0] in ['MD5','SHA1','SHA256']:\n                    ioc_item['value'] = item\n                    ioc_item['type'] = \"File hash\"\n                    ioc_item['sub-type'] = key[0]\n                    grouped_list.append(item)\n                    observables.append(ioc_item)\n                elif key[0] in ['FQDN','NetBIOS']:\n                    tld = re.findall(r'\\.([A-Z|a-z]+)', item)\n                    if len(tlds) > 0:\n                        if tld[-1].upper() in tlds:\n                            ioc_item['value'] = item\n                            ioc_item['type'] = \"Hostname\"\n                            ioc_item['tld_verified'] = True\n                            ioc_item['sub-type'] = key[0]\n                            grouped_list.append(item)\n                            observables.append(ioc_item)\n                        else:\n                            pass\n                    elif item in filename_list:\n                        pass\n                    else:\n                        ioc_item['value'] = item\n                        ioc_item['type'] = \"Hostname\"\n                        ioc_item['sub-type'] = key[0]\n                        grouped_list.append(item)\n                        observables.append(ioc_item)\n                elif key[0] in['IPv4','IPv6']:\n                    if item in private_ip_list:\n                        pass\n                    else:\n                        ioc_item['value'] = item\n                        ioc_item['type'] = \"IP Address\"\n                        ioc_item['sub-type'] = key[0]\n                        grouped_list.append(item)\n                        observables.append(ioc_item)\n                else:\n                    ioc_item['value'] = item\n                    grouped_list.append(item)\n                    observables.append(ioc_item)\n            if key[0] in ['IPv4','IPv6']:\n                data['sub-type'] = key[0]\n                data['type'] = \"IP address\"\n            elif key[0] in ['FQDN','NetBIOS']:\n                data['sub-type'] = key[0]\n                data['type'] = \"Hostname\"\n            elif key[0] in ['MD5','SHA1','SHA256']:\n                data['sub-type'] = key[0]\n                data['type'] = \"File hash\"\n            else:\n                data['type'] = key[0]\n            data['count'] = len( grouped_list )\n            data['items'] = grouped_list\n            grouped.append( data )\n    if expand == True:\n        return observables    \n    else:\n        return grouped          \n\nif \"{{ $.event.group_output }}\" == \"true\":\n    expand = False\nelse:\n    expand = True\n\nif \"{{ $.event.validate_tld }}\" == \"false\":\n  validate_tld = False\nelse:\n  validate_tld = True\n\nextraction = extract(u\"{{ jsonEscape $.event.iocs }}\", expand = False, validate_tld = validate_tld)\n\nprint(json.dumps(extraction))"
+      uuid: 78ebf8ff-d203-441d-b630-c2dd87b97259
+      pretty_name: Extract Multiple Observables
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: 3d8b3cda-d483-5117-a241-235e5c0bf281
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: 77b4bc37-bd46-4a94-a879-08968191f9cc
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 7fe30d21-31e4-4b53-8d29-f05236930e54
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.extract_multiple_observables.output..type }}'
+                            operator: CONTAINS
+                            rvalue: File hash
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.9.0
+                      id: hash_list
+                      env:
+                        INPUT: '{{ $.extract_multiple_observables.output }}'
+                        JSON_QUERY: '[.[] | select( .type=="File hash") | .items[] ]'
+                      uuid: 9bf6c98c-11d1-4fb6-8fa4-17e15a08c38a
+                      pretty_name: Hash List
+                      options:
+                        executor:
+                          name: jq_infra_v_3_9_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: eff9788e-be58-533f-9dde-3703babc5128
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - loop:
+                        in: '{{ $.hash_list.output }}'
+                        key: hash_key
+                        value: hash_value
+                        steps:
+                          - trigger:
+                              id: recordedfuture_file_hash_enrichment_with_cache
+                              playbook_id: 410ccb60-a06b-467b-8d4a-bbfc703a0f01
+                              pretty_name: RecordedFuture - File Hash Enrichment with Cache
+                              uuid: dcccf5ea-f6e0-42ab-bbe4-2f844aa79a38
+                              input: |-
+                                {
+                                  "file_hash": "{{ $.hash_value }}",
+                                  "recorded_future_integration": "{{ $.workflow_parameters.recorded_future_integration }}",
+                                  "torq_integration": "{{ $.workflow_parameters.torq_integration }}",
+                                  "provide_raw_analysis_data": "{{ $.workflow_parameters.provide_raw_analysis_data }}"
+                                }
+                              playbook_name: RecordedFuture - File Hash Enrichment with Cache
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                          - collector:
+                              id: filehash_collection
+                              uuid: e182617f-c8ca-4782-92a3-5c3922029282
+                              pretty_name: FileHash Collection
+                              expression: |+
+                                {{ $.recordedfuture_file_hash_enrichment_with_cache.output }}
+
+
+
+                              flatten: true
+                        uuid: 4e93c851-2a84-4832-8790-104213a391b4
+                        pretty_name: Loop Trough Hash List
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                      id: filehash_collection
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: result
+                      uuid: 613c30ec-da45-4ca9-9018-030f599b0900
+                      pretty_name: FileHash Collection
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_9_0
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 5bb4e520-e6ea-4489-91ef-c58f2da3568c
+                  pretty_name: If Contains File Hash
+          - uuid: 277169cc-6efd-4b69-9c76-5340debfc5c9
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.extract_multiple_observables.output..type }}'
+                            operator: CONTAINS
+                            rvalue: URL
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.9.0
+                      id: url_list
+                      env:
+                        __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                        INPUT: '{{ $.extract_multiple_observables.output }}'
+                        JSON_QUERY: '[.[] | select( .type=="URL") | .items[] ]'
+                      uuid: e6531604-a84f-4ef5-8807-550df0f7b904
+                      pretty_name: URL List
+                      options:
+                        executor:
+                          name: jq_infra_v_3_9_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: eff9788e-be58-533f-9dde-3703babc5128
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - loop:
+                        in: '{{ $.url_list.output }}'
+                        key: url_key
+                        value: url_value
+                        steps:
+                          - trigger:
+                              id: recordedfuture_url_enrichment_with_cache
+                              playbook_id: 488dc4d2-713b-495c-a3e2-c46c42e1d193
+                              pretty_name: RecordedFuture - URL Enrichment with Cache
+                              uuid: c41dad0b-107c-4b35-86f7-ad5719be24d6
+                              input: |-
+                                {
+                                  "url": "{{ $.url_value }}",
+                                  "recorded_future_integration": "{{ $.workflow_parameters.recorded_future_integration }}",
+                                  "torq_integration": "{{ $.workflow_parameters.torq_integration }}",
+                                  "provide_raw_analysis_data": "{{ $.workflow_parameters.provide_raw_analysis_data }}"
+                                }
+                              playbook_name: RecordedFuture - URL Enrichment with Cache
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                          - collector:
+                              id: url_collection
+                              uuid: 00d1cbbd-4e7d-4d0f-81ae-371ce5f5716c
+                              pretty_name: URL Collection
+                              expression: |+
+                                {{ $.recordedfuture_url_enrichment_with_cache.output }}
+
+
+
+                              flatten: true
+                        uuid: 62c1273b-75cc-47cc-893f-68651b9074ce
+                        pretty_name: Loop Trough URL List
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                      id: url_collection
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: result
+                      uuid: 53de05af-cf84-4d52-977b-aff47ebbcb9c
+                      pretty_name: URL Collection
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_9_0
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: c92cec08-6c68-43ea-81c4-3de98ad7e2c0
+                  pretty_name: If Contains URL
+          - uuid: eb950891-6626-4fd0-a02b-ac678f1f8e46
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.extract_multiple_observables.output..type }}'
+                            operator: CONTAINS
+                            rvalue: IP Address
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.9.0
+                      id: ip_address_list
+                      env:
+                        INPUT: '{{ $.extract_multiple_observables.output }}'
+                        JSON_QUERY: '[.[] | select( .type=="IP address") | .items[] ]'
+                      uuid: de9e4ffc-6e7d-4614-adfc-7601ecc0a2ec
+                      pretty_name: IP Address List
+                      options:
+                        executor:
+                          name: jq_infra_v_3_9_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: eff9788e-be58-533f-9dde-3703babc5128
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - loop:
+                        in: '{{ $.ip_address_list.output }}'
+                        key: ipaddress_key
+                        value: ipaddress_value
+                        steps:
+                          - trigger:
+                              id: recordedfuture_ip_address_enrichment_with_cache
+                              playbook_id: 87c51188-040e-4aa4-8049-5927f052fb48
+                              pretty_name: RecordedFuture - IP Address Enrichment with Cache
+                              uuid: 7a9669d5-c811-4a2a-a522-ef60ba4ed955
+                              input: |-
+                                {
+                                  "ip_address": "{{ $.ipaddress_value }}",
+                                  "recorded_future_integration": "{{ $.workflow_parameters.recorded_future_integration }}",
+                                  "torq_integration": "{{ $.workflow_parameters.torq_integration }}",
+                                  "provide_raw_analysis_data": "{{ $.workflow_parameters.provide_raw_analysis_data }}"
+                                }
+                              playbook_name: RecordedFuture - IP Address Enrichment with Cache
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                          - collector:
+                              id: ip_address_collection
+                              uuid: f0001104-d2a9-4c51-bc0d-0db0dbfe176b
+                              pretty_name: IP Address Collection
+                              expression: |+
+                                {{ $.recordedfuture_ip_address_enrichment_with_cache.output }}
+
+
+                              flatten: true
+                        uuid: 90c7b423-20ef-4824-b72c-231ea97cc02a
+                        pretty_name: Loop Trough IP Address List
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                      id: ip_address_collection
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: result
+                      uuid: 5b08dda5-3ea9-41ee-9b90-12cdb660ab08
+                      pretty_name: IP Address Collection
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_9_0
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: ed5a5336-4e25-4bc0-8a06-2b0155c43717
+                  pretty_name: If Contains IP Address
+          - uuid: 93ec8ff8-5079-4a7c-8d74-97285b2fe95b
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.extract_multiple_observables.output..type }}'
+                            operator: CONTAINS
+                            rvalue: Hostname
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.9.0
+                      id: domain_list
+                      env:
+                        INPUT: '{{ $.extract_multiple_observables.output }}'
+                        JSON_QUERY: '[.[] | select( .type=="Hostname") | .items[] ]'
+                      uuid: 9986768a-e6fa-4994-b8f2-8a2e204f2d85
+                      pretty_name: Domain List
+                      options:
+                        executor:
+                          name: jq_infra_v_3_9_0
+                          env:
+                            COMMAND: jq_command
+                          sync: true
+                          disable: false
+                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                      manifestId: eff9788e-be58-533f-9dde-3703babc5128
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                      skip: false
+                    - loop:
+                        in: '{{ $.domain_list.output }}'
+                        key: domain_key
+                        value: domain_value
+                        steps:
+                          - trigger:
+                              id: recordedfuture_domain_enrichment_with_cache
+                              playbook_id: a58ef9ba-1906-427a-9235-293145c03aa4
+                              pretty_name: RecordedFuture - Domain Enrichment with Cache
+                              uuid: 1f3e0b90-4ba5-48c7-bb07-bde12146ea68
+                              input: |-
+                                {
+                                  "domain": "{{ $.domain_value }}",
+                                  "recorded_future_integration": "{{ $.workflow_parameters.recorded_future_integration }}",
+                                  "torq_integration": "{{ $.workflow_parameters.torq_integration }}",
+                                  "provide_raw_analysis_data": "{{ $.workflow_parameters.provide_raw_analysis_data }}"
+                                }
+                              playbook_name: RecordedFuture - Domain Enrichment with Cache
+                              mock_output:
+                                enabled: false
+                                payload: '{}'
+                          - collector:
+                              id: domain_collection
+                              uuid: 6228ff99-8982-44e5-a21d-7b32eedf6ed1
+                              pretty_name: Domain Collection
+                              expression: |+
+                                {{ $.recordedfuture_domain_enrichment_with_cache.output }}
+
+                              flatten: true
+                        uuid: c25ced0a-4fa9-420b-8354-c22dfbd597fe
+                        pretty_name: Loop Trough Domain List
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                      id: domain_collection
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: result
+                      uuid: ab93018c-8abd-472b-b53e-c04e65ce29d1
+                      pretty_name: Domain Collection
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_9_0
+                          env:
+                            COMMAND: set_variable
+                          sync: true
+                          disable: false
+                      manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                      skip: false
+                  uuid: 6d131f36-b3ff-4114-b50f-68d8f6b8e0ff
+                  pretty_name: If Contains Hostname
+    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.9.0
+      id: verdicts
+      env:
+        INPUT: |-
+          {
+          "hash":{{ $.filehash_collection.result }},
+          "url":{{ $.url_collection.result }},
+          "ip":{{ $.ip_address_collection.result }},
+          "domain":{{ $.domain_collection.result  }}
+          }
+        JSON_QUERY: ( .hash + .url + .ip + .domain )
+      uuid: b8ac5023-e075-4e64-a3d9-b9da188ebcfc
+      pretty_name: Verdicts
+      options:
+        executor:
+          name: jq_infra_v_3_9_0
+          env:
+            COMMAND: jq_command
+          sync: true
+          disable: false
+      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+      manifestId: eff9788e-be58-533f-9dde-3703babc5128
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "output": {{ $.verdicts.output }}
+          }
+        uuid: f4539afd-cded-4d7f-8e9c-91b0a39c4f6c
+        use_schema: true
+  annotations:
+    - uuid: 95869356-9b4f-43ac-ae3e-8f5ba0e89554
+      x: -843
+      "y": 69
+      width: 794
+      height: 338
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"                           Recorded Future - IoC Enrichment"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Accepts plain text as input and extracts multiple observables from it. Observables are enriched by nested workflows which locally cache repetitive queries."}]},{"type":"paragraph","content":[{"type":"text","text":"This workflows performs enrichment for: "},{"type":"text","marks":[{"type":"bold"}],"text":"File Hash, URL, IP Address, Domain"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://clico.si/vendors/recorded-future/@@images/vendor_logo","alt":null,"title":null}}]}]}'
+  output_schema: |-
+    {
+        "output": {
+            "type": 10,
+            "prettyName": "output",
+            "description": ""
+        }
+    }
+root: true

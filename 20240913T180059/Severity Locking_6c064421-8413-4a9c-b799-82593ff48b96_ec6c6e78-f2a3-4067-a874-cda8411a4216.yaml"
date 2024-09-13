@@ -1,0 +1,129 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 6c064421-8413-4a9c-b799-82593ff48b96
+name: Severity Locking
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_SEVERITY_UPDATED
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.operation }}'
+                operator: OPERATOR_EQUALS
+                rvalue: UPDATE
+              - lvalue: '{{ $.event.triggered_by.kind }}'
+                operator: OPERATOR_EQUALS
+                rvalue: USER
+playbook:
+  steps:
+    - parallel:
+        uuid: 55510529-8613-446d-a779-a93a94f6c001
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 8943ab00-e5a2-4103-b165-66631d0f366f
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: previous
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: '{{ $.event.cases.previous }}'
+                  VARIABLE_NAME: value
+                uuid: 147360bf-a776-400b-8ee9-1a860e9e9c61
+                pretty_name: Previous
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: ee9e9503-3d2d-4529-8f7f-b1288051f2cc
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: curent
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: '{{ $.event.cases.current }}'
+                  VARIABLE_NAME: value
+                uuid: c84e8abe-fb50-4a29-a4e6-08b9805b7684
+                pretty_name: Curent
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.previous.value.severity.value }}'
+                  operator: NOT_EQUALS
+                  rvalue: '{{ $.curent.value.severity.value }}'
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-severity:4.4.0
+            id: change_case_severity
+            env:
+              CASE_ID: '{{ $.event.cases.current.id }}'
+              CASE_SEVERITY: '{{ $.previous.value.severity.value }}'
+            uuid: 8c77b68f-2565-4056-a588-ff453f6e74fa
+            pretty_name: Change case severity
+            options:
+              executor:
+                name: torq_cases_update-severity_v_4_4_0
+                env: {}
+                sync: true
+                disable: false
+            manifestId: 0e0faedd-f995-59cf-81d8-f702621420a0
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.11
+            id: interaction
+            env:
+              CASE_ID: '{{ $.event.cases.current.id }}'
+              FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"parameter_1","type":"MARKDOWN_TEXT","prettyName":"Parameter 1","value":"### You can''t change this value manually.","uploadedFile":{},"allowMultipleFiles":true,"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"user_action_button","type":"BUTTONS","buttons":[{"text":"OK"}]}]}'
+              FORM_TITLE: You can't change this value manually.
+              HAS_NEXT: "false"
+              TIMEOUT: 10m
+            uuid: 9de1690a-744d-4a39-aef8-4c8de6600bf5
+            pretty_name: Interaction
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_11
+                env: {}
+                sync: true
+                disable: false
+            manifestId: de441ab2-b89c-5601-80ea-1a2f117a1c1e
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        else: []
+        uuid: 454d2630-914a-4c8b-9d2c-c7453513d534
+        pretty_name: If Severity Changed
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: aa7800b8-a056-4c10-a903-fbcc3e94f735
+  output_schema: '{}'
+root: true

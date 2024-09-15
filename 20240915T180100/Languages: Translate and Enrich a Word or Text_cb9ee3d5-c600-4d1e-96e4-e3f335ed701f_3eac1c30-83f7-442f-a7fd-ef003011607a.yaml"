@@ -1,0 +1,1000 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: cb9ee3d5-c600-4d1e-96e4-e3f335ed701f
+name: 'Languages: Translate and Enrich a Word or Text'
+trigger:
+  integrationTrigger:
+    integration:
+      name: wolken
+      typeId: slack
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.text }}'
+                operator: OPERATOR_CONTAINS
+                rvalue: langde
+          - expression:
+              - lvalue: '{{ $.event.text }}'
+                operator: OPERATOR_CONTAINS
+                rvalue: langes
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+      id: workflow_context
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "prefix_to_trigger_de": "langde",
+            "prefix_to_trigger_es": "langes",
+            "chatbot_name": "Lehrer ChatBot"
+          }
+        VARIABLE_NAME: data
+      uuid: 29bfca80-f08d-4d5c-89b0-89376f1321e7
+      pretty_name: Workflow Context
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: set_variable
+            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+          sync: true
+          disable: false
+      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.0.1
+      id: generate_random_string
+      env:
+        LENGTH: "20"
+        STRING_FORMAT: Alphanumeric both lower and upper
+      uuid: b58ce37d-981f-4f2b-97d7-ba75b2ea8a0b
+      pretty_name: Generate Random String
+      options:
+        executor:
+          name: utils_infrastructure_v_1_3_39
+          env:
+            COMMAND: generate_alphanumeric
+          sync: true
+          disable: false
+      manifestId: 0baf9f05-84fd-4874-90ed-9adcf6d8dccd
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: welcome_msg
+      env:
+        BLOCKS: |-
+          {
+          	"blocks": [
+          		{
+          			"type": "section",
+          			"text": {
+          				"type": "mrkdwn",
+          				"text": "*Hallo!*:  Estoy generando tu respuesta.."
+          			}
+          		}
+          	]
+          }
+        ICON_URL: https://i.pinimg.com/280x280_RS/25/0d/c4/250dc4e8e4b3b18fac7cb588d8841b2b.jpg
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#{{ $.event.channel }}'
+        THREAD_TS: '{{ $.event.event_ts }}'
+        USERNAME: '{{ $.workflow_context.data.chatbot_name }}'
+      envFrom:
+        integrationRef: wolken
+      uuid: 0998ff36-08e8-432b-b36d-e1929d09e47a
+      pretty_name: Welcome Msg
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - switch:
+        uuid: 9975b504-f03b-417a-afae-1ac55489b368
+        pretty_name: Switch
+        cases:
+          - id: ee7f9f41-bd0e-4a34-9b15-9d9c723651ca
+            pretty_name: Deutsch
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.text }}'
+                      operator: CONTAINS
+                      rvalue: '{{ $.workflow_context.data.prefix_to_trigger_de }}'
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/trim-prefix:1.1.2
+                id: trim_string_prefix
+                env:
+                  INPUT: '{{ $.event.text }}'
+                  PREFIX: '{{ $.workflow_context.data.prefix_to_trigger_de }} '
+                uuid: 78de48a9-bc89-411f-a00c-ff521c6cb9de
+                pretty_name: Trim string prefix
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: trim_prefix
+                    sync: true
+                    disable: false
+                manifestId: 092c0fcc-e224-489f-bc4b-749fd8581af1
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/encoding_utils/encode-url:1.1.1
+                id: encode_url
+                env:
+                  INPUT: '{{ $.trim_string_prefix.result }}'
+                uuid: 92ebff55-4a20-465f-b5da-2097e3996298
+                pretty_name: Encode URL
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: encode_url
+                    sync: true
+                    disable: false
+                manifestId: 1d5bf00e-6963-462d-8e5d-5e5eb7572eda
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                id: get_dict_org_definition
+                env:
+                  AUTHORIZATION: None
+                  HEADERS: ""
+                  METHOD: GET
+                  URL: https://dict.org/bin/Dict?Form=Dict2&Database=fd-deu-spa&Query={{ $.trim_string_prefix.result }}
+                uuid: 7b3f2366-30b2-47af-a63c-3392070163b4
+                pretty_name: Get Dict.org definition
+                options:
+                  executor:
+                    name: http_request_v_4_2_8
+                    env:
+                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                      GO_TEMPLATE_BODY_PARSING: "false"
+                      RESPONSE_API_OBJECT_ONLY: "false"
+                    sync: true
+                    disable: false
+                manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - parallel:
+                  uuid: 853ffc42-c8b7-4cba-9f43-76af6fd10f98
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: e35ff348-2109-4508-aed2-06d88cb4e97b
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+                          id: dict_org_definition
+                          env:
+                            PYTHON_CODE: |-
+                              from bs4 import BeautifulSoup
+                              import requests
+                              import json
+
+                              url="https://dict.org/bin/Dict?Form=Dict2&Database=fd-deu-spa&Query={{ $.trim_string_prefix.result }}"
+
+                              # Make a GET request to fetch the raw HTML content
+                              html_content = requests.get(url).text
+
+                              # Parse the html content
+                              soup = BeautifulSoup(html_content, "html.parser")
+                              result = soup.find_all("pre")
+                              definitions = []
+                              for r in result:
+                                  if len(r)>1:
+                                      definitions.append(r.text.strip())
+                              print(json.dumps(definitions))
+                            REQUIREMENTS: beautifulsoup4
+                          ignoreFailure: true
+                          uuid: a4629310-9b42-43fc-a368-f1cf94c1ac30
+                          pretty_name: Dict_org Definition
+                          options: {}
+                          icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+                          manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+                    - uuid: 1d1de1f8-7635-4b86-b771-13691a335553
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                          id: google_translate
+                          env:
+                            BLOCKS: |-
+                              {
+                              	"blocks": [
+                              		{
+                              			"type": "section",
+                              			"text": {
+                              				"type": "mrkdwn",
+                              				"text": "<https://translate.google.com/?sl=de&tl=es&text={{ $.encode_url.result }}&op=translate | Open in Google Translator>"
+                              			}
+                              		}
+                              	]
+                              }
+                            ICON_URL: https://images.cloudflareapps.com/k7E6ySfQTlq38QZauzSf_logo.png?w=256&h=256
+                            MESSAGE_TYPE: blocks
+                            RECIPIENT: '#{{ $.event.channel }}'
+                            THREAD_TS: '{{ $.event.event_ts }}'
+                            USERNAME: Google Translator
+                          envFrom:
+                            integrationRef: wolken
+                          uuid: cc33ad7b-3224-489c-adaf-86c74ce32e07
+                          pretty_name: Google Translate
+                          options:
+                            executor:
+                              name: slack_message_blocks_v_2_3_11
+                              env: {}
+                              sync: true
+                              disable: false
+                          documentationUrl: https://app.slack.com/block-kit-builder
+                          manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+              - loop:
+                  in: '{{ $.dict_org_definition.output }}'
+                  key: loop_key
+                  value: loop_value
+                  steps:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: dict_org
+                      env:
+                        BLOCKS: |-
+                          {
+                          	"blocks": [
+                          		{
+                          			"type": "section",
+                          			"text": {
+                          				"type": "mrkdwn",
+                          				"text": "{{ jsonEscape $.loop_value }}"
+                          			}
+                          		}
+                          	]
+                          }
+                        ICON_URL: https://i.pinimg.com/736x/98/42/f4/9842f4c5642f29236482bcc8d6b75907--language.jpg
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.event.event_ts }}'
+                        USERNAME: Dict.org
+                      envFrom:
+                        integrationRef: wolken
+                      ignoreFailure: true
+                      uuid: 2bf9358d-c936-40d1-aca4-31b52baff5ed
+                      pretty_name: Dict.org
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  uuid: 6698a588-e2fc-4274-9225-0f860cbfb93e
+                  pretty_name: Loop
+              - parallel:
+                  uuid: 65a1ce51-0507-4e4d-82cb-38ada706e40e
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: 954ff11a-d0ba-474c-b09e-bd06921ee277
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                          id: de_en
+                          env:
+                            COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result }}" --source-language-code "de" --target-language-code "en" --region us-east-1
+                            OUTPUT_FILE_PATH: out.json
+                          envFrom:
+                            integrationRef: stackpulse
+                          uuid: 3d03c7c4-737f-4074-89b3-58cde61196d4
+                          pretty_name: DE-EN
+                          options: {}
+                          manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+                    - uuid: e9c3e703-7bc1-4e2a-af06-814cac78ad63
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                          id: de_es
+                          env:
+                            COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result }}" --source-language-code "de" --target-language-code "es" --region us-east-1
+                            OUTPUT_FILE_PATH: out.json
+                          envFrom:
+                            integrationRef: stackpulse
+                          uuid: 31afe73e-31a2-46c2-99b4-7cf983195c3d
+                          pretty_name: DE-ES
+                          options: {}
+                          manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+                    - uuid: 4c2bdc8a-a17b-450e-8bde-c90cf0edc26a
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                          id: de_pt
+                          env:
+                            COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result }}" --source-language-code "de" --target-language-code "pt" --region us-east-1
+                            OUTPUT_FILE_PATH: out.json
+                          envFrom:
+                            integrationRef: stackpulse
+                          uuid: c67746c9-0b75-4722-8e7b-a467ec6cf750
+                          pretty_name: DE-PT
+                          options: {}
+                          manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+              - parallel:
+                  uuid: 99497c7d-a222-49e6-b33d-6395d3a9d67e
+                  pretty_name: Parallel Executions
+                  threads:
+                    - uuid: 467f8f0e-8370-41a8-a184-e08aec707be4
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                          id: send_translation
+                          env:
+                            BLOCKS: |-
+                              {
+                              	"blocks": [
+                              		{
+                              			"type": "section",
+                              			"text": {
+                              				"type": "mrkdwn",
+                              				"text": ":flag-de: {{ $.trim_string_prefix.result }} "
+                              			}
+                              		},
+                                  {
+                              			"type": "section",
+                              			"text": {
+                              				"type": "mrkdwn",
+                              				"text": ":flag-us: {{ $.de_en.output.TranslatedText }} "
+                              			}
+                              		},
+                                  {
+                              			"type": "section",
+                              			"text": {
+                              				"type": "mrkdwn",
+                              				"text": ":flag-mx: {{ $.de_es.output.TranslatedText }} "
+                              			}
+                              		},
+                                  {
+                              			"type": "section",
+                              			"text": {
+                              				"type": "mrkdwn",
+                              				"text": ":flag-br: {{ $.de_pt.output.TranslatedText }} "
+                              			}
+                              		}
+                              	]
+                              }
+                            ICON_URL: https://compgauge.com/cgincludes/logos/logo-aws.amazon.com.png
+                            MESSAGE_TYPE: blocks
+                            RECIPIENT: '#{{ $.event.channel }}'
+                            THREAD_TS: '{{ $.event.event_ts }}'
+                            USERNAME: AWS Translate
+                          envFrom:
+                            integrationRef: wolken
+                          uuid: 61930ec3-151f-4cec-a354-17e597a74528
+                          pretty_name: Send Translation
+                          options:
+                            executor:
+                              name: slack_message_blocks_v_2_3_11
+                              env: {}
+                              sync: true
+                              disable: false
+                          documentationUrl: https://app.slack.com/block-kit-builder
+                          manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+                    - uuid: 6713eef6-68a0-41a5-bd8d-1506f27e6655
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                          id: dwds_wb_snippet_query
+                          env:
+                            AUTHORIZATION: None
+                            HEADERS: ""
+                            METHOD: GET
+                            URL: https://www.dwds.de/api/wb/snippet/?q={{ $.trim_string_prefix.result }}
+                          uuid: 0eb1df09-9a72-43c3-9293-3c09e8c74531
+                          pretty_name: DWDS WB Snippet Query
+                          options:
+                            executor:
+                              name: http_request_v_4_2_8
+                              env:
+                                FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                GO_TEMPLATE_BODY_PARSING: "false"
+                                RESPONSE_API_OBJECT_ONLY: "false"
+                              sync: true
+                              disable: false
+                          manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                          isPrivate: false
+                          isPrivateUrl: true
+                          mock_output:
+                            enabled: false
+                            payload: '{}'
+                          skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.dwds_wb_snippet_query.api_object }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: send_dwds_link
+                      env:
+                        BLOCKS: |-
+                          {
+                          	"blocks": [
+                              {
+                          			"type": "header",
+                          			"text": {
+                          				"type": "plain_text",
+                          				"text": "{{ $.trim_string_prefix.result }}: {{ $.dwds_wb_snippet_query.api_object.0.wortart }}",
+                          				"emoji": true
+                          			}
+                          		},
+                          		{
+                          			"type": "section",
+                          			"text": {
+                          				"type": "mrkdwn",
+                          				"text": ":earth_americas: <{{ $.dwds_wb_snippet_query.api_object.0.url }}|Open in DWDS Website>"
+                          			}
+                          		}
+                          	]
+                          }
+                        ICON_URL: https://seeklogo.com/images/C/Coat_of_Arms_of_Germany-logo-9BFCF3B586-seeklogo.com.png
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.event.event_ts }}'
+                        USERNAME: DWDS
+                      envFrom:
+                        integrationRef: wolken
+                      uuid: 81228630-da66-4f5b-b37c-af15d38f69c8
+                      pretty_name: Send DWDS Link
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - switch:
+                        uuid: b4c654f2-28d0-450f-b3cc-54136b492748
+                        pretty_name: Switch
+                        cases:
+                          - id: 8331a3dd-5d0e-42c4-926f-64d5f58b11a3
+                            pretty_name: Verb
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.dwds_wb_snippet_query.api_object.0.wortart }}'
+                                      operator: EQUALS
+                                      rvalue: Verb
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                id: send_slack_verbix
+                                env:
+                                  BLOCKS: |-
+                                    {
+                                    	"blocks": [
+                                    		{
+                                    			"type": "section",
+                                    			"text": {
+                                    				"type": "mrkdwn",
+                                    				"text": "<https://www.verbix.com/webverbix/german/{{ $.trim_string_prefix.result }}|Open in Verbix>"
+                                    			}
+                                    		}
+                                    	]
+                                    }
+                                  ICON_URL: https://docs.verbix.com/assets/images/cropped-verbix_mini-1.png
+                                  MESSAGE_TYPE: blocks
+                                  RECIPIENT: '#{{ $.event.channel }}'
+                                  THREAD_TS: '{{ $.event.event_ts }}'
+                                  USERNAME: Verbix
+                                envFrom:
+                                  integrationRef: wolken
+                                uuid: 85e7ddb5-0ef8-4d7f-b707-286ba95da34a
+                                pretty_name: Send Slack Verbix
+                                options:
+                                  executor:
+                                    name: slack_message_blocks_v_2_3_11
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                documentationUrl: https://app.slack.com/block-kit-builder
+                                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                                id: send_slack_reverso
+                                env:
+                                  BLOCKS: |-
+                                    {
+                                    	"blocks": [
+                                    		{
+                                    			"type": "section",
+                                    			"text": {
+                                    				"type": "mrkdwn",
+                                    				"text": "<https://conjugador.reverso.net/conjugacion-aleman-verbo-{{ $.trim_string_prefix.result }}.html|Open in Reverso>"
+                                    			}
+                                    		}
+                                    	]
+                                    }
+                                  ICON_URL: https://cdn.reverso.net/trans/v2.8.2/assets/images/reverso180.png
+                                  MESSAGE_TYPE: blocks
+                                  RECIPIENT: '#{{ $.event.channel }}'
+                                  THREAD_TS: '{{ $.event.event_ts }}'
+                                  USERNAME: Reverso
+                                envFrom:
+                                  integrationRef: wolken
+                                uuid: f0ee7624-99f4-4ab6-a84e-83ba38ca54b8
+                                pretty_name: Send Slack Reverso
+                                options:
+                                  executor:
+                                    name: slack_message_blocks_v_2_3_11
+                                    env: {}
+                                    sync: true
+                                    disable: false
+                                documentationUrl: https://app.slack.com/block-kit-builder
+                                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                          - id: 1ce5fce3-fa5f-495a-81e2-43b1674119c8
+                            pretty_name: branch b
+                            conditions:
+                              or:
+                                - and:
+                                    - lvalue: '{{ $.dwds_wb_snippet_query.api_object.0.wortart }}'
+                                      operator: EQUALS
+                                      rvalue: Substantiv
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                                id: get_substantiv_description
+                                env:
+                                  AUTHORIZATION: None
+                                  HEADERS: ""
+                                  METHOD: GET
+                                  URL: '{{ $.dwds_wb_snippet_query.api_object.0.url }}'
+                                uuid: d195b8e1-30d7-40b9-8820-729eb4f6edc1
+                                pretty_name: Get Substantiv description
+                                options:
+                                  executor:
+                                    name: http_request_v_4_2_8
+                                    env:
+                                      FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                                      GO_TEMPLATE_BODY_PARSING: "false"
+                                      RESPONSE_API_OBJECT_ONLY: "false"
+                                    sync: true
+                                    disable: false
+                                manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                                isPrivate: false
+                                isPrivateUrl: true
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/strip-html-tags:1.0.4
+                                id: strip_html_tags
+                                env:
+                                  INPUT: '{{ $.get_substantiv_description.api_object }}'
+                                  SANITIZE_MODE: strict
+                                uuid: c34b25b5-6e9b-42c3-8636-64b85d388117
+                                pretty_name: Strip HTML Tags
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_3_39
+                                    env:
+                                      COMMAND: strip_html_tags
+                                    sync: true
+                                    disable: false
+                                manifestId: 7336986f-844f-460e-87f7-9e335c754143
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                        default:
+                          id: 02c271be-4db9-483c-86b9-c1e7bbdba45a
+                          steps: []
+                    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                      id: wiipedia
+                      env:
+                        BLOCKS: |-
+                          {
+                          	"blocks": [
+                          		{
+                          			"type": "section",
+                          			"text": {
+                          				"type": "mrkdwn",
+                          				"text": "<https://de.wiktionary.org/wiki/{{ $.trim_string_prefix.result }}|Open in Wikipedia>"
+                          			}
+                          		}
+                          	]
+                          }
+                        ICON_URL: https://upload.wikimedia.org/wikipedia/commons/f/ff/Wikipedia_logo_593.jpg
+                        MESSAGE_TYPE: blocks
+                        RECIPIENT: '#{{ $.event.channel }}'
+                        THREAD_TS: '{{ $.event.event_ts }}'
+                        USERNAME: Wikipedia
+                      envFrom:
+                        integrationRef: wolken
+                      uuid: 140efcda-666c-4afc-8960-f2b47a2efe1c
+                      pretty_name: 'Wiipedia '
+                      options:
+                        executor:
+                          name: slack_message_blocks_v_2_3_11
+                          env: {}
+                          sync: true
+                          disable: false
+                      documentationUrl: https://app.slack.com/block-kit-builder
+                      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+                      id: verbix_find_conjugated_verb
+                      env:
+                        AUTHORIZATION: None
+                        HEADERS: ""
+                        METHOD: GET
+                        URL: https://api.verbix.com/finder/json/<ap/v2/deu/{{ $.trim_string_prefix.result }}
+                      uuid: bffa8d16-e763-469c-871c-601db6d90ea7
+                      pretty_name: Verbix Find Conjugated Verb
+                      options:
+                        executor:
+                          name: http_request_v_4_2_8
+                          env:
+                            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+                            GO_TEMPLATE_BODY_PARSING: "false"
+                            RESPONSE_API_OBJECT_ONLY: "false"
+                          sync: true
+                          disable: false
+                      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+                      isPrivate: false
+                      isPrivateUrl: true
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: true
+                  uuid: 4d03751f-7e1a-49a1-85c7-1f2e86734eef
+                  pretty_name: If
+          - id: cd390273-df14-46eb-add4-0802efbe7092
+            pretty_name: Español
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.text }}'
+                      operator: CONTAINS
+                      rvalue: '{{ $.workflow_context.data.prefix_to_trigger_es }}'
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/trim-prefix:1.1.2
+                id: trim_string_prefix
+                env:
+                  INPUT: '{{ $.event.text }}'
+                  PREFIX: '{{ $.workflow_context.data.prefix_to_trigger_es }} '
+                uuid: 7afeb779-5332-44ab-bfec-7e68afc8fe01
+                pretty_name: Trim string prefix
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_3_39
+                    env:
+                      COMMAND: trim_prefix
+                    sync: true
+                    disable: false
+                manifestId: 092c0fcc-e224-489f-bc4b-749fd8581af1
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                id: es_en
+                env:
+                  COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result}}" --source-language-code "es" --target-language-code "en" --region us-east-1
+                  OUTPUT_FILE_PATH: out.json
+                envFrom:
+                  integrationRef: stackpulse
+                uuid: aa03eb85-83f5-43ee-b535-dd88821fec24
+                pretty_name: ES-EN
+                options: {}
+                manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                id: es_de
+                env:
+                  COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result }}" --source-language-code "es" --target-language-code "de" --region us-east-1
+                  OUTPUT_FILE_PATH: out.json
+                envFrom:
+                  integrationRef: stackpulse
+                uuid: 1e706ba8-c237-430e-96ab-fab55484e49f
+                pretty_name: ES-DE
+                options: {}
+                manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/aws/0_cmd:4.1.3
+                id: es_pt
+                env:
+                  COMMAND: translate translate-text --text "{{ $.trim_string_prefix.result }}" --source-language-code "es" --target-language-code "pt" --region us-east-1
+                  OUTPUT_FILE_PATH: out.json
+                envFrom:
+                  integrationRef: stackpulse
+                uuid: 5f60a758-47a0-4414-ad14-23ceb419e8e7
+                pretty_name: ES-PT
+                options: {}
+                manifestId: 5726f539-2483-41f4-a980-22d69ec916bd
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+                id: send_translation
+                env:
+                  BLOCKS: |-
+                    {
+                    	"blocks": [
+                    		{
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":flag-de: {{ $.es_de.output.TranslatedText }} "
+                    			}
+                    		},
+                        {
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":flag-us: {{ $.es_en.output.TranslatedText }} "
+                    			}
+                    		},
+                        {
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":flag-mx: {{ $.trim_string_prefix.result }} "
+                    			}
+                    		},
+                        {
+                    			"type": "section",
+                    			"text": {
+                    				"type": "mrkdwn",
+                    				"text": ":flag-br: {{ $.es_pt.output.TranslatedText }} "
+                    			}
+                    		}
+                    	]
+                    }
+                  ICON_URL: https://compgauge.com/cgincludes/logos/logo-aws.amazon.com.png
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#{{ $.event.channel }}'
+                  THREAD_TS: '{{ $.event.event_ts }}'
+                  USERNAME: AWS Translate
+                envFrom:
+                  integrationRef: wolken
+                uuid: 0ac97a97-9f36-4750-b7c0-66a9bcd394bf
+                pretty_name: Send Translation
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_3_11
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+        default:
+          id: 18e5c3d6-ab26-45a9-a3ac-7004a462de7d
+          steps: []
+          pretty_name: Default
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 7a0b973b-6df6-4f33-b19c-a76d17520ebb
+    - name: us-docker.pkg.dev/stackpulse/public/scripting/python:2.1.3
+      id: run_an_inline_python_script
+      env:
+        PYTHON_CODE: "import openai\nimport boto3\nimport requests\nopenai.api_key = \"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\"\n\n\nresponse = openai.Image.create(prompt=\"{{ $.trim_string_prefix.result }}\",n=1,size=\"512x512\")\nimage_url = response['data'][0]['url']\n\nhostname = \"ewr1.vultrobjects.com\"\nsecret_key = \"dUmlkSDUTjB2OwOgVyTzicUtsILTCPvJiOjzBhHL\"\naccess_key = \"7GC53LGS9YQOCG33KO8W\"\n\nsession = boto3.session.Session()\nclient = session.client('s3', **{\n    \"region_name\": hostname.split('.')[0],\n    \"endpoint_url\": \"https://\" + hostname,\n    \"aws_access_key_id\": access_key,\n    \"aws_secret_access_key\": secret_key\n})\n\nimage = requests.get(image_url)\n\n\nwith open(\"{{ $.generate_random_string.result }}.png\", \"wb\") as image_file:\n  image_file.write(image.content)\n\n  \nwith open(\"{{ $.generate_random_string.result }}.png\", 'rb') as file:\n  response = client.put_object(Bucket='deutsch', Key='{{ $.generate_random_string.result }}.png',ACL='public-read', Body=file)\n"
+        REQUIREMENTS: |-
+          openai
+          boto3
+      uuid: 1a1cd075-c852-42a8-80dc-26f20d0a2ccc
+      pretty_name: Run an inline Python script
+      options: {}
+      icon: https://storage.googleapis.com/stackpulse-public/vendors/python.svg
+      manifestId: a55d5fb0-ed10-42a3-b1e2-02f2362a59cd
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.3.11
+      id: show_generated_flashcard
+      env:
+        BLOCKS: |-
+          {
+          	"blocks": [
+          		{
+          			"type": "image",
+          			"title": {
+          				"type": "plain_text",
+          				"text": "{{ $.trim_string_prefix.result }}",
+          				"emoji": true
+          			},
+          			"image_url": "https://ewr1.vultrobjects.com/deutsch/{{ $.generate_random_string.result }}.png",
+          			"alt_text": "{{ $.trim_string_prefix.result }}"
+          		}
+          	]
+          }
+        ICON_URL: https://openai.com/content/images/2022/05/openai-avatar.png
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#{{ $.event.channel }}'
+        THREAD_TS: '{{ $.event.event_ts }}'
+        USERNAME: OpenAI
+      envFrom:
+        integrationRef: wolken
+      uuid: a0783ff0-3b6e-4af7-8c47-12c3e960f763
+      pretty_name: Show Generated FlashCard
+      options:
+        executor:
+          name: slack_message_blocks_v_2_3_11
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 1697ef0f-41eb-4f4d-a236-c2d07b628b56
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.2.8
+      id: google_search
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: https://serpapi.com/search.json?q={{ $.trim_string_prefix.result }}&location=Mexico&hl=es&gl=mx&google_domain=google.com.mx
+      uuid: df9cacc5-1fae-47a2-ac4b-712de7649c3d
+      pretty_name: Google Search
+      options:
+        executor:
+          name: http_request_v_4_2_8
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+      manifestId: 78f74c8e-6bab-4da9-91e4-200ce86b2545
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.10
+      id: send_snippet
+      env:
+        CONTENT: https://ewr1.vultrobjects.com/ytautomation/qaws.mp3
+        RECIPIENT: '#{{ $.event.channel }}'
+        THREAD_TS: '{{ $.event.event_ts }}'
+      envFrom:
+        integrationRef: wolken
+      uuid: 5ac950a7-cdfe-4071-a3c7-4b24e7e356a1
+      pretty_name: Send Snippet
+      options:
+        executor:
+          name: slack_message_snippet_v_1_3_10
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 7142cd06-4538-44e2-af0a-e1b9c90e6818
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/snippet:1.3.10
+      id: send_snippet
+      env:
+        CONTENT: '{{ $.dwds_query1.api_object }}'
+        RECIPIENT: '#{{ $.event.channel }}'
+        THREAD_TS: '{{ $.event.event_ts }}'
+      envFrom:
+        integrationRef: wolken
+      uuid: 7db294cb-b9a0-4806-bcff-345e479ab275
+      pretty_name: Send Snippet
+      options:
+        executor:
+          name: slack_message_snippet_v_1_3_10
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 7142cd06-4538-44e2-af0a-e1b9c90e6818
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+  annotations:
+    - uuid: ff04c585-5241-4519-8f22-044bcf3805e8
+      x: -1545
+      "y": 1804
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true

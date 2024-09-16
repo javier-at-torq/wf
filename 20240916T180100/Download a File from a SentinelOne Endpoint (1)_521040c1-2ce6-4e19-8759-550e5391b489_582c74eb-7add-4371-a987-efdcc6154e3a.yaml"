@@ -1,0 +1,568 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 521040c1-2ce6-4e19-8759-550e5391b489
+name: Download a File from a SentinelOne Endpoint (1)
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: agent_id
+          description: The ID of the Agent you would like to download the file from.
+          required: true
+          prettyName: agent_id
+          shortText:
+            defaultValue: ""
+        - name: file_password
+          description: Set a password to encrypt the file that is downloaded
+          prettyName: file_password
+          shortText:
+            defaultValue: ""
+        - name: file_path
+          description: 'Path of file to fetch from the Agent: c:\\upload\file.txt'
+          required: true
+          prettyName: file_path
+          shortText:
+            defaultValue: ""
+        - name: sentinelone_integration_name
+          description: Integration name for SentinelOne
+          required: true
+          prettyName: sentinelone_integration_name
+          integration:
+            defaultValue: sentinelone
+            vendor: sentinelone_token
+        - name: shareable_link
+          description: If not Enabled the file link is only valid for Step execution
+          required: true
+          prettyName: shareable_link
+          boolean:
+            defaultValue: false
+        - name: max_hours_to_wait_agent
+          description: How many hours to wait the agent to be active
+          required: true
+          prettyName: max_hours_to_wait_agent
+          integer:
+            defaultValue: 12
+        - name: polling_active_agent_interval_minutes
+          description: How frequent to check if the Agent is Alive
+          required: true
+          prettyName: polling_active_agent_interval_minutes
+          integer:
+            defaultValue: 5
+    nestedOnly: true
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/math_utils:1.3.0
+      id: times_to_loop
+      env:
+        INPUT: ( {{ $.event.max_hours_to_wait_agent }} * 60 )  / {{ $.event.polling_active_agent_interval_minutes }}
+      uuid: 38e05561-ffe1-4f4e-ad81-35793c0c3b07
+      pretty_name: Times to Loop
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: math_utils
+          sync: true
+          disable: false
+      manifestId: bb157136-9c22-5f91-8ec1-0b9a36982e02
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - loop:
+        key: loop_2_key
+        value: loop_2_value
+        steps:
+          - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-agents:4.0.0
+            id: get_agents
+            env:
+              AGENT_IDS: '{{ $.event.agent_id }}'
+            envFrom:
+              integrationRef: '{{ $.event.sentinelone_integration_name }}'
+            uuid: 51ca810e-c981-45c5-ba71-323264562a2a
+            pretty_name: Get Agents
+            options:
+              executor:
+                name: http_request_v_4_9_1
+                env:
+                  AUTHORIZATION: None
+                  BODY: ""
+                  CONTENT_TYPE: application/json; charset=utf-8
+                  HEADERS: |-
+                    {
+                      "Authorization": "ApiToken {{ .S1_API_KEY | jsonEscape }}"
+                    }
+                  METHOD: GET
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["S1_API_KEY","S1_MGMT_URL"]'
+                  TIMEOUT: "30"
+                  URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents?{{ if .ACCOUNT_IDS }}&accountIds={{ .ACCOUNT_IDS | urlEnc }}{{ end }}{{ if .ACTIVE_THREATS }}&activeThreats={{ .ACTIVE_THREATS | urlEnc }}{{ end }}{{ if .AGENT_VERSION_GTE }}&agentVersion__gte={{ .AGENT_VERSION_GTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_LTE }}&agentVersion__lte={{ .AGENT_VERSION_LTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_INCLUDE_LIST }}&agentVersions={{ .AGENT_VERSION_INCLUDE_LIST | urlEnc }}{{ end }}{{ if .AGENT_VERSION_EXCLUDE_LIST }}&agentVersionsNin={{ .AGENT_VERSION_EXCLUDE_LIST | urlEnc }}{{ end }}{{ if .COMPUTER_NAME }}&computerName__like={{ .COMPUTER_NAME | urlEnc }}{{ end }}{{ if .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if .DECOMMISSIONED_BETWEEN }}&decommissionedAt__between={{ .DECOMMISSIONED_BETWEEN | urlEnc }}{{ end }}{{ if .DOMAINS }}&domains={{ .DOMAINS | urlEnc }}{{ end }}{{ if .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if .AGENT_IDS }}&ids={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if .INFECTED_AGENTS }}&infected={{ .INFECTED_AGENTS | urlEnc }}{{ end }}{{ if .ACTIVE_AGENTS }}&isActive={{ .ACTIVE_AGENTS | urlEnc }}{{ end }}{{ if .UNINSTALLED_AGENTS }}&isUninstalled={{ .UNINSTALLED_AGENTS | urlEnc }}{{ end }}{{ if .LAST_ACTIVE_BETWEEN }}&lastActiveDate__between={{ .LAST_ACTIVE_BETWEEN | urlEnc }}{{ end }}{{ if .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if .SCAN_STATUSES }}&scanStatuses={{ .SCAN_STATUSES | urlEnc }}{{ end }}{{ if .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if .THREAT_HIDDEN }}&threatHidden={{ .THREAT_HIDDEN | urlEnc }}{{ end }}{{ if .AGENT_UUIDS }}&uuids={{ .AGENT_UUIDS | urlEnc }}{{ end }}
+                sync: true
+                disable: false
+            manifestId: 29044de3-75f3-5216-8585-bd215cab3d28
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - if:
+              conditions:
+                or:
+                  - and:
+                      - lvalue: '{{ $.get_agents.api_object.data.0.isActive }}'
+                        operator: EQUALS
+                        rvalue: "True"
+              then:
+                - parallel:
+                    uuid: 19bd49c8-ead3-4589-9ae3-cc4ec3334352
+                    pretty_name: Set Password and Date
+                    threads:
+                      - uuid: f36f2169-a46d-4b59-a381-096a7061afbc
+                        steps:
+                          - if:
+                              conditions:
+                                or:
+                                  - and:
+                                      - lvalue: '{{ $.event.file_password }}'
+                                        operator: IS_EMPTY
+                                        rvalue: ""
+                              then:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/generate-alphanumeric:2.1.0
+                                  id: password
+                                  env:
+                                    LENGTH: "12"
+                                    STRING_FORMAT: Alphanumeric both lower and upper and special symbols
+                                  uuid: 6c44a043-43ab-490a-84b9-4ab6a805ebf1
+                                  pretty_name: Password
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: generate_alphanumeric
+                                      sync: true
+                                      disable: false
+                                  manifestId: 7dacb6fd-792b-5a54-9dff-f311296a17b5
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                    payload: '{}'
+                                  skip: false
+                              else:
+                                - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                                  id: password
+                                  env:
+                                    DATA_TYPE: string
+                                    VALUE_STRING: '{{ $.event.file_password }}'
+                                    VARIABLE_NAME: result
+                                  uuid: 201a7aec-6d8c-4f49-a597-3269dad0146c
+                                  pretty_name: Password
+                                  options:
+                                    executor:
+                                      name: utils_infrastructure_v_1_22_0
+                                      env:
+                                        COMMAND: set_variable
+                                      sync: true
+                                      disable: false
+                                  manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                                  isPrivate: false
+                                  mock_output:
+                                    enabled: false
+                                    payload: '{}'
+                                  skip: false
+                              uuid: 1391a77d-761f-480f-835e-0d96804e3677
+                              pretty_name: If No Password is Provided
+                      - uuid: 7509fc09-7c40-49c0-a9e3-472560d59a6a
+                        steps:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.1.0
+                            id: get_date_now
+                            env:
+                              DATE_FORMAT_LAYOUT: 2006-01-02T15:04:05Z07:00
+                            uuid: 50e399dd-9425-4e96-adf7-4ab597a87406
+                            pretty_name: Get Date - Now
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_22_0
+                                env:
+                                  COMMAND: get_date
+                                sync: true
+                                disable: false
+                            documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                            manifestId: 4fa2f5f4-d2ac-5a00-a6a6-00c5b88b8d9c
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                              payload: '{}'
+                            skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/sentinelone/fetch-file-from-agent:3.0.0
+                  id: request_a_file_from_an_agent
+                  env:
+                    AGENT_ID: '{{ $.event.agent_id }}'
+                    FILE_PASSWORD: '{{ $.password.result }}'
+                    FILE_PATH: '{{ jsonEscape $.event.file_path }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                  uuid: 3c7a8d99-39ee-4655-bd02-a74e6247cdbb
+                  pretty_name: Request a File from an Agent
+                  options:
+                    executor:
+                      name: http_request_v_4_2_8
+                      env:
+                        BODY: |-
+                          {
+                              "data": {
+                                  "files": "{{ .FILE_PATH | jsonEscape }}",
+                                  "password": "{{ .FILE_PASSWORD | jsonEscape }}"
+                              }
+                          }
+                        CONTENT_TYPE: application/json
+                        HEADERS: |-
+                          {
+                              "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                          }
+                        METHOD: POST
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "AGENT_ID", "FILE_PATH", "FILE_PASSWORD"]'
+                        TIMEOUT: "30"
+                        URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents/{{ .AGENT_ID | urlEnc }}/actions/fetch-files
+                      sync: true
+                      disable: false
+                  manifestId: 3c375057-d8ca-4825-af35-ce7025a26224
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - name: us-docker.pkg.dev/stackpulse/public/sentinelone/list-activities:3.0.3
+                  id: list_activities
+                  env:
+                    ACTIVITY_TYPES: "80"
+                    CREATED_AFTER: '{{ $.get_date_now.result }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                  uuid: 1e147aa1-81f1-436c-9ee2-40d2c9c83646
+                  pretty_name: List Activities
+                  options:
+                    executor:
+                      name: http_request_v_4_2_9
+                      env:
+                        HEADERS: |-
+                          {
+                              "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                          }
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL"]'
+                        TIMEOUT: "30"
+                        URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/activities?{{ if or .ACTIVITY_TYPES }}&activityTypes={{ .ACTIVITY_TYPES | urlEnc }}{{ end }}{{ if or .THREAT_IDS }}&threatIds={{ .THREAT_IDS | urlEnc }}{{ end }}{{ if or .CREATED_AFTER }}&createdAt__gte={{ .CREATED_AFTER | urlEnc }}{{ end }}{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}
+                      sync: true
+                      disable: false
+                  manifestId: 15c75faf-6537-4326-89ae-9e5a26692ef2
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                  retry:
+                    type: 2
+                    max_retries: 20
+                    delay: 30
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.list_activities.api_object.data }}'
+                              operator: IS_EMPTY
+                              rvalue: ""
+                - name: us-docker.pkg.dev/stackpulse/public/jq/extract_to_sparse_object:3.0.0
+                  id: extract_download_url
+                  env:
+                    FLAT_RESPONSE: "true"
+                    INPUT: '{{ $.list_activities.api_object.data }}'
+                    PATHS: data.downloadUrl
+                  uuid: aa386bed-1564-4bc6-9276-5aa8d44d5f4e
+                  pretty_name: Extract Download URL
+                  options:
+                    executor:
+                      name: jq_infra_v_3_8_0
+                      env:
+                        COMMAND: extract_to_sparse_object
+                      sync: true
+                      disable: false
+                  manifestId: 89c6bd91-17f8-5425-8bea-c2d89527d3ff
+                  isPrivate: false
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.event.shareable_link }}'
+                              operator: EQUALS
+                              rvalue: "true"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/sentinelone/download-file-from-activity:3.0.1
+                        id: download_file_from_activity
+                        env:
+                          DOWNLOAD_URL: '{{ $.list_activities.api_object.data.0.data.downloadUrl }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                        uuid: 9ed1ef24-e4d6-4f60-a22f-66b968509bd4
+                        pretty_name: Download File from Activity
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              HEADERS: |-
+                                {
+                                    "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                                }
+                              METHOD: GET
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "DOWNLOAD_URL"]'
+                              TIMEOUT: "30"
+                              URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/{{ .DOWNLOAD_URL | urlEnc }}
+                            sync: true
+                            disable: false
+                          output_to_file: true
+                        manifestId: 65f67a92-3e9c-4f34-8399-b61bad4f59d6
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/sentinelone/download-file-from-activity:3.0.1
+                        id: download_file_from_activity
+                        env:
+                          DOWNLOAD_URL: '{{ $.list_activities.api_object.data.0.data.downloadUrl }}'
+                        envFrom:
+                          integrationRef: '{{ $.event.sentinelone_integration_name }}'
+                        uuid: 82aa2012-3728-4681-b9a5-340704b43515
+                        pretty_name: Download File from Activity
+                        options:
+                          executor:
+                            name: http_request_v_4_2_8
+                            env:
+                              HEADERS: |-
+                                {
+                                    "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                                }
+                              METHOD: GET
+                              PARSE_HJSON: "true"
+                              REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "DOWNLOAD_URL"]'
+                              TIMEOUT: "30"
+                              URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/{{ .DOWNLOAD_URL | urlEnc }}
+                            sync: true
+                            disable: false
+                          output_to_file: true
+                        manifestId: 65f67a92-3e9c-4f34-8399-b61bad4f59d6
+                        isPrivate: false
+                        isPrivateUrl: true
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                    uuid: ceec0934-81e1-42b0-88fa-829fc0ff3b31
+                    pretty_name: If Link is Shareable
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.download_file_from_activity.step_status.code }}'
+                              operator: EQUALS
+                              rvalue: "1"
+                    then:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                        id: result
+                        env:
+                          DATA_TYPE: JSON
+                          VALUE_JSON: "{\n  \"file_name\": \"{{ $.list_activities.api_object.data.0.data.filename }}\",\n  \"file_url\": \"{{ $.download_file_from_activity.api_object.url }}\",\n  \"file_hashes\": {{ $.download_file_from_activity.api_object.hashes }}\n {{ if eq  $.event.file_password \"\"  }}\n   ,\"file_password\": \"{{ $.password.result }}\"\n{{ end }}\n  \n}"
+                          VARIABLE_NAME: result
+                        uuid: 2b0d7825-1e71-4875-a607-d872a3c8cdf9
+                        pretty_name: Result
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: set_variable
+                            sync: true
+                            disable: false
+                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                      - exit:
+                          success: "true"
+                          pretty_name: Exit
+                          output: '{{ $.result }}'
+                          uuid: 2c547c65-c9d6-4a67-81b3-765ceb24f4ea
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                        id: result
+                        env:
+                          DATA_TYPE: JSON
+                          VALUE_JSON: |-
+                            {
+                              "error": "Failed to fetch {{ jsonEscape $.event.file_path }} from {{ $.event.agent_id }}"
+                            }
+                          VARIABLE_NAME: result
+                        uuid: b6012216-1c2d-4bb8-b0cd-970ac7c784eb
+                        pretty_name: Result
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: set_variable
+                            sync: true
+                            disable: false
+                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                        skip: false
+                    uuid: 1f17052c-5671-44fc-b80f-4d8e298e4751
+                    pretty_name: If Step Failed to Fetch File
+              else:
+                - wait:
+                    id: polling_interval
+                    pretty_name: Polling Interval
+                    uuid: c0b917a8-5081-4c17-951a-9b530dbccaeb
+                    time_unit: "2"
+                    duration: '{{ $.event.polling_active_agent_interval_minutes }}'
+              uuid: 35147701-0478-4084-8f60-e2c465a44617
+              pretty_name: If Agent is Active
+        uuid: 5f701a83-33d4-42d0-a749-911121956513
+        pretty_name: Loop Until Agent is Active
+        range:
+          start: "1"
+          end: '{{ $.times_to_loop.result }}'
+          interval: "1"
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: result
+      env:
+        DATA_TYPE: JSON
+        VALUE_JSON: |-
+          {
+            "error": "TIME OUT: Agent is not listed as being active"
+          }
+        VARIABLE_NAME: result
+      uuid: cb7a5cf6-b7c9-460f-bd3a-9fd1bf6cda48
+      pretty_name: Result
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "false"
+        pretty_name: Exit
+        output: '{{ $.result }}'
+        uuid: aae78a37-38f1-4386-b198-52df7b65728c
+  annotations:
+    - uuid: 0725778c-4691-407d-999c-9656d17295c1
+      x: -457
+      "y": 116
+      width: 407
+      height: 474
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Download a File from a SentinelOne Endpoint"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow can be used as a nested function to request a file from a Sentinel One host."}]},{"type":"paragraph","content":[{"type":"text","text":"It receives a an AgentID, a File Path, and a password to zip and protect the file."}]},{"type":"paragraph","content":[{"type":"text","text":"Once the file is requested the Workflow will wait a configurable period of time for the Agent to be available and the file to be uploaded from the agent to Sentinel One management."}]},{"type":"paragraph","content":[{"type":"text","text":"The downloaded file is returned as a Torq private file or a will provide a shareable link."},{"type":"hardBreak"}]},{"type":"paragraph","content":[{"type":"text","text":"                                         "},{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/sentinelone.svg","alt":null,"title":null}}]}]}'
+    - uuid: ed92b03c-a868-4566-bef3-3ef62eb144f2
+      x: 362
+      "y": 124
+      width: 784
+      height: 321
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Trigger Parameters"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"agent_id:"},{"type":"text","text":" The ID of the Agent you would like to download the file from."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"file_password:"},{"type":"text","text":" Password to protect the requested file, more than 10 Characters."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"file_path:"},{"type":"text","text":" The absolute path of the file you would like to request."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"sentinelone_integration_name:"},{"type":"text","text":" The name of the Sentinel One integration."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"shareable_link:"},{"type":"text","text":" If True the file can be accessed publicly."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"max_hours_to_wait_agent:"},{"type":"text","text":" Maximum period of time in Hours to wait for the Agent to be active."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"polling_active_agent_interval_minutes:"},{"type":"text","text":" Interval of time between Agent status requests."}]}]}]}]}'
+    - uuid: 35a871ae-5294-4c06-a506-4b43664aa759
+      x: 598
+      "y": 519
+      width: 580
+      height: 194
+      attachedStepId: 51ca810e-c981-45c5-ba71-323264562a2a
+      attachedDistance:
+        x: -318
+        "y": -113
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Wait until the Agent is alive"}]},{"type":"paragraph","content":[{"type":"text","text":"Workflow by default will wait 12 hours for the Agent to be active if the field "},{"type":"text","marks":[{"type":"code"}],"text":"isActive"},{"type":"text","text":" is false. The Agent status is verified on a 5 minute interval by default."}]},{"type":"paragraph","content":[{"type":"text","text":"The time parameters are controlled by "},{"type":"text","marks":[{"type":"code"}],"text":"max_hours_to_wait_agent"},{"type":"text","text":" and "},{"type":"text","marks":[{"type":"code"}],"text":"polling_active_agent_interval_minutes"},{"type":"text","text":" parameters."}]}]}'
+    - uuid: e2bf3443-4549-4d5f-8125-d285b218dd8f
+      x: 1372
+      "y": 900
+      width: 405
+      height: 240
+      attachedStepId: 1391a77d-761f-480f-835e-0d96804e3677
+      attachedDistance:
+        x: -812
+        "y": -75
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"File Password"}]},{"type":"paragraph","content":[{"type":"text","text":"Before an Sentinel One Agent uploads a file to its management it is first zipped and password protected."}]},{"type":"paragraph","content":[{"type":"text","text":"If no password is found in the event the a random one is created using 12 characters."}]},{"type":"paragraph","content":[{"type":"text","text":"The password shows in the output json only when it is generated by the workflow."}]}]}'
+    - uuid: ce121768-c192-46c8-8c9f-6bf17b668120
+      x: 1208
+      "y": 1355
+      width: 512
+      height: 160
+      attachedStepId: 3c7a8d99-39ee-4655-bd02-a74e6247cdbb
+      attachedDistance:
+        x: -368
+        "y": -19
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Request file from Agent"}]},{"type":"paragraph","content":[{"type":"text","text":"A file is requested by Agent ID, Absolute File Path and Password.  Sentinel One request the Agent to upload a file and workflow will List all activities until a type 80 one is found."}]}]}'
+    - uuid: 14718a8a-7aee-425d-922b-e50f37c0f6c1
+      x: 1321
+      "y": 1917
+      width: 398
+      height: 194
+      attachedStepId: ceec0934-81e1-42b0-88fa-829fc0ff3b31
+      attachedDistance:
+        x: -481
+        "y": -188
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Download File "}]},{"type":"paragraph","content":[{"type":"text","text":"The requested file is downloaded from Sentinel One Management. It is a password-protected zip file. If "},{"type":"text","marks":[{"type":"bold"}],"text":"shareable_link "},{"type":"text","text":"is "},{"type":"text","marks":[{"type":"code"}],"text":"true"},{"type":"text","text":"then the returned Torq-file link can be accessed publicly, otherwise it is only valid within the step context."}]}]}'
+    - uuid: 050ca3f8-e2a5-487a-b892-02dfd459be38
+      x: 1210
+      "y": 1722
+      width: 510
+      height: 126
+      attachedStepId: aa386bed-1564-4bc6-9276-5aa8d44d5f4e
+      attachedDistance:
+        x: -370
+        "y": -124
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Get File URL"}]},{"type":"paragraph","content":[{"type":"text","text":"From the "},{"type":"text","marks":[{"type":"code"}],"text":"List Activities"},{"type":"text","text":"step, extract the URL of the file."}]}]}'
+    - uuid: 7121a160-b4c7-427e-8928-3cc25d7777ff
+      x: 1353
+      "y": 3070
+      width: 374
+      height: 194
+      attachedStepId: 2c547c65-c9d6-4a67-81b3-765ceb24f4ea
+      attachedDistance:
+        x: -373
+        "y": -18
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"Exit Successfully"}]},{"type":"paragraph","content":[{"type":"text","text":"When a file is successfully downloaded, the "},{"type":"text","marks":[{"type":"code"}],"text":"result "},{"type":"text","text":"object contains the Torq File Download URL public or private link, file integrity hashes and the password.  If the password was not provided one is generated by the workflow."}]}]}'
+    - uuid: a401c5a2-07c6-4b4c-bbf6-18dac5d2ed1e
+      x: 530
+      "y": 3935
+      width: 346
+      height: 174
+      attachedStepId: cb7a5cf6-b7c9-460f-bd3a-9fd1bf6cda48
+      attachedDistance:
+        x: -530
+        "y": -5
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"No Agent became Active."}]},{"type":"paragraph","content":[{"type":"text","text":"If the waiting time ends. The workflow will end with a failure status."}]},{"type":"paragraph"}]}'
+    - uuid: 6293be9f-c7b2-4a1a-ad5b-d218cd89c73f
+      x: 1210
+      "y": 1532
+      width: 508
+      height: 175
+      attachedStepId: 1e147aa1-81f1-436c-9ee2-40d2c9c83646
+      attachedDistance:
+        x: -370
+        "y": -65
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"List Activities Lookup"}]},{"type":"heading","attrs":{"level":3},"content":[{"type":"text","marks":[{"type":"italic"}],"text":"Retry On Condition"},{"type":"hardBreak"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"code"}],"text":"Lista Activities"},{"type":"text","text":" step uses feature "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://learn.torq.io/docs/retry-step?highlight=retry%20on%20condition","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"Retry Step on Condition"},{"type":"text","text":". It will retry the step until the file data is listed."}]}]}'
+    - uuid: 9f9bb3f2-16ad-4c2a-a433-9506d8712612
+      x: 1061
+      "y": 1159
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Valid Password:"}]},{"type":"paragraph","content":[{"type":"text","text":"The password must be 10 or more characters with a mix of upper and lower case letters, numbers, and symbols."},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://usea1-partners.sentinelone.net/api-doc/api-details?category=agent-actions&api=fetch-files","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"S1 Docs"}]}]}'
+root: true

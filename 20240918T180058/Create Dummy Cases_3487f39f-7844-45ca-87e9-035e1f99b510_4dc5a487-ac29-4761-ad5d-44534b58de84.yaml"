@@ -1,0 +1,2655 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3487f39f-7844-45ca-87e9-035e1f99b510
+name: Create Dummy Cases
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: case_type_to_create
+          required: true
+          prettyName: Case Type to Create
+          singleSelect:
+            options:
+              - Torq Example Case Formatting Options
+              - SentinelOne Torq Case Description
+              - CrowdStrike Torq Case Description
+              - Wiz Torq Case Description
+              - AWS GuardDuty Torq Case Description
+              - BigID Torq Case Description
+              - Phishing Example Torq Case Description
+            defaultValue: Torq Example Case Formatting Options
+playbook:
+  steps:
+    - switch:
+        uuid: 00a007da-527c-4970-9036-f25aedf264f3
+        pretty_name: Type of Case to Open as an Example
+        cases:
+          - id: 5f8391b8-36ba-41fc-bab8-56d8e927f44e
+            pretty_name: Torq Example
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: Torq Example Case Formatting Options
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_case_with_markdown_example_description
+                env:
+                  CASE_DESCRIPTION: "# Headers\n---------------------------\n\n# Header 1\n\n## Header 2\n\n### Header 3\n   \n   \n\n# Styling\n---------------------------\n\n*Emphasize* _emphasize_\n\n**Strong** __strong__\n\n==Marked text.==\n\n~~Mistaken text.~~\n\n> Quoted text.\n\nH~2~O is a liquid.\n\n2^10^ is 1024.\n\n <font color=\"red\"><b> This text is red using HTML formatting </b></font> \n\nNew lines: &nbsp;\n&nbsp;&nbsp;\nEnd new lines\n\n# Lists\n---------------------------\n\n- Item\n  * Item\n    + Item\n\n1. Item 1\n2. Item 2\n3. Item 3\n\n- [ ] Incomplete item\n- [x] Complete item\n\n  \n\n\n# Links\n---------------------------\n\nA [link](https://torq.io).\n\nAn image: ![Alt](https://storage.googleapis.com/stackpulse-public/vendors/torq.svg)\n\nA resized image: [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/torq.svg\" height=\"80\"/>]()\n\n\n\n\n# Code\n---------------------------\n\nSome `inline code`.\n\n```\n// A code block\nvar foo = 'bar';\n```\n\n\n\n\n\n# Tables\n---------------------------\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n\n| Column 1 | Column 2 |Column 3      |\n|:---------- |:--------:| -------------:|\n|left-aligned | centered | right-aligned |\n\n__Table without Headers using HTML CSS__\n\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n</div>\n\n__Table with controlled column width__\n\n<style>\ntable th:first-of-type {\n    width: 30%;\n}\ntable th:nth-of-type(2) {\n    width: 10%;\n}\ntable th:nth-of-type(3) {\n    width: 40%;\n}\n</style>\n\n<div class=\"table\">\n\nItem     | Value|Stock Count\n-------- | -----|-----\nComputer | $1600 | 15\nPhone    | $12 | 22\nAdapter     | $1 | 53\n\n</div>\n\n# Footnotes\n---------------------------\n\nSome text with a footnote.[^1]\n\n[^1]: The footnote.\n\n\n\n"
+                  CASE_SEVERITY: Low
+                  CASE_SLA: 24h
+                  CASE_TITLE: Example Case Descriptions
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: b3f5392b-37a9-4c8c-97a4-cbc0e7608037
+                pretty_name: Create a Case with Markdown Example Description
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-comment-to-case:4.0.0
+                id: add_comment_to_case_with_markdown
+                env:
+                  CASE_ID: '{{ $.create_a_case_with_markdown_example_description.case.id }}'
+                  TEXT_COMMENT: |-
+                    ![Alt](https://storage.googleapis.com/stackpulse-public/vendors/torq.svg)
+                    &nbsp;
+
+                    ## Markdown can also be used to format comments
+                    &nbsp;
+
+                    ### Styling
+                    ---------------------------
+
+                    **This is my example comment in bold**
+                    This is my example comment in regular text
+
+                    > Some quoted text.
+                    &nbsp;
+
+                    ### An example list
+                    ---------------------------
+
+                    1. Item 1
+                    2. Item 2
+                    3. Item 3
+                    &nbsp;
+
+                    ### Table
+                    ---------------------------
+
+                    Verdict     | Count
+                    -------- | -----
+                    Malicious  | 14
+                    Suspicious | 5
+                    Unknown    | 54
+                uuid: 892d2cd8-3ab5-4cd2-be67-824a3cf51626
+                pretty_name: Add Comment to Case with Markdown
+                options:
+                  executor:
+                    name: torq_cases_add-comment-to-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: bf5ee6cb-5671-58d5-8e3f-d47ab01f3948
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 5aef2634-ec77-4284-86e2-17f1cc3b2f06
+            pretty_name: SentinelOne
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: SentinelOne Torq Case Description
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+                id: wf_parameters
+                env:
+                  SCHEMA: |-
+                    {
+                        "agent_id": {
+                            "type": 8,
+                            "prettyName": "agent_id",
+                            "description": "",
+                            "uiPlaceholder": ""
+                        }
+                    }
+                  VALUES: |-
+                    {
+                      "agent_id": "1570510948363737031"
+                    }
+                uuid: 588d110b-649d-411f-8b29-d4e9a0f3aee8
+                pretty_name: wf_parameters
+                options:
+                  executor:
+                    name: utils_workflow_parameters_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-threats:3.1.0
+                id: get_threats
+                env:
+                  AGENT_IDS: '{{ $.wf_parameters.agent_id}}'
+                envFrom:
+                  integrationRef: sentinelone
+                uuid: aafafa22-4993-4f08-a3fb-0c567ead6b92
+                pretty_name: Get Threats
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      HEADERS: |-
+                        {
+                            "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats?{{ if or .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if or .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if or .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if or .AGENT_IDS }}&agentIds={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if or .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if or .CREATED_AFTER }}&createdAt__gte={{ .CREATED_AFTER | urlEnc }}{{ end }}{{ if or .CREATED_BEFORE }}&createdAt__lte={{ .CREATED_BEFORE | urlEnc }}{{ end }}{{ if or .THREAT_IDS }}&ids={{ .THREAT_IDS | urlEnc }}{{ end }}{{ if or .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if or .CONTENT_HASH }}&contentHash__contains={{ .CONTENT_HASH | urlEnc }}{{ end }}
+                    sync: true
+                    disable: false
+                manifestId: bf72b1ce-5541-5a6c-baee-cc95bec28d09
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: example_sentinelone_event_1
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "result": [
+                          {
+                            "agentDetectionInfo": {
+                              "accountId": "1199324235286123456",
+                              "accountName": "Demo_Acount",
+                              "agentDetectionState": null,
+                              "agentDomain": "TORQENG",
+                              "agentIpV4": "10.145.81.103",
+                              "agentIpV6": "fe80::b991:5e08:877d:cff",
+                              "agentLastLoggedInUpn": null,
+                              "agentLastLoggedInUserMail": null,
+                              "agentLastLoggedInUserName": "Robert",
+                              "agentMitigationMode": "detect",
+                              "agentOsName": "Windows 10 Enterprise",
+                              "agentOsRevision": "19045",
+                              "agentRegisteredAt": "2022-04-14T17:57:04.732172Z",
+                              "agentUuid": "5f1dd5599a25486ba4e8b7977106eb45",
+                              "agentVersion": "21.7.5.1080",
+                              "cloudProviders": null,
+                              "externalIp": "133.31.169.225",
+                              "groupId": "1682015117854761395",
+                              "groupName": "Windows Test Group",
+                              "siteId": "1477826317515863868",
+                              "siteName": "Site1"
+                            },
+                            "agentRealtimeInfo": {
+                              "accountId": "1199324235286123456",
+                              "accountName": "Demo_Account",
+                              "activeThreats": 1,
+                              "agentComputerName": "Desktop-A6PT0W",
+                              "agentDecommissionedAt": null,
+                              "agentDomain": "TORQENG",
+                              "agentId": "1398634497074697123",
+                              "agentInfected": true,
+                              "agentIsActive": true,
+                              "agentIsDecommissioned": false,
+                              "agentMachineType": "desktop",
+                              "agentMitigationMode": "detect",
+                              "agentNetworkStatus": "connected",
+                              "agentOsName": "Windows 10 Enterprise",
+                              "agentOsRevision": "19045",
+                              "agentOsType": "windows",
+                              "agentUuid": "5f1dd5599a25486ba4e8b7977106eb45",
+                              "agentVersion": "21.7.5.1080",
+                              "groupId": "1682015117854761395",
+                              "groupName": "Windows Test Group",
+                              "networkInterfaces": [
+                                {
+                                  "id": "1398634497074697824",
+                                  "inet": [
+                                    "10.145.81.103"
+                                  ],
+                                  "inet6": [
+                                    "fe80::b991:5e08:877d:cff"
+                                  ],
+                                  "name": "Ethernet0",
+                                  "physical": "7a:e2:a5:f6:03:cb"
+                                }
+                              ],
+                              "operationalState": "na",
+                              "rebootRequired": false,
+                              "scanAbortedAt": null,
+                              "scanFinishedAt": "2023-03-29T20:32:07.327031Z",
+                              "scanStartedAt": "2023-03-29T19:19:03.295163Z",
+                              "scanStatus": "finished",
+                              "siteId": "1477826317501234567",
+                              "siteName": "Site1",
+                              "storageName": null,
+                              "storageType": null,
+                              "userActionsNeeded": []
+                            },
+                            "containerInfo": {
+                              "id": null,
+                              "image": null,
+                              "isContainerQuarantine": false,
+                              "labels": null,
+                              "name": null
+                            },
+                            "id": "17428463874485123456",
+                            "indicators": [
+                              {
+                                "category": "Evasion",
+                                "description": "Code injection to other process memory space during the target process' initialization",
+                                "ids": [
+                                  153
+                                ],
+                                "tactics": [
+                                  {
+                                    "name": "Defense Evasion",
+                                    "source": "MITRE",
+                                    "techniques": [
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1055/012/",
+                                        "name": "T1055.012"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "Privilege Escalation",
+                                    "source": "MITRE",
+                                    "techniques": [
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1055/012/",
+                                        "name": "T1055.012"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "category": "Exploitation",
+                                "description": "Detected suspicious shellcode API call from vulnerable content",
+                                "ids": [
+                                  122
+                                ],
+                                "tactics": [
+                                  {
+                                    "name": "Execution",
+                                    "source": "MITRE",
+                                    "techniques": [
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1106/",
+                                        "name": "T1106"
+                                      },
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1059/",
+                                        "name": "T1059"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "Defense Evasion",
+                                    "source": "MITRE",
+                                    "techniques": [
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1140/",
+                                        "name": "T1140"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "category": "General",
+                                "description": "Process started from shortcut file",
+                                "ids": [
+                                  293
+                                ],
+                                "tactics": [
+                                  {
+                                    "name": "Execution",
+                                    "source": "MITRE",
+                                    "techniques": [
+                                      {
+                                        "link": "https://attack.mitre.org/techniques/T1204/",
+                                        "name": "T1204"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "kubernetesInfo": {
+                              "cluster": null,
+                              "controllerKind": null,
+                              "controllerLabels": null,
+                              "controllerName": null,
+                              "isContainerQuarantine": false,
+                              "namespace": null,
+                              "namespaceLabels": null,
+                              "node": null,
+                              "nodeLabels": null,
+                              "pod": null,
+                              "podLabels": null
+                            },
+                            "mitigationStatus": [],
+                            "threatInfo": {
+                              "analystVerdict": "undefined",
+                              "analystVerdictDescription": "Undefined",
+                              "automaticallyResolved": false,
+                              "browserType": null,
+                              "certificateId": "",
+                              "classification": "Malware",
+                              "classificationSource": "Static",
+                              "cloudFilesHashVerdict": "black",
+                              "collectionId": "1742809590198761407",
+                              "confidenceLevel": "malicious",
+                              "createdAt": "2023-08-02T16:04:39.643153Z",
+                              "detectionEngines": [
+                                {
+                                  "key": "sentinelone_cloud",
+                                  "title": "SentinelOne Cloud"
+                                }
+                              ],
+                              "detectionType": "static",
+                              "engines": [
+                                "SentinelOne Cloud"
+                              ],
+                              "externalTicketExists": false,
+                              "externalTicketId": null,
+                              "failedActions": false,
+                              "fileExtension": "EXE",
+                              "fileExtensionType": "Executable",
+                              "filePath": "\\Device\\HarddiskVolume3\\Users\\Robert\\Downloads\\eHrkXgrH7onMLXEj.exe",
+                              "fileSize": 72704,
+                              "fileVerificationType": "NotSigned",
+                              "identifiedAt": "2023-08-02T16:04:30.291000Z",
+                              "incidentStatus": "unresolved",
+                              "incidentStatusDescription": "Unresolved",
+                              "initiatedBy": "agent_policy",
+                              "initiatedByDescription": "Agent Policy",
+                              "initiatingUserId": null,
+                              "initiatingUsername": null,
+                              "isFileless": false,
+                              "isValidCertificate": false,
+                              "maliciousProcessArguments": null,
+                              "md5": null,
+                              "mitigatedPreemptively": false,
+                              "mitigationStatus": "not_mitigated",
+                              "mitigationStatusDescription": "Not mitigated",
+                              "originatorProcess": "7zG.exe",
+                              "pendingActions": false,
+                              "processUser": "TORQENG\\Robert",
+                              "publisherName": "",
+                              "reachedEventsLimit": false,
+                              "rebootRequired": false,
+                              "sha1": null,
+                              "sha256": "6f8902a46d84027fed2edab9f8795486b25fc21020907ce745d307a5cd53d9ab",
+                              "storyline": "39D77D3650E465FD",
+                              "threatId": "174284638740473431",
+                              "threatName": "eHrkXgrH7onMLXEj.exe",
+                              "updatedAt": "2024-01-19T06:49:41Z"
+                            },
+                            "whiteningOptions": [
+                              "hash"
+                            ]
+                          }
+                        ]
+                    }
+                  VARIABLE_NAME: data
+                uuid: d066fdbb-c9f4-45b9-83e8-140f85da9283
+                pretty_name: Example SentinelOne Event 1
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: true
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: example_sentinelone_event
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "result": [
+                          {{ $.get_threats.api_object.data.0 }}
+                        ]
+                    }
+                  VARIABLE_NAME: data
+                uuid: 0be0189d-e72e-4ea1-b987-ff3a7ef0b22a
+                pretty_name: Example SentinelOne Event
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/replace-text:3.0.0
+                id: filepath
+                env:
+                  __TQ_FILE_ENV_PARSER__FILE_OR_STRING: plain-text
+                  FILE_OR_STRING: '{{ $.example_sentinelone_event.data.result.0.threatInfo.filePath }}'
+                  NEW_TEXT: c:\
+                  OLD_TEXT: \Device\HarddiskVolume4\
+                uuid: 453b4650-9bfe-4296-8f3c-624e5db4340d
+                pretty_name: FilePath
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_28_0
+                    env:
+                      COMMAND: replace_text
+                    sync: true
+                    disable: false
+                manifestId: bb05e8ff-7a3c-5c4c-9d79-c9504d6de686
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.0
+                id: filter_ttps
+                env:
+                  INPUT: '{{ $.example_sentinelone_event.data.result.0.indicators..tactics..techniques..name }}'
+                  JSON_QUERY: '[.[]|.[]|.[] |. ]| unique  | join(", ")'
+                  OUTPUT_AS_STRING: "true"
+                uuid: c54d73de-4e2b-4e24-961e-856a99ce47dc
+                pretty_name: Filter TTPs
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 0f6357a9-90d7-5a41-9caa-931ad5cb3510
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_sentinelone_case
+                env:
+                  CASE_CATEGORY: Endpoint Security
+                  CASE_DESCRIPTION: "![](https://storage.googleapis.com/stackpulse-public/vendors/sentinelone.svg)\n### SentinelOne {{ $.example_sentinelone_event.data.result.0.threatInfo.classification }} Finding\n\nA **{{ $.example_sentinelone_event.data.result.0.threatInfo.classification }}** detection has been observed on computer **{{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.agentComputerName }}** for last logged in user **{{ $.example_sentinelone_event.data.result.0.agentDetectionInfo.agentLastLoggedInUserName }}**.\n\nThe attack was originated from process **{{ $.example_sentinelone_event.data.result.0.threatInfo.originatorProcess }}**\n\n## Threat Details\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\n|        |        |\n|---- | --------|\n| __Automatically Resolved__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.automaticallyResolved }}|\n| __Created At__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.createdAt }}|\n| __Mitigation Status__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.mitigationStatus }}|\n| __TTPS__ | {{ $.filter_ttps.output }} |\n| __Confidence Level__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.confidenceLevel }} |\n| __Originator Process__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.originatorProcess }} | \n| __Process User__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.processUser }} | \n| __File Name__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.threatName }} |\n| __SHA256 File Hash__ | {{ $.example_sentinelone_event.data.result.0.threatInfo.sha256 }} |\n| __File Path__ | {{ $.filepath.result}} |\n</div>\n\n\n__Additional details can be found in the table below.__\n\n| __Event Key__    | __Event Value__ |\n| ---- | ----- |\n| __Hostname__ | {{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.agentComputerName }} |\n| __Last Logged in User__ | {{ $.example_sentinelone_event.data.result.0.agentDetectionInfo.agentLastLoggedInUserName }} |\n| __Agent Operating System__ | {{ $.example_sentinelone_event.data.result.0.agentDetectionInfo.agentOsName }} |\n| __IP Address__   | {{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.networkInterfaces.0.inet.0 }} |\n| __MAC Address__    | {{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.networkInterfaces.0.physical }} |\n\n"
+                  CASE_SEVERITY: Low
+                  CASE_SLA: 24h
+                  CASE_TITLE: SentinelOne {{ $.example_sentinelone_event.data.result.0.threatInfo.classification }} Finding on {{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.agentComputerName }}
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: 3df56508-5e42-4e5b-b119-54bb7f04cc3c
+                pretty_name: Create a SentinelOne Case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_agent_id
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: agent_id
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.agentId }}'
+                uuid: 7841ad35-0183-4d2e-aa79-db7e5124fb58
+                pretty_name: Add Agent ID
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_file_path_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: File Path
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.filepath.result }}'
+                uuid: e60282aa-3ff5-4ec7-894f-0aa4b9b6ec98
+                pretty_name: Add File Path Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_mitre_ttps_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: MITRE TTPs
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.filter_ttps.output }}'
+                uuid: 87967c5f-ade8-424c-8888-524d18ed7d4f
+                pretty_name: Add Mitre TTPs Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_user_name_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: User Name
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.threatInfo.processUser }}'
+                uuid: 1f777e0b-2368-4d5e-bc39-52da322219d9
+                pretty_name: Add User Name Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_machine_name_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Machine Name
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.agentRealtimeInfo.agentComputerName }}'
+                uuid: c765b74b-4d1b-4674-8f8b-b1d718f3793b
+                pretty_name: Add Machine Name Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_last_logged_in_user_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Last Logged in User
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.agentDetectionInfo.agentLastLoggedInUserName }}'
+                uuid: 9fb94cc7-6920-4e3f-925e-bf749c736887
+                pretty_name: Add Last Logged in User Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_operating_system_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Operating System
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.agentDetectionInfo.agentOsName }}'
+                uuid: 41bf1c8d-0b2f-4eab-9b53-23d6d393438c
+                pretty_name: Add Operating System Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_confidence_level_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_sentinelone_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Confidence Level
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_sentinelone_event.data.result.0.threatInfo.confidenceLevel }}'
+                uuid: 2a74f7b0-0429-4e6d-97bc-723335961e93
+                pretty_name: Add Confidence Level Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 218a746f-a3e8-46fd-807b-ed0b0e4ed56c
+            pretty_name: CrowdStrike
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: CrowdStrike Torq Case Description
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: example_crowdstrike_event
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "api_object": {
+                          "errors": [],
+                          "meta": {
+                            "powered_by": "legacy-detects",
+                            "query_time": 0.004996367,
+                            "trace_id": "93185b66-42e7-4080-8ce8-dba7968cb12d"
+                          },
+                          "resources": [
+                            {
+                              "behaviors": [
+                                {
+                                  "alleged_filetype": "",
+                                  "behavior_id": "530",
+                                  "cmdline": "vi /etc/pam.d/sudo",
+                                  "confidence": 50,
+                                  "description": "A process modified an important PAM configuration file",
+                                  "device_id": "5wok6ofykq0lu0e95htnz48o9fl6x0ls",
+                                  "display_name": "PamConfigurationModified",
+                                  "filename": "vim",
+                                  "filepath": "/usr/bin/vim",
+                                  "md5": "b7a8b3c7215f63025284f6b860b2c98f",
+                                  "objective": "Gain Access",
+                                  "parent_details": {
+                                    "parent_cmdline": "sudo vi /etc/pam.d/sudo",
+                                    "parent_md5": "3cb39d260534bbc89fc3ab40e7acb084",
+                                    "parent_process_graph_id": "pid:3834989d5faa4030a09446a19f59f2a1:489648979980736200",
+                                    "parent_sha256": "8148f62cf3a7f4b46230686def806a282d752fbb41e5864a3b678040abc80556"
+                                  },
+                                  "pattern_disposition": 0,
+                                  "pattern_disposition_details": {
+                                    "blocking_unsupported_or_disabled": false,
+                                    "bootup_safeguard_enabled": false,
+                                    "critical_process_disabled": false,
+                                    "detect": false,
+                                    "fs_operation_blocked": false,
+                                    "handle_operation_downgraded": false,
+                                    "inddet_mask": false,
+                                    "indicator": false,
+                                    "kill_action_failed": false,
+                                    "kill_parent": false,
+                                    "kill_process": false,
+                                    "kill_subprocess": false,
+                                    "operation_blocked": false,
+                                    "policy_disabled": false,
+                                    "process_blocked": false,
+                                    "quarantine_file": false,
+                                    "quarantine_machine": false,
+                                    "registry_operation_blocked": false,
+                                    "rooting": false,
+                                    "sensor_only": false,
+                                    "suspend_parent": false,
+                                    "suspend_process": false
+                                  },
+                                  "scenario": "privilege_escalation",
+                                  "severity": 50,
+                                  "sha256": "95089fcf5dc739eaa00a17b6fd2a4c61d2effef5d949ec05d8d84c4fba37ff24",
+                                  "tactic": "Privilege Escalation",
+                                  "tactic_id": "TA0004",
+                                  "technique": "Valid Accounts",
+                                  "technique_id": "T1078",
+                                  "timestamp": "2024-01-24T08:00:23Z",
+                                  "user_id": "0",
+                                  "user_name": "root"
+                                }
+                              ],
+                              "behaviors_processed": [
+                                "pid:3834989d5faa4030a09446a19f59f2a1:489648986236540625:530"
+                              ],
+                              "cid": "18d47b52050142809f522dc4a0d40880",
+                              "created_timestamp": "2023-05-30T12:06:16.664123686Z",
+                              "date_updated": "2024-01-24T08:00:23Z",
+                              "detection_id": "ldt:3834989d5faa4030a09446a19f59f2a1:489649024674601410",
+                              "device": {
+                                "agent_load_flags": "0",
+                                "agent_local_time": "2024-01-24T08:00:23Z",
+                                "agent_version": "6.55.16804.0",
+                                "cid": "18d47b52050142809f522dc4a0d40880",
+                                "config_id_base": "65994763",
+                                "config_id_build": "16804",
+                                "config_id_platform": "4",
+                                "device_id": "5wok6ofykq0lu0e95htnz48o9fl6x0ls",
+                                "external_ip": "124.85.76.45",
+                                "first_seen": "2023-11-15T06:44:26Z",
+                                "groups": [
+                                  "0f3103ecaed04f6997af08aa68854321"
+                                ],
+                                "hostname": "Lindsey-us-mac",
+                                "last_seen": "2024-01-24T06:53:48Z",
+                                "local_ip": "10.28.52.118",
+                                "mac_address": "ee:c0:7c:7a:02:33",
+                                "major_version": "22",
+                                "minor_version": "5",
+                                "modified_timestamp": "2024-01-24T08:00:23Z",
+                                "os_version": "Ventura (13)",
+                                "platform_id": "1",
+                                "platform_name": "Mac",
+                                "product_type_desc": "Workstation",
+                                "status": "normal",
+                                "system_manufacturer": "Apple Inc.",
+                                "system_product_name": "MacBookPro18,1",
+                                "tags": [
+                                  "FalconGroupingTags/Finance",
+                                  "FalconGroupingTags/VIP"
+                                ]
+                              },
+                              "email_sent": true,
+                              "first_behavior": "2023-11-15T06:44:26Z",
+                              "hostinfo": {
+                                "domain": ""
+                              },
+                              "last_behavior": "2024-01-24T06:53:48Z",
+                              "max_confidence": 50,
+                              "max_severity": 50,
+                              "max_severity_displayname": "Medium",
+                              "seconds_to_resolved": 0,
+                              "seconds_to_triaged": 0,
+                              "show_in_ui": true,
+                              "status": "new"
+                            }
+                          ]
+                        },
+                        "step_status": {
+                          "code": 1,
+                          "message": "",
+                          "verbose": ""
+                        },
+                        "type": "json"
+                    }
+                  VARIABLE_NAME: data
+                uuid: fdac2b67-a33a-4f3d-902e-e51ada60166e
+                pretty_name: Example CrowdStrike Event
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: example_crowdstrike_device_detail
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "api_object": {
+                          "errors": null,
+                          "meta": {
+                            "powered_by": "device-api",
+                            "query_time": 0.015447799,
+                            "trace_id": "d14f4132-4f66-4f9c-9b7f-f1ce44330aa7"
+                          },
+                          "resources": [
+                            {
+                              "agent_load_flags": "0",
+                              "agent_local_time": "2024-01-24T08:00:23Z",
+                              "agent_version": "6.58.17102.0",
+                              "chassis_type": "1",
+                              "chassis_type_desc": "Other",
+                              "cid": "18d47b52050142809f522dc4a0d40880",
+                              "config_id_base": "65994763",
+                              "config_id_build": "17102",
+                              "config_id_platform": "4",
+                              "cpu_signature": "4294967295",
+                              "device_id": "5wok6ofykq0lu0e95htnz48o9fl6x0ls",
+                              "device_policies": {
+                                "device_control": {
+                                  "applied": false,
+                                  "applied_date": "2022-09-19T10:36:21.977934289Z",
+                                  "assigned_date": "2022-09-19T10:32:38.083085256Z",
+                                  "policy_type": "device-control"
+                                },
+                                "firewall": {
+                                  "applied": true,
+                                  "applied_date": "2023-05-11T06:41:58.361818521Z",
+                                  "assigned_date": "2023-05-11T06:25:41.40388345Z",
+                                  "policy_type": "firewall",
+                                  "rule_set_id": "2de9f1b52f9348ba8604a72e4a271c99"
+                                },
+                                "global_config": {
+                                  "applied": true,
+                                  "applied_date": "2023-08-06T10:31:39.321912746Z",
+                                  "assigned_date": "2023-08-06T10:30:42.153017938Z",
+                                  "policy_type": "globalconfig",
+                                  "settings_hash": "85d14e5a"
+                                },
+                                "prevention": {
+                                  "applied": false,
+                                  "applied_date": "2022-08-14T11:25:54.219415687Z",
+                                  "assigned_date": "2022-08-14T11:24:14.199554689Z",
+                                  "policy_type": "prevention",
+                                  "rule_groups": [],
+                                  "settings_hash": "3ea89d59"
+                                },
+                                "remote_response": {
+                                  "applied": true,
+                                  "applied_date": "2022-06-30T14:20:41.366917507Z",
+                                  "assigned_date": "2022-06-30T14:19:30.621265447Z",
+                                  "policy_type": "remote-response",
+                                  "settings_hash": "8a548e5e"
+                                },
+                                "sensor_update": {
+                                  "applied": true,
+                                  "applied_date": "2023-07-12T23:47:54.452708431Z",
+                                  "assigned_date": "2023-07-12T23:46:07.157445603Z",
+                                  "policy_type": "sensor-update",
+                                  "settings_hash": "tagged|18;0",
+                                  "uninstall_protection": "DISABLED"
+                                }
+                              },
+                              "external_ip": "124.85.76.45",
+                              "first_seen": "2023-11-15T06:44:26Z",
+                              "group_hash": "8e36270828737ff4c7e98de6bef35a19f256be5ad9c79cf2cf6b97de3f461867",
+                              "groups": [
+                                "0f3103ecaed04f6997af08123455678"
+                              ],
+                              "hostname": "Lindsey-us-mac",
+                              "kernel_version": "22.6.0",
+                              "last_seen": "2024-01-24T06:53:48Z",
+                              "local_ip": "10.28.52.118",
+                              "mac_address": "ee:c0:7c:7a:02:33",
+                              "major_version": "22",
+                              "meta": {
+                                "version": "41616",
+                                "version_string": "4:23737449418"
+                              },
+                              "minor_version": "6",
+                              "modified_timestamp": "2024-01-24T08:00:23Z",
+                              "os_build": "22G74",
+                              "os_version": "Ventura (13)",
+                              "platform_id": "1",
+                              "platform_name": "Mac",
+                              "policies": [
+                                {
+                                  "applied": true,
+                                  "applied_date": "2022-08-14T11:25:54.219415687Z",
+                                  "assigned_date": "2022-08-14T11:24:14.199554689Z",
+                                  "policy_type": "prevention",
+                                  "rule_groups": [],
+                                  "settings_hash": "3ea89d59"
+                                }
+                              ],
+                              "product_type_desc": "Workstation",
+                              "provision_status": "Provisioned",
+                              "reduced_functionality_mode": "no",
+                              "serial_number": "WY1234Z6UJ",
+                              "status": "normal",
+                              "system_manufacturer": "Apple Inc.",
+                              "system_product_name": "MacBookPro18,1",
+                              "tags": [
+                                "FalconGroupingTags/Finance",
+                                "FalconGroupingTags/VIP"
+                              ]
+                            }
+                          ]
+                        },
+                        "step_status": {
+                          "code": 1,
+                          "message": "",
+                          "verbose": ""
+                        },
+                        "type": "json"
+                      }
+                  VARIABLE_NAME: data
+                uuid: 934351d9-201f-4e93-baa3-2d018e24504f
+                pretty_name: Example CrowdStrike Device Detail
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.0
+                id: sort_policies
+                env:
+                  __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                  INPUT: '{{ $.example_crowdstrike_device_detail.data.api_object.resources.0.device_policies }}'
+                  JSON_QUERY: '  to_entries | [.[] |{ policy: .key, applied: .value.applied } ] |sort_by(.policy)'
+                uuid: f4facc90-aef0-493e-b358-8c1c537aea1f
+                pretty_name: Sort Policies
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 0f6357a9-90d7-5a41-9caa-931ad5cb3510
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate:1.3.0
+                id: crowdstrike_policy_table
+                env:
+                  HEADERS: '["policy", "applied"]'
+                  INPUT: '{{ $.sort_policies.output }}'
+                  MARKDOWN: "true"
+                uuid: bb718c14-7099-43b9-b1ad-5d32c970daf5
+                pretty_name: CrowdStrike Policy Table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 49cface9-836f-58ef-9286-29b0cc728c3c
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_crowdstrike_case
+                env:
+                  CASE_CATEGORY: Endpoint Security
+                  CASE_DESCRIPTION: "[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/crowdstrike.svg\" height=\"80\"/>]()\n## Privilege Escalation detected on {{ $.example_crowdstrike_event.data.api_object.resources.0.device.hostname }}\n\n**Description:** {{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.description }}\n\n**Device Name:** {{ $.example_crowdstrike_event.data.api_object.resources.0.device.hostname }}\n**Behavior User Name:** {{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.user_name }}\n**Command:** {{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.cmdline }}\n**Scenario:** {{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.scenario }}\n**IP Address:** {{ $.example_crowdstrike_event.data.api_object.resources.0.device.local_ip }}\n**External IP Address:** {{ $.example_crowdstrike_event.data.api_object.resources.0.device.external_ip }}\n**Behaviour Confidence:** {{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.confidence }}\n**Severity:** {{ $.example_crowdstrike_event.data.api_object.resources.0.max_severity_displayname }}\n   \n&nbsp;\n\n**Device CrowdStrike Policy Status:**\n\n{{ $.crowdstrike_policy_table.tabulate_output }}"
+                  CASE_SEVERITY: Medium
+                  CASE_SLA: 24h
+                  CASE_TITLE: CrowdStrike - Privilege Escalation detected on {{ $.example_crowdstrike_event.data.api_object.resources.0.device.hostname }}
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: 3436a4fb-abc0-48d4-b9cc-77f9a83c67e9
+                pretty_name: Create a CrowdStrike Case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_device_name_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Device Name
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_event.data.api_object.resources.0.device.hostname }}'
+                uuid: 2c8915a8-cd99-41ff-939b-c11c305b2aba
+                pretty_name: Add Device Name Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_behaviour_user_name_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Behaviour User Name
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.user_name }}'
+                uuid: 0e5bbaf7-4ec5-41e7-a6c7-1ca4efa4b1e2
+                pretty_name: Add Behaviour User Name Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_behavior_confidence_level_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Behavior Confidence Level
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.confidence }}'
+                uuid: 75fbb8b7-d48a-4e19-b81b-e75d8b52f65b
+                pretty_name: Add Behavior Confidence Level Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_severity_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Severity
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_event.data.api_object.resources.0.max_severity_displayname }}'
+                uuid: ecfd5fd7-8716-474b-b56e-299ab05f1ad2
+                pretty_name: Add Severity Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_scenario_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Scenario
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_event.data.api_object.resources.0.behaviors.0.scenario }}'
+                uuid: 5083de87-a271-4132-8915-5149ed21e977
+                pretty_name: Add Scenario Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_operating_system_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_crowdstrike_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Operating System
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_crowdstrike_device_detail.data.api_object.resources.0.os_version }} Build {{ $.example_crowdstrike_device_detail.data.api_object.resources.0.os_build }}'
+                uuid: 8b36d115-6da9-42b0-a8f3-56e1082aa871
+                pretty_name: Add Operating System Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: b22fbe81-6b41-4844-992d-bb9451443adf
+            pretty_name: Wiz
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: Wiz Torq Case Description
+            steps:
+              - parallel:
+                  uuid: 4744fc8a-965b-4df6-815b-d1b1a5cc770d
+                  pretty_name: Create 2 Wiz Cases
+                  threads:
+                    - uuid: 40a99939-b9de-4dcb-8976-b0ff8c793878
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                          id: example_wiz_event
+                          env:
+                            DATA_TYPE: JSON
+                            VALUE_JSON: |-
+                              {
+                                "control": {
+                                  "id": "wc-id-1262",
+                                  "name": "Publicly exposed data asset with potential exposure of sensitive financial data",
+                                  "severity": "",
+                                  "description": "This data asset is exposed to the public internet and has findings of sensitive financial data. \n\nPublicly exposed resources are more easily accessible for an attacker than internal ones, thus sensitive information should not be stored on them."
+                                },
+                                "trigger": {
+                                  "ruleName": "Manual",
+                                  "changedBy": "",
+                                  "updatedFields": "",
+                                  "type": "",
+                                  "ruleId": "",
+                                  "source": "ISSUE"
+                                },
+                                "resource": {
+                                  "region": "eastus",
+                                  "name": "finance_data_e88zlm",
+                                  "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                                  "cloudProviderURL": "https://portal.azure.com/#@torqio.onmicrosoft.com/resource//subscriptions/6e43a477-7f17-4c0a-b367-65bfd28bef98/resourcegroups/azureaddemo/providers/microsoft.storage/storageaccounts/2023_Data/blobservices/default/containers/finance_data_e88zlm",
+                                  "cloudPlatform": "Azure",
+                                  "subscriptionId": "6e43a477-7f17-4c0a-b367-65bfd28bef98",
+                                  "id": "/subscriptions/6e43a477-7f17-4c0a-b367-65bfd28bef98/resourcegroups/azureaddemo/providers/microsoft.storage/storageaccounts/2023_Data/blobservices/default/containers/finance_data_e88zlm",
+                                  "status": "Active",
+                                  "subscriptionName": "Azure Finance Subscription"
+                                },
+                                "issue": {
+                                  "created": "2024-01-24T15:59:05Z",
+                                  "projects": "Prod - Finance",
+                                  "severity": "CRITICAL",
+                                  "id": "5b741da9-fae9-4166-a08f-02796fff18a4",
+                                  "status": "OPEN"
+                                }
+                              }
+                            VARIABLE_NAME: data
+                          uuid: c23942e8-0cd4-449d-8322-cb16b6291171
+                          pretty_name: Example Wiz Event
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_9_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                          id: severity
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: '{{ if  eq $.example_wiz_event.data.issue.severity "CRITICAL"  }}<font color="red"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font> {{ else }} {{ if  eq $.example_wiz_event.data.issue.severity "LOW"  }}<font color="green"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font> {{ else }}<font color="blue"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font>{{ end }}{{ end }}'
+                            VARIABLE_NAME: data
+                          uuid: b31b01c0-1fe5-4aab-8b1c-cd0f2ab07325
+                          pretty_name: severity
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_9_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                          id: create_a_wiz_case
+                          env:
+                            CASE_CATEGORY: Data Security
+                            CASE_DESCRIPTION: "[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/microsoft_azure_ad.svg\" height=\"80\"/>](https://portal.azure.com/#home)[<img src=\"https://png.pngtree.com/png-clipart/20220122/ourmid/pngtree-red-arrow-irregular-triangle-unidirectional-linear-shape-png-image_4362204.png\" height=\"50\"/>]() [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/wiz.svg\" height=\"80\"/>](https://app.wiz.io/issues)\n\n\n## A Wiz alert was recieved for {{ $.example_wiz_event.data.control.name }}\n\n### Description: \n{{ $.example_wiz_event.data.control.description }}\n\n## Alert Details\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\n|  |  |\n|--|--|\n|__Severity__|{{ $.severity.data }}|\n|__WIZ Control ID__|{{ $.example_wiz_event.data.control.id }}|\n|__Issue ID__|{{ $.example_wiz_event.data.issue.id }}|\n|__Cloud Provider__|[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/microsoft_azure_ad.svg\" height=\"20\"/>](https://portal.azure.com) {{ $.example_wiz_event.data.resource.cloudPlatform }}|\n|__Region__|{{ $.example_wiz_event.data.resource.region }}|\n|__Resource Name__|{{ $.example_wiz_event.data.resource.name }}|\n|__Subscription Name__|{{ $.example_wiz_event.data.resource.subscriptionName }}|\n|__Subscription ID__|{{ $.example_wiz_event.data.resource.subscriptionId }}|\n\n</div>"
+                            CASE_SEVERITY: Critical
+                            CASE_SLA: 36h
+                            CASE_TAGS: Data Security, Wiz
+                            CASE_TITLE: Wiz Alert - {{ $.example_wiz_event.data.control.name }}
+                            TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                          uuid: 476b3901-20ca-4aa2-934b-3f27c8bae199
+                          pretty_name: Create a Wiz Case
+                          options:
+                            executor:
+                              name: torq_cases_create-a-case_v_4_0_0
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_cloud_provider_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Cloud Provider
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.cloudPlatform }}'
+                          uuid: 15a491f5-a8ef-4ee9-b68e-719e0404b825
+                          pretty_name: Add Cloud Provider Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_cloud_provider_region_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Cloud Provider Region
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.region }}'
+                          uuid: 3e87270d-847c-4d8d-ab7f-bea151389972
+                          pretty_name: Add Cloud Provider Region Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_resource_name_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Resource Name
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.name }}'
+                          uuid: 2cf746a3-1ef5-46dc-b525-5e91dd46cc63
+                          pretty_name: Add Resource Name Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_subscription_name_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Subscription Name
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.subscriptionName }}'
+                          uuid: b6375646-443b-4596-a212-269fa9761295
+                          pretty_name: Add Subscription Name Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_subscription_id_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Subscription ID
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.subscriptionId }}'
+                          uuid: 8dda88ec-664c-4403-8714-5644d443cc2d
+                          pretty_name: Add Subscription ID Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_wiz_control_id_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Wiz Control ID
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.issue.id }}'
+                          uuid: 533f398c-450e-4ded-a524-f4e549903497
+                          pretty_name: Add Wiz Control ID Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_severity_custom_field
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Severity
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.issue.severity }}'
+                          uuid: b164169a-c876-4aea-88f6-465ecfb7a381
+                          pretty_name: Add Severity Custom Field
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                    - uuid: 8c1585ac-36bb-463b-906f-a4591e40e6c3
+                      steps:
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                          id: example_wiz_event
+                          env:
+                            DATA_TYPE: JSON
+                            VALUE_JSON: |-
+                              {
+                                "trigger": {
+                                  "changedBy": "",
+                                  "updatedFields": "",
+                                  "type": "",
+                                  "ruleId": "",
+                                  "source": "ISSUE",
+                                  "ruleName": "Manual"
+                                },
+                                "resource": {
+                                  "id": "arn:aws:iam::012345678901:user/federicotanenbaum",
+                                  "region": "us-west-1",
+                                  "cloudProviderURL": "https://console.aws.amazon.com/iam/home#/users/ftanenbaum",
+                                  "name": "tanenbaum-sicherheit",
+                                  "subscriptionName": "tanenbaum",
+                                  "type": "user",
+                                  "status": "",
+                                  "cloudPlatform": "AWS",
+                                  "subscriptionId": "012345678901"
+                                },
+                                "issue": {
+                                  "severity": "MEDIUM",
+                                  "id": "21f3786d-de04-417e-bf9b-1f96191eb687",
+                                  "status": "OPEN",
+                                  "created": "2023-07-13T03:08:50.713682Z",
+                                  "projects": "Project TanenBaum, "
+                                },
+                                "control": {
+                                  "id": "wc-id-909",
+                                  "name": "User account with excessive admin privileges",
+                                  "severity": "MEDIUM",
+                                  "description": "This user account has admin privileges that have not been used  recently and may be unnecessary. The default timeframe is 90 days and can be customized in the [settings page](https://app.wiz.io/settings/scanners/cloud-entitlements).  \n\nHighly privileged resources are a greater risk to the environment when compromised. Therefore, an attacker could compromise the user and abuse its privileges, potentially performing administrative operations."
+                                }
+                              }
+                            VARIABLE_NAME: data
+                          uuid: 298ce1d8-46ca-4fb7-b3cb-5ff600d73ea5
+                          pretty_name: Example Wiz Event
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_9_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                          id: severity
+                          env:
+                            DATA_TYPE: string
+                            VALUE_STRING: '{{ if  eq $.example_wiz_event.data.issue.severity "CRITICAL"  }}<font color="red"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font> {{ else }} {{ if  eq $.example_wiz_event.data.issue.severity "LOW"  }}<font color="green"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font> {{ else }}<font color="blue"><b> {{ $.example_wiz_event.data.issue.severity }}</b></font>{{ end }}{{ end }}'
+                            VARIABLE_NAME: data
+                          uuid: acabd659-8402-45b2-95fd-e4a0306af303
+                          pretty_name: severity
+                          options:
+                            executor:
+                              name: utils_infrastructure_v_1_9_0
+                              env:
+                                COMMAND: set_variable
+                              sync: true
+                              disable: false
+                          manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                          id: create_a_wiz_case
+                          env:
+                            CASE_CATEGORY: Cloud Security
+                            CASE_DESCRIPTION: "[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/aws.svg\" height=\"80\"/>](https://aws.console.com)[<img src=\"https://png.pngtree.com/png-clipart/20220122/ourmid/pngtree-red-arrow-irregular-triangle-unidirectional-linear-shape-png-image_4362204.png\" height=\"50\"/>]() [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/wiz.svg\" height=\"80\"/>](https://app.wiz.io/issues)\n\n\n## A Wiz alert was recieved for {{ $.example_wiz_event.data.control.name }}\n\n### Description: \n{{ $.example_wiz_event.data.control.description }}\n\n## Alert Details\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\n|  |  |\n|--|--|\n|__Severity__|{{ $.severity.data }}|\n|__WIZ Control ID__|{{ $.example_wiz_event.data.control.id }}|\n|__Issue ID__|{{ $.example_wiz_event.data.issue.id }}|\n|__Cloud Provider__|[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/aws.svg\" height=\"20\"/>](https://console.aws.com) {{ $.example_wiz_event.data.resource.cloudPlatform }}|\n|__Region__|{{ $.example_wiz_event.data.resource.region }}|\n|__Resource Name__|{{ $.example_wiz_event.data.resource.name }}|\n|__Subscription Name__|{{ $.example_wiz_event.data.resource.subscriptionName }}|\n|__Subscription ID__|{{ $.example_wiz_event.data.resource.subscriptionId }}|\n\n</div>"
+                            CASE_SEVERITY: Critical
+                            CASE_SLA: 36h
+                            CASE_TAGS: Cloud Security, Wiz
+                            CASE_TITLE: Wiz Alert - {{ $.example_wiz_event.data.control.name }}
+                            TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                          uuid: 2350133d-b3ec-45fc-a5ac-8b29d5434bbc
+                          pretty_name: Create a Wiz Case
+                          options:
+                            executor:
+                              name: torq_cases_create-a-case_v_4_0_0
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_cloud_provider_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Cloud Provider
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.cloudPlatform }}'
+                          uuid: a0aef7e1-15c6-48e0-b8cd-68c694dd4ef7
+                          pretty_name: Add Cloud Provider Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_cloud_provider_region_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Cloud Provider Region
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.region }}'
+                          uuid: 7b2102e0-69d1-466e-8eb3-e2b80b52b207
+                          pretty_name: Add Cloud Provider Region Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_resource_name_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Resource Name
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.name }}'
+                          uuid: 2326fcf3-8fb0-49a7-8b9c-4d9c6c95a7bc
+                          pretty_name: Add Resource Name Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_subscription_name_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Subscription Name
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.subscriptionName }}'
+                          uuid: 5d4dcb94-1b2f-4489-8825-49355f3f0910
+                          pretty_name: Add Subscription Name Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_subscription_id_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Subscription ID
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.resource.subscriptionId }}'
+                          uuid: d727ffaf-69e6-4a40-b5b4-26bc632b892d
+                          pretty_name: Add Subscription ID Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_wiz_control_id_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Wiz Control ID
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.issue.id }}'
+                          uuid: 029717f8-9df6-405e-a03c-f04bab8188f0
+                          pretty_name: Add Wiz Control ID Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+                        - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                          id: add_severity_custom_field_1
+                          env:
+                            CASE_ID: '{{ $.create_a_wiz_case.case.id }}'
+                            CUSTOM_FIELD_KEY: Severity
+                            CUSTOM_FIELD_TYPE: short text
+                            CUSTOM_FIELD_VALUE: '{{ $.example_wiz_event.data.issue.severity }}'
+                          uuid: b132a8b2-9b85-4360-9a1b-15a9757c272b
+                          pretty_name: Add Severity Custom Field 1
+                          options:
+                            executor:
+                              name: torq_cases_add-custom-field_v_5_4_1
+                              env: {}
+                              sync: true
+                              disable: false
+                          manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                          isPrivate: false
+                          mock_output:
+                            enabled: false
+                          skip: false
+          - id: 607ad3ea-bfe0-46b2-acf9-cbe09167c79c
+            pretty_name: AWS GuardDuty
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: AWS GuardDuty Torq Case Description
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: aws_guardduty_event
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                        "account": "001234567890",
+                        "detail": {
+                          "accountId": "001234567890",
+                          "arn": "arn:aws:guardduty:us-east-2:001234567890:detector/34bf555c09adb8c77473eecff7b4c29b/finding/50c424f8d0c5b7d6488f820d11f9f18d",
+                          "createdAt": "2023-05-23T18:49:12.332Z",
+                          "description": "EC2 instance has an unprotected port which is being probed by a known malicious host.",
+                          "id": "50c424f8d0c5b7d6488f820d11f9f18d",
+                          "partition": "aws",
+                          "region": "us-east-2",
+                          "resource": {
+                            "instanceDetails": {
+                              "availabilityZone": "us-east-2c",
+                              "iamInstanceProfile": null,
+                              "imageDescription": "Ubuntu 22.04LTS",
+                              "imageId": "ami-0e3657d8025d1fabc",
+                              "instanceId": "i-008c79b20a7ff3ffc2",
+                              "instanceState": "running",
+                              "instanceType": "c5.large",
+                              "launchTime": "2023-10-04T06:09:31Z",
+                              "networkInterfaces": [
+                                {
+                                  "ipv6Addresses": [],
+                                  "networkInterfaceId": "eni-088439b0b86abcdef",
+                                  "privateDnsName": "ip-172-18-73-16.us-east-2.compute.internal",
+                                  "privateIpAddress": "172.18.73.16",
+                                  "privateIpAddresses": [
+                                    {
+                                      "privateDnsName": "ip-172-18-73-16.us-east-2.compute.internal",
+                                      "privateIpAddress": "172.18.73.16"
+                                    }
+                                  ],
+                                  "publicDnsName": "ec2-240-63-219-227.us-east-2.compute.amazonaws.com",
+                                  "publicIp": "240.63.219.227",
+                                  "securityGroups": [
+                                    {
+                                      "groupId": "sg-063cc3ba04c123456",
+                                      "groupName": "Internet access"
+                                    }
+                                  ],
+                                  "subnetId": "subnet-4d012345",
+                                  "vpcId": "vpc-14abc0123"
+                                }
+                              ],
+                              "outpostArn": null,
+                              "platform": null,
+                              "productCodes": [
+                                {
+                                  "productCodeId": "7azvchdfh74dc0987654312j",
+                                  "productCodeType": "marketplace"
+                                }
+                              ],
+                              "tags": [
+                                {
+                                  "key": "Name",
+                                  "value": "Ubuntu Server "
+                                },
+                                {
+                                  "key": "purpose",
+                                  "value": "Development and Testing"
+                                },
+                                {
+                                  "key": "owner",
+                                  "value": ""
+                                }
+                              ]
+                            },
+                            "resourceType": "Instance"
+                          },
+                          "schemaVersion": "2.0",
+                          "service": {
+                            "action": {
+                              "actionType": "PORT_PROBE",
+                              "portProbeAction": {
+                                "blocked": false,
+                                "portProbeDetails": [
+                                  {
+                                    "localPortDetails": {
+                                      "port": 8088,
+                                      "portName": "Unknown"
+                                    },
+                                    "remoteIpDetails": {
+                                      "city": {
+                                        "cityName": ""
+                                      },
+                                      "country": {
+                                        "countryName": "Canada"
+                                      },
+                                      "geoLocation": {
+                                        "lat": 45.4995,
+                                        "lon": -73.5848
+                                      },
+                                      "ipAddressV4": "8.210.211.243",
+                                      "organization": {
+                                        "asn": "16276",
+                                        "asnOrg": "OVH SAS",
+                                        "isp": "OVH SAS",
+                                        "org": "OVH SAS"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "localPortDetails": {
+                                      "port": 8089,
+                                      "portName": "Unknown"
+                                    },
+                                    "remoteIpDetails": {
+                                      "city": {
+                                        "cityName": ""
+                                      },
+                                      "country": {
+                                        "countryName": "Mexico"
+                                      },
+                                      "geoLocation": {
+                                        "lat": 37.751,
+                                        "lon": -97.822
+                                      },
+                                      "ipAddressV4": "47.101.41.158",
+                                      "organization": {
+                                        "asn": "398324",
+                                        "asnOrg": "CENSYS-ARIN-01",
+                                        "isp": "Censys-arin-01",
+                                        "org": "Censys-arin-01"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "localPortDetails": {
+                                      "port": 9997,
+                                      "portName": "Unknown"
+                                    },
+                                    "remoteIpDetails": {
+                                      "city": {
+                                        "cityName": "Seattle"
+                                      },
+                                      "country": {
+                                        "countryName": "United States"
+                                      },
+                                      "geoLocation": {
+                                        "lat": 47.63,
+                                        "lon": -122.2972
+                                      },
+                                      "ipAddressV4": "139.180.154.192",
+                                      "organization": {
+                                        "asn": "398722",
+                                        "asnOrg": "CENSYS-ARIN-03",
+                                        "isp": "Censys-arin-03",
+                                        "org": "Censys-arin-03"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "localPortDetails": {
+                                      "port": 8000,
+                                      "portName": "Unknown"
+                                    },
+                                    "remoteIpDetails": {
+                                      "city": {
+                                        "cityName": "Santa Clara"
+                                      },
+                                      "country": {
+                                        "countryName": "United States"
+                                      },
+                                      "geoLocation": {
+                                        "lat": 37.353,
+                                        "lon": -121.9543
+                                      },
+                                      "ipAddressV4": "45.32.65.63",
+                                      "organization": {
+                                        "asn": "132203",
+                                        "asnOrg": "Tencent Building, Kejizhongyi Avenue",
+                                        "isp": "Tencent cloud computing",
+                                        "org": "Tencent cloud computing"
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalInfo": {
+                              "threatListName": "ProofPoint",
+                              "type": "default",
+                              "value": "{\"threatListName\":\"ProofPoint\"}"
+                            },
+                            "archived": false,
+                            "count": 1207,
+                            "detectorId": "34bf555c09adb8c77473ee01234567890",
+                            "eventFirstSeen": "2023-10-10T06:09:38Z",
+                            "eventLastSeen": "2024-01-23T06:18:40Z",
+                            "evidence": {
+                              "threatIntelligenceDetails": [
+                                {
+                                  "threatListName": "ProofPoint",
+                                  "threatNames": []
+                                }
+                              ]
+                            },
+                            "resourceRole": "TARGET",
+                            "serviceName": "guardduty"
+                          },
+                          "severity": 2,
+                          "title": "Unprotected port on EC2 instance i-008c79b20a7ff3ffc2 is being probed.",
+                          "type": "Recon:EC2/PortProbeUnprotectedPort",
+                          "updatedAt": "2023-07-31T11:05:04.403Z"
+                        },
+                        "detail-type": "GuardDuty Finding",
+                        "id": "d22a3ad7-c2c8-db14-958a-3bbf530e3a88",
+                        "region": "us-east-2",
+                        "resources": [],
+                        "slack_email": "",
+                        "slack_thread_ts": "",
+                        "source": "aws.guardduty",
+                        "time": "2024-01-23T08:00:29Z",
+                        "version": "0"
+                      }
+                  VARIABLE_NAME: data
+                uuid: 878fa871-782f-4ea7-9015-b64a6fb8ed33
+                pretty_name: AWS GuardDuty Event
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: ip_address_enrichment
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                      "tabulate_output": "|       IP        |  VERDICT  | PORT |    COUNTRY    |   ASN   |\n|-----------------|-----------|------|---------------|---------|\n| 47.101.41.158   | Malicious | 8089 | China         | AS37963 |\n| 139.180.154.192 | Malicious | 9997 | Singapore     | AS20473 |\n| 45.32.65.63     | Malicious | 8000 | United States | AS20473 |\n| 8.210.211.243   | Malicious | 8088 | null          | AS45102 |\n"
+                    }
+                  VARIABLE_NAME: data
+                uuid: cc02c026-e9dd-4bb3-8b67-5a93909a8383
+                pretty_name: IP Address Enrichment
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_aws_guardduty_case
+                env:
+                  CASE_CATEGORY: Cloud Security
+                  CASE_DESCRIPTION: |-
+                    [<img src="https://storage.googleapis.com/stackpulse-public/vendors/aws.svg" height="80"/>]()
+                    ### AWS GuardDuty Event
+
+                    **An AWS GuardDuty event was recieved with the following Information on a resource that is under your assignment:**
+
+                    **Title:** {{ $.aws_guardduty_event.data.detail.title }}
+                    **Description:** {{ $.aws_guardduty_event.data.detail.description }}
+                    **Alert Type:** {{ snakecase $.aws_guardduty_event.data.detail.service.action.actionType }}
+                    **Severity:** {{ $.aws_guardduty_event.data.detail.severity }}
+                    **Number of Probes:** {{ $.aws_guardduty_event.data.detail.service.count }}
+                    **First Probe:** {{ $.aws_guardduty_event.data.detail.service.eventFirstSeen }}
+                    **Latest Probe:** {{ $.aws_guardduty_event.data.detail.service.eventLastSeen }}
+                    **Threat Source:** {{ $.aws_guardduty_event.data.detail.service.additionalInfo.threatListName }}
+
+
+                    **Details with IP Address Enrichment**:
+
+                    {{ $.ip_address_enrichment.data.tabulate_output }}
+                  CASE_SEVERITY: Medium
+                  CASE_SLA: 24h
+                  CASE_STATE: new
+                  CASE_TAGS: AWS GuardDuty
+                  CASE_TITLE: '{{ $.aws_guardduty_event.data.''detail-type'' }} - {{ $.aws_guardduty_event.data.detail.type }}'
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: a941e37b-e84c-470e-9114-7cc7f9db5a72
+                pretty_name: Create a AWS GuardDuty Case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_alert_type_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Alert Type
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ snakecase $.aws_guardduty_event.data.detail.service.action.actionType }}'
+                uuid: b709da3c-99e1-4c18-b677-2a21f2c86a91
+                pretty_name: Add Alert Type Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_severity_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Severity
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.aws_guardduty_event.data.detail.severity }}'
+                uuid: 7a93ea14-9834-44c1-8016-f52f11376dea
+                pretty_name: Add Severity Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_threat_source_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Threat Source
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.aws_guardduty_event.data.detail.service.additionalInfo.threatListName }}'
+                uuid: bbdbb10b-01ee-4b90-9c5f-202a5dc3652c
+                pretty_name: Add Threat Source Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_number_of_probes_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Number of Probes
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.aws_guardduty_event.data.detail.service.count }}'
+                uuid: c5ae42cd-d83d-4fcc-972d-76c9e7336d78
+                pretty_name: Add Number of Probes Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_first_probe_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: First Probe
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.aws_guardduty_event.data.detail.service.eventFirstSeen }}'
+                uuid: 9722828d-6a86-48b8-a698-ed310b028e52
+                pretty_name: Add First Probe Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_last_probe_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_aws_guardduty_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Last Probe
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.aws_guardduty_event.data.detail.service.eventLastSeen }}'
+                uuid: 380888c9-5a6e-4011-b33b-e03bd6a81ce7
+                pretty_name: Add Last Probe Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 1b12e89e-7660-455e-a28b-1d250de0d0d0
+            pretty_name: BigID
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: BigID Torq Case Description
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.6
+                id: example_bigid_event
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: |-
+                    {
+                            "fullyQualifiedName": "Slack-Files-BigCompany.TorqBot(U03RMNACNEL)(T05C26H652Z)/https://files.slack.com/files-pri/T05C26H652Z-F04Q9KE60BU/torq_snippet.txt",
+                            "owner": "TorqBot",
+                            "scanner_type_group": "unstructured",
+                            "total_pii_count": 6,
+                            "cluster_id": "37cf34b8-113b-4702-a3fa-e3f6926d3a64",
+                            "id": "6527192e5b14436c193fd1bf",
+                            "has_duplicates": "No",
+                            "fileId": "F04Q9KE60BU",
+                            "source": "Slack-Files-BigCompany",
+                            "type": "slack-files",
+                            "attribute_original_name": [
+                              "classifier.US Given Name (Wide)",
+                              "classifier.ZIP Code (Wide)",
+                              "classifier.Cities (Spanish)",
+                              "classifier.Spanish Family Name (Medium)",
+                              "classifier.US County",
+                              "classifier.US Family Name (Wide)"
+                            ],
+                            "attribute_details": [
+                              {
+                                "name": "classifier.US Given Name (Wide)",
+                                "friendlyName": "classifier.US Given Name (Wide)",
+                                "count": 1,
+                                "type": [
+                                  "Classification"
+                                ]
+                              },
+                              {
+                                "name": "classifier.ZIP Code (Wide)",
+                                "friendlyName": "classifier.ZIP Code (Wide)",
+                                "count": 105,
+                                "type": [
+                                  "Classification"
+                                ]
+                              },
+                              {
+                                "name": "classifier.Cities (Spanish)",
+                                "friendlyName": "classifier.Cities (Spanish)",
+                                "count": 1,
+                                "type": [
+                                  "Classification"
+                                ]
+                              },
+                              {
+                                "name": "classifier.Spanish Family Name (Medium)",
+                                "friendlyName": "classifier.Spanish Family Name (Medium)",
+                                "count": 7,
+                                "type": [
+                                  "Classification"
+                                ]
+                              },
+                              {
+                                "name": "classifier.US County",
+                                "friendlyName": "classifier.US County",
+                                "count": 4,
+                                "type": [
+                                  "Classification"
+                                ]
+                              },
+                              {
+                                "name": "classifier.US Family Name (Wide)",
+                                "friendlyName": "classifier.US Family Name (Wide)",
+                                "count": 1,
+                                "type": [
+                                  "Classification"
+                                ]
+                              }
+                            ],
+                            "objectType": "file",
+                            "extendedObjectType": "file",
+                            "open_access": true,
+                            "fullObjectName": "TorqBot(U03RMNACNEL)(T05C26H652Z)/https://files.slack.com/files-pri/T05C26H652Z-F04Q9KE60BU/torq_snippet.txt",
+                            "objectName": "torq_snippet.txt",
+                            "containerName": "TorqBot(U03RMNACNEL)(T05C26H652Z)",
+                            "sizeInBytes": 32683,
+                            "language": "German",
+                            "modified_date": "2023-02-19 00:58:35.000",
+                            "created_date": "2023-10-11T21:52:46.052Z",
+                            "update_date": "2023-10-11T21:52:46.802Z",
+                            "scanDate": "2023-10-11T21:52:46.767Z",
+                            "catalogUpdateTime": "1697061166907",
+                            "location": "United States of America",
+                            "was_scanned": true,
+                            "tags": [],
+                            "object_owners_struct": [],
+                            "branchName": "https://bigcompany.slack.com/files/U03RMNACNEL/F04Q9KE60BU/torq_snippet.txt",
+                            "reporter": "[]",
+                            "reported_date": "",
+                            "attribute": [
+                              "classifier.US Given Name (Wide)",
+                              "classifier.ZIP Code (Wide)",
+                              "classifier.Cities (Spanish)",
+                              "classifier.Spanish Family Name (Medium)",
+                              "classifier.US County",
+                              "classifier.US Family Name (Wide)"
+                            ],
+                            "application_name": [],
+                            "document_type": "",
+                            "ownersList": [
+                              "TorqBot"
+                            ],
+                            "ds_owner": []
+                          }
+                  VARIABLE_NAME: data
+                uuid: 50f14985-b65e-4e22-9302-ff8bf80f1daf
+                pretty_name: Example BigID Event
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_9_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: c7abdf70-5f5b-5cf4-8358-42bfd7b950ea
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.11.0
+                id: classifiers
+                env:
+                  __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                  INPUT: '{{ $.example_bigid_event.data.attribute_details }}'
+                  JSON_QUERY: .| map({"count":.count,"attribute":"__\(.friendlyName)__" })
+                uuid: dc12a032-f34e-4415-99f4-ca1d512a82c5
+                pretty_name: Classifiers
+                options:
+                  executor:
+                    name: jq_infra_v_3_11_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 0f6357a9-90d7-5a41-9caa-931ad5cb3510
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/tabulate_markdown:1.0.1
+                id: classifiers_table
+                env:
+                  AUTO_WRAP: "false"
+                  INPUT: '{{ $.classifiers.output }}'
+                uuid: 3ffb00ee-b314-49f2-93fc-3b6234756058
+                pretty_name: Classifiers Table
+                options:
+                  executor:
+                    name: utils_output_utils_tabulate_v_1_3_0
+                    env:
+                      MARKDOWN: "true"
+                    sync: true
+                    disable: false
+                manifestId: a1e9acab-c57d-5424-b11c-d1b2fbadd7da
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_bigid_case
+                env:
+                  CASE_CATEGORY: Data Security
+                  CASE_DESCRIPTION: "[<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/slack.svg\" height=\"80\"/>](https://slack.com)[<img src=\"https://png.pngtree.com/png-clipart/20220122/ourmid/pngtree-red-arrow-irregular-triangle-unidirectional-linear-shape-png-image_4362204.png\" height=\"50\"/>]() [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/bigid.svg\" height=\"80\"/>](https://bigid.com)\n\n\n## A BigID alert was recieved for PII Data\n\n### Description: \n__PII Data Found on an Slack Channel__\n## Alert Details\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\n|  |  |\n|--|--|\n|__PII Objects__|{{ $.example_bigid_event.data.total_pii_count }}|\n|__Open Access__|{{ if  eq $.example_bigid_event.data.open_access true  }}<font color=\"red\"><b> OPEN ACCESS </b></font> {{ else }} <font color=\"green\"><b> NOT EXPOSED </b></font>{{ end }}|\n|__Data Source__|{{ $.example_bigid_event.data.source }}|\n|__Channel__|{{ $.example_bigid_event.data.containerName }}|\n|__Data Source Type__|{{ $.cloud_logo.data }}{{ $.example_bigid_event.data.type }}|\n|__Object Name__|{{ $.example_bigid_event.data.objectName }}|\n|__Object Type__|{{ $.example_bigid_event.data.extendedObjectType }}|\n|__Has Duplicates__|{{ $.example_bigid_event.data.has_duplicates }}|\n|__Data Language__|{{ $.example_bigid_event.data.language }}|\n|__Data Location__|{{ $.example_bigid_event.data.location}}|\n\n## Attributes Details\n{{ $.classifiers_table.tabulate_output }}\n\n</div>\n\n"
+                  CASE_SEVERITY: Critical
+                  CASE_SLA: 36h
+                  CASE_TAGS: Data Security, BigID
+                  CASE_TITLE: BigID Alert - PII Data in Slack Channel
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: 23c969c8-91ab-4802-9e47-ff8514bf91ab
+                pretty_name: Create a BigID Case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_had_duplicates_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Has Duplicates
+                  CUSTOM_FIELD_TYPE: boolean
+                  CUSTOM_FIELD_VALUE: '{{ if eq $.example_bigid_event.data.has_duplicates "No" }}false{{else}}true{{ end}}'
+                uuid: 8e59f067-b41e-4afe-8e51-65bcb63215ef
+                pretty_name: Add Had Duplicates Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_open_access_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Open Access
+                  CUSTOM_FIELD_TYPE: boolean
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.open_access }}'
+                uuid: 3c2810d6-6f13-4ba4-9924-cf9d0b764e09
+                pretty_name: Add Open Access Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_total_pii_count_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Total PII Count
+                  CUSTOM_FIELD_TYPE: number
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.total_pii_count }}'
+                uuid: 6b3a9d0f-599e-4ac1-86f7-c1e1489ef55e
+                pretty_name: Add Total PII Count Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_language_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Language
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.language }}'
+                uuid: 45cf3c30-9096-4cfd-b830-6f19ae99a95f
+                pretty_name: Add Language Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_location_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Location
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.location }}'
+                uuid: 2cb71d49-d04d-4167-ae47-1a04d4c857ac
+                pretty_name: Add Location Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_data_source_tyoe_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Data Source Type
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.type }}'
+                uuid: e4906cf5-bb52-45a2-ba37-d4ab42a8054a
+                pretty_name: Add Data Source Tyoe Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_filename_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Filename
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.objectName}}'
+                uuid: 25f9de35-38ef-4f5d-aeee-739b1abe5f0f
+                pretty_name: Add Filename Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_slack_channel_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_bigid_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Slack channel
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.example_bigid_event.data.containerName}}'
+                uuid: d58b41ad-9b80-497b-b62c-31dd2726d9ba
+                pretty_name: Add Slack Channel Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+          - id: 887f5390-0df7-41e8-bd37-a7152c6abbf0
+            pretty_name: Phishing
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.case_type_to_create }}'
+                      operator: EQUALS
+                      rvalue: Phishing Example Torq Case Description
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.0.0
+                id: create_a_phishing_case
+                env:
+                  CASE_CATEGORY: Email Security
+                  CASE_DESCRIPTION: "## A Phishing Alert  Was received from __user@example.com__\n\n### Description: \n__An Possible Phishing Email was submitted by user@example.com__\n\n## Alert Details\n<style>\n    .headerless th {  display: none; }\n</style>\n\n<style>\n    tables th:first-of-type {\n    width: 20%;\n}\n    tables  th:nth-of-type(2) {\n    width: 80%;\n}\n</style>\n\n<div class=\"headerless\">\n\n|  |  |\n|--|--|\n|__From__|fakeuser@fakedomain.com|\n|__Recipient__|user@example.com|\n|__Subject__|Your monthly invoice is ready!!|\n|__ReplyTo__|attacker@phishing.com|\n|__BCC__|Empty|\n|__CC__|Empty|\n|__DMARC Valid__| Pass|\n|__SPF Valid__|Pass|\n|__Message ID__|<20240125070259.339d1ea6240e193b@domain.io>|\n|__Attachments Included__|true|\n</div>\n\n<style>\ntable th:first-of-type {\n    width: 20%;\n}\ntable th:nth-of-type(2) {\n    width: 80%;\n}\n\n</style>\n\n<div class=\"table\">\n\n## Attachments Details\n| Reputation |Resource  |\n|--|--|\n|__MALICIOUS__|invoice.doc|\n|__BENIGN__|banner.png|\n|__MALICIOUS__|QRCode.png|\n\n## Links Details\n|  Reputation|Resource  |\n|--|--|\n|__MALICIOUS__|hXXps://wood-82c2[.]jayden1077[.]workers[.]io/c64ed9ed-b68b-4f61-b26e-20d32f0f13ab|\n|__BENIGN__|hxxps://www[.]walmart[.]com[.]mx/|\n\n</div>\n\n\n"
+                  CASE_SEVERITY: Critical
+                  CASE_SLA: 24h
+                  CASE_TAGS: Phishing
+                  CASE_TITLE: Phishing Alert from user@example.com
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: 4fea9e1f-e259-45bc-8651-831e26837671
+                pretty_name: Create a Phishing Case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_0_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 3fe61ff6-e2a1-5d0e-aa56-fe37ec506b88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_from_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: From
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: fakeuser@example.com
+                uuid: 9426914f-d539-42a9-b8a3-ed1c953f43d3
+                pretty_name: Add From Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_recipient_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Recipient
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: user@example.com
+                uuid: 620ff873-f6bf-4011-92e8-78e36a355b8d
+                pretty_name: Add Recipient Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_subject_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Subject
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: Your monthly invoice is ready!!
+                uuid: 7006a66b-d7cb-428a-a13b-8747654d6743
+                pretty_name: Add Subject Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_reply_to_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: Reply To
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: attacker@phishing.com
+                uuid: 459bce56-a8a5-4663-84b1-99253a0885c0
+                pretty_name: Add Reply To Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_bcc_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: BCC
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: Empty
+                uuid: 6b91aaca-0303-4be4-9d1e-247a0bb73b14
+                pretty_name: Add BCC Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_cc_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: CC
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: Empty
+                uuid: 79a7ccec-82c0-4110-afde-0b43edd64548
+                pretty_name: Add CC Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_dmarc_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: DMARC
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: Pass
+                uuid: 1c60b4c5-f649-4a49-bb0e-b6a04637f84c
+                pretty_name: Add DMARC Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.4.1
+                id: add_spf_custom_field
+                env:
+                  CASE_ID: '{{ $.create_a_phishing_case.case.id }}'
+                  CUSTOM_FIELD_KEY: SPF
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: Pass
+                uuid: 114a8034-3e39-4fd9-90ec-19cbc27377d3
+                pretty_name: Add SPF Custom Field
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_4_1
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: b676ab8a-82df-5542-97ae-d5fef8888b6f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+        default:
+          id: 88a7661e-9bdc-4fb4-b81c-cb07bdcd48c8
+          steps: []
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 6dda1dcc-16bf-4fda-93f0-2674d80058c0
+  annotations:
+    - uuid: ea885b69-33ba-4968-a6af-724f6e1e3e8e
+      x: -730
+      "y": 44
+      width: 574
+      height: 211
+      attachedStepId: 00a007da-527c-4970-9036-f25aedf264f3
+      attachedDistance:
+        x: 730
+        "y": 86
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Torq Case Example Descriptions for Different Case Types"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow can be used as a reference on different case types and includes examples of formatting text, tables, adding links and images to your case descriptions."}]},{"type":"paragraph","content":[{"type":"text","text":"In addition, example cases with mock event data for many popular integration partners for a quick start on formatting events into Torq Cases."},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","text":"Run the workflow and select the case type to create."}]}]}'
+  output_schema: '{}'
+root: true

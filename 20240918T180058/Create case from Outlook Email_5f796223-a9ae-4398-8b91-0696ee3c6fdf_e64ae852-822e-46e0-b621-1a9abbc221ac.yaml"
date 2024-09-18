@@ -1,0 +1,178 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 5f796223-a9ae-4398-8b91-0696ee3c6fdf
+name: Create case from Outlook Email
+trigger:
+  integrationTrigger:
+    integration:
+      name: microsoft_365_graph_webhook
+      typeId: microsoft_365_graph_subscripiton
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.4.0
+      id: create_a_case
+      env:
+        CASE_SEVERITY: Low
+        CASE_SLA: 24h
+        CASE_TITLE: Phishing Investigation
+        TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+      uuid: 57dcfba6-5f8e-4225-8484-c17bf4c82c3f
+      pretty_name: Create a case
+      options:
+        executor:
+          name: torq_cases_create-a-case_v_4_4_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 283afb6a-db73-5e3a-bb0e-b08fef75d9cf
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/associate-runbook-to-case:1.7.0
+      id: associate_a_runbook_to_a_case
+      env:
+        CASE_ID: '{{ $.create_a_case.case.id }}'
+        RUNBOOK_ID: ddf9798d-ed97-4b58-8065-2eda87d2be35
+      uuid: a9946e73-6e40-41c2-85e2-46a093b15c3b
+      pretty_name: Associate a runbook to a case
+      options:
+        executor:
+          name: torq_cases_associate-runbook-to-case_v_1_7_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 58b6bfae-2541-59ca-a914-d0246b0c898e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/assign-a-case:3.7.0
+      id: assign_a_case
+      env:
+        CASE_ASSIGNEE: socrates@torq.io
+        CASE_ID: '{{ $.create_a_case.case.id }}'
+      uuid: 915cdfdb-2d7d-445d-afb6-713b7e01d370
+      pretty_name: Assign a case
+      options:
+        executor:
+          name: torq_cases_assign-a-case_v_3_7_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: e7e15d6e-9a61-5804-ac72-29d2a5298cf9
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 47c02891-bbc5-4f5a-b24a-7693416e13b1
+  annotations:
+    - uuid: 91414c78-1d47-483d-be80-78b6cdcce448
+      x: -652
+      "y": 242
+      width: 427
+      height: 918
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Monitor an Outlook Mailbox for Phishing via Graph Subscription"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow is triggered by a webhook when a new message is delivered in Outlook via a Graph Subscription.  The message will be analyzed with VirusTotal and look for Malicious and Suspicious URLs and files.  The webhook is configured via the Microsoft Subscription for the mailbox and an example "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://app.torq.io/templates?id=9fc18487-f186-404b-9893-6ca9a476809e","target":"_blank","class":null}}],"text":"template is available"},{"type":"text","text":" to renew this subscription daily."}]},{"type":"paragraph","content":[{"type":"text","text":"The message headers will also be extracted and the public IP addresses that are not "},{"type":"text","marks":[{"type":"link","attrs":{"href":"http://outlook.com","target":"_blank","class":null}}],"text":"outlook.com"},{"type":"text","text":" domains will be looked up for a verdict in VirusTotal. "}]},{"type":"paragraph","content":[{"type":"text","text":"The workflow will also attempt to look for additional attachments at the top level of the message that are included and scan them.  Nested file attachments will currently not be scanned."}]},{"type":"paragraph","content":[{"type":"text","text":"When results are found in VirusTotal, the label on the email will indicate either Torq Investigated, Suspicious, Malicious, and/or Phishing.  An email is sent back to the originator of the message with the findings of the message."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":"The workflow will automatically create the necessary labels in the mailbox if they do not already exist."}]},{"type":"paragraph","content":[{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/microsoft_outlook.svg","alt":null,"title":null}}]}]}'
+    - uuid: 38385528-77b4-49bc-819e-927622cffbfe
+      x: 363
+      "y": 741
+      width: 653
+      height: 110
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The Labels step contains the labels that will be used as part of the workflow including the color of the label.  The labels will be created automatically by the workflow if they do not exist."}]}]}'
+    - uuid: 525391ca-ab9e-46db-9301-72375e788ded
+      x: 1038
+      "y": 1112
+      width: 392
+      height: 110
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Verify the labels exist in the mailbox, if not create any labels that are missing."}]}]}'
+    - uuid: 780aeb78-4b5a-4fad-8339-c657079629a2
+      x: -184
+      "y": 1977
+      width: 403
+      height: 127
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Create categories that are missing.  This loop is not run in parallel.  The API may fail if more than 1 label is created at a time."}]}]}'
+    - uuid: d8326ac6-d589-45ea-9715-33de71bb3b68
+      x: 4415
+      "y": 3247
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Initialize variables used in the workflow to default empty values."}]}]}'
+    - uuid: 8c283b8d-529a-4b8a-b79b-640ca5ba17b7
+      x: 2461
+      "y": 3354
+      width: 459
+      height: 175
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Use a nested workflow to gather the following from the message:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Headers from the message or other attached messages."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"File attachments including hashes and links"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"URLs that are found in the messages"}]}]}]}]}'
+    - uuid: b2cf9334-6887-4175-9c7a-48634115ca40
+      x: 2710
+      "y": 3919
+      width: 371
+      height: 275
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Decision to remove common image types from being submitted for inspection.  Common image types that will be omitted if the workflow context variable "},{"type":"text","marks":[{"type":"bold"},{"type":"italic"}],"text":"analyze_images_as_attachment"},{"type":"text","text":" is false are :"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"jpg/jpeg"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"svg"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"gif"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"png"}]}]}]}]}'
+    - uuid: e88c997b-37b7-4368-8b95-9860701ba627
+      x: 2313
+      "y": 5013
+      width: 429
+      height: 160
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If URLs were found, send them to the nested workflow for analysis with VirusTotal."}]},{"type":"paragraph","content":[{"type":"text","text":"On return, filter for Malicious, Suspicious, and Phishing URLs."}]}]}'
+    - uuid: eb468159-3ceb-403a-a81c-8414c139667b
+      x: 3474
+      "y": 5015
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If attachments were found, send them to the nested workflow for analysis by VirusTotal."}]},{"type":"paragraph","content":[{"type":"text","text":"On return, filter for Malicious and Suspicious file results."}]}]}'
+    - uuid: cd76181f-52ce-4208-9638-41f03ae97ae4
+      x: 4611
+      "y": 4972
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If message headers are included, analyze them with the nested workflow."}]},{"type":"paragraph","content":[{"type":"text","text":"On return, filter for Malicious and Suspicious findings."}]},{"type":"paragraph","content":[{"type":"text","text":"If Phishing is listed in the as part of the result of the domains, set the variable for Phishing Domains"}]}]}'
+    - uuid: 5a2491f7-34b2-414d-8f7e-95f503b96892
+      x: 1599
+      "y": 6017
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If malicious URLs, Files, or IPs were found:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Defang the URLs"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Build the message output variables for the response email message"}]}]}]}]}'
+    - uuid: 5461b6ff-d0f7-457c-a756-3ca47f45280c
+      x: 4411
+      "y": 6015
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If suspicious URLs, Files, or IPs were found:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Defang the URLs"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Build the message output variables for the response email message"}]}]}]}]}'
+    - uuid: b9db85cc-5adc-4f42-bfc0-efb441c73e04
+      x: 7157
+      "y": 6755
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If Phishing URLs or Domains were found:"}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Defang the URLs"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Build the message variables for use in the response email message"}]}]}]}]}'
+    - uuid: 63b50220-d23e-44b9-9ddb-8bc18a8db148
+      x: 4279
+      "y": 7682
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If Malicious, Suspicious or Phishing was found label the message with the corresponding label."}]}]}'
+    - uuid: a5e68661-c455-4bc1-832f-af68b370941a
+      x: 3039
+      "y": 7754
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If no finding was found, set a default label and message content to send back to the user."}]}]}'
+    - uuid: 41dd453a-4e4e-4288-9818-44a5e99a8108
+      x: 3983
+      "y": 9561
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Send a response email back to the originator on the status of the message."}]}]}'
+    - uuid: 37d3a3d3-25ef-49f3-b5f5-feb757b85efc
+      x: 4376
+      "y": 9180
+      width: 469
+      height: 127
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Update the message category and also build the message output based on the findings in the message. Only send relevant findings if they are available."}]}]}'
+    - uuid: b01264af-c52f-4b60-a042-480eefea5bd2
+      x: 6554
+      "y": 6037
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If Phishing URLs or Domains are Found generate the output needed."}]}]}'
+    - uuid: 0562f20a-0967-4ab6-9b12-41dfce5fe28b
+      x: 437
+      "y": -305
+      width: 922
+      height: 641
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Available Data at Trigger"},{"type":"hardBreak"},{"type":"text","text":"["}]},{"type":"paragraph","content":[{"type":"text","text":"    {"}]},{"type":"paragraph","content":[{"type":"text","text":"      \"resourceData\": {"}]},{"type":"paragraph","content":[{"type":"text","text":"        \"@"},{"type":"text","marks":[{"type":"link","attrs":{"href":"http://odata.id","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"odata.id"},{"type":"text","text":"\": \"Users/54ee1802-ef30-4625-a9e8-549b410901a5/Messages/AAMkAGRmYjgwODliLTAxYmEtNGZmYy05ZTFkLWE0MjE0NjU2NTA2NwBGAAAAAAA94fos3h7IS5FF_xB5UX6_BwCz4SrzAxpVTZWE672JA5igAAAAAAEMAACz4SrzAxpVTZWE672JA5igAADjBD_dAAA=\","}]},{"type":"paragraph","content":[{"type":"text","text":"        \"@odata.etag\": \"W/\\\"CQAAABYAAACz4SrzAxpVTZWE672JA5igAADjD/t6\\\"\","}]},{"type":"paragraph","content":[{"type":"text","text":"        \"@odata.type\": \"#Microsoft.Graph.Message\","}]},{"type":"paragraph","content":[{"type":"text","text":"       "},{"type":"text","marks":[{"type":"bold"}],"text":" \"id\": \"AAMkAGRmYjgwODliLTAxYmEtNGZmYy05ZTFkLWE0MjE0NjU2NTA2NwBGAAAAAAA94fos3h7IS5FF_xB5UX6_BwCz4SrzAxpVTZWE672JA5igAAAAAAEMAACz4SrzAxpVTZWE672JA5igAADjBD_dAAA=\""}]},{"type":"paragraph","content":[{"type":"text","text":"      },"}]},{"type":"paragraph","content":[{"type":"text","text":"      \"subscriptionId\": \"1f453062-65f6-46a6-b559-c8dd3a53d4ba\","}]},{"type":"paragraph","content":[{"type":"text","text":"      \"subscriptionExpirationDateTime\": \"2024-09-08T11:00:14+00:00\","}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"}],"text":" "},{"type":"text","text":"     \"resource\": \"Users/"},{"type":"text","marks":[{"type":"bold"}],"text":"54ee1802-ef30-4625-a9e8-549b410901a5"},{"type":"text","text":"/Messages/AAMkAGRmYjgwODliLTAxYmEtNGZmYy05ZTFkLWE0MjE0NjU2NTA2NwBGAAAAAAA94fos3h7IS5FF_xB5UX6_BwCz4SrzAxpVTZWE672JA5igAAAAAAEMAACz4SrzAxpVTZWE672JA5igAADjBD_dAAA=\","}]},{"type":"paragraph","content":[{"type":"text","text":"      \"tenantId\": \"94181171-6406-44ed-9e57-56a338110230\","}]},{"type":"paragraph","content":[{"type":"text","text":"      \"changeType\": \"created\","}]},{"type":"paragraph","content":[{"type":"text","text":"      \"clientState\": \"secretClientValue\" }  ]"}]}]}'
+    - uuid: 87f27cd8-c551-4f63-8736-fd3f75e6b4ee
+      x: 337
+      "y": 486
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Assign to socrates"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"mailto:socrates@torq.io","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"socrates@torq.io"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"How to make Socrates start running a case"}]},{"type":"paragraph"}]}'
+root: true

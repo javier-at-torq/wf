@@ -1,0 +1,54 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 475007fe-8894-4107-aee5-8a57cbcc4e21
+name: gha_help
+trigger:
+  integrationTrigger:
+    integration:
+      name: wolken
+      typeId: slack
+    conditions:
+      or:
+        and:
+          - expression:
+              - lvalue: '{{ $.event.text}}'
+                operator: OPERATOR_EQUALS
+                rvalue: help
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.0.5
+      id: send_message
+      env:
+        ICON_URL: https://ghaimg.s3.amazonaws.com/slacklogo.png
+        MESSAGE_TEXT: |-
+          GHA Uses the following commands:
+          * `help`: this message
+          * `stats`: list of activities
+          * `env`: get information from an environment
+          * `log`: enter a new activity
+          * `tag`: create a Tag to print and identify your plant.
+        RECIPIENT: '#{{ $.event.channel }}'
+        USERNAME: Grow High Automated
+      envFrom:
+        integrationRef: wolken
+      uuid: bc17c60b-9646-432e-aa67-86e8a4991be4
+      pretty_name: Send Message
+      options:
+        executor:
+          name: slack_message_message_v_2_0_5
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 16b116fc-72de-48c2-b5b1-123637e57c37
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: '{}'
+      skip: false
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.set_variable.site }}'
+        uuid: 4ed4bc06-aa04-464f-9559-9404ac1bb9d8
+  output_schema: '{}'
+root: true

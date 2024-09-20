@@ -1,0 +1,711 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 41d3c819-64bf-416f-a095-e3ce0e75e9fd
+name: Gather Outlook Message Attachments, Headers, and URLs
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: message_value
+          description: Value of the Message from Outlook
+          required: true
+          prettyName: message_value
+          json:
+            defaultValue: ""
+        - name: user_id
+          description: User Id in Outlook for the Mailbox
+          required: true
+          prettyName: user_id
+          shortText:
+            defaultValue: ""
+        - name: microsoft365_integration_name
+          description: Integration Name used with Microsoft Outlook
+          required: true
+          prettyName: microsoft365_integration_name
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/generate-access-token:2.0.3
+      id: generate_access_token
+      envFrom:
+        integrationRef: '{{ $.event.microsoft365_integration_name }}'
+      uuid: d1e267ea-b93e-4666-853e-3b8c93fcca09
+      pretty_name: Generate Access Token
+      options:
+        executor:
+          name: http_request_v_4_2_3
+          env:
+            BODY: '[{"key": "client_id", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_ID | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_ID"}, {"key": "scope", "type": "text", "value": "https://graph.microsoft.com/.default"}, {"key": "client_secret", "type": "text", "value": "{{ .MICROSOFT_365_CLIENT_SECRET | jsonEscape }}", "should_exists_var": "MICROSOFT_365_CLIENT_SECRET"}, {"key": "grant_type", "type": "text", "value": "client_credentials"}]'
+            CONTENT_TYPE: application/x-www-form-urlencoded
+            HEADERS: |-
+              {
+                  "Content-Type": "application/x-www-form-urlencoded"
+              }
+            METHOD: POST
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["MICROSOFT_365_TENANT_ID", "MICROSOFT_365_CLIENT_ID", "MICROSOFT_365_CLIENT_SECRET"]'
+            TIMEOUT: "30"
+            URL: https://login.microsoftonline.com/{{ .MICROSOFT_365_TENANT_ID | urlEnc }}/oauth2/v2.0/token
+          sync: true
+          disable: false
+      manifestId: 94deb564-a701-47a1-8cc2-8460f8bf7803
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - parallel:
+        uuid: ff8e4d07-4d36-4bdd-bef9-c58f38cca5d6
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 3d2be054-8e4f-4e1b-9fa6-968a6f22d9f3
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.message_value.body.content }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-urls:2.1.4
+                      id: extract_all_urls_from_message_body
+                      env:
+                        INPUT: '{{ $.event.message_value.body.content }}'
+                        RETURN_UNIQUE: "true"
+                      uuid: 5e7b9be9-7efd-47e3-9b86-1dae042a682e
+                      pretty_name: Extract all URLs from Message Body
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: extract_all_urls
+                          sync: true
+                          disable: false
+                      manifestId: dadf4e56-718b-4fd0-844e-8ef24c2e2f7b
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.extract_all_urls_from_message_body.found }}'
+                                  operator: EQUALS
+                                  rvalue: "true"
+                        then:
+                          - collector:
+                              id: collect_urls
+                              uuid: f7f5ae57-1f44-4bd9-ae64-1610f01bd925
+                              pretty_name: Collect URLs
+                              expression: '{{ $.extract_all_urls_from_message_body.results }}'
+                              flatten: true
+                        else: []
+                        uuid: 09a425eb-3799-404c-b4d7-13692baf486e
+                        pretty_name: If URLs are Found
+                  else: []
+                  uuid: 85824ab8-26f6-465f-8c34-8604ef82b406
+                  pretty_name: If message has body content
+          - uuid: b053538c-0f57-4235-8df5-c9b9a21e260a
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                id: get_message_headers
+                env:
+                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                  REQUEST_URL: https://graph.microsoft.com/v1.0/users/{{ $.event.user_id }}/messages/{{ $.event.message_value.id }}
+                  RETURN_FIELDS: internetMessageHeaders
+                uuid: f0e3714e-08a2-4192-9e95-3eee4dbd0733
+                pretty_name: Get Message Headers
+                options:
+                  executor:
+                    name: http_request_v_4_2_3
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: |-
+                        {
+                            "ConsistencyLevel": "eventual"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                      URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                    sync: true
+                    disable: false
+                documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.get_message_headers.api_object }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: message_headers
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '{{ $.get_message_headers.api_object.internetMessageHeaders }}'
+                        VARIABLE_NAME: output
+                      uuid: 6da0096e-fb53-453e-b60b-30420e7a42d9
+                      pretty_name: Message Headers
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: 78da477d-fb82-4abf-994c-422f5d438e7a
+                  pretty_name: If Headers are Found
+          - uuid: fe5b06f1-58cf-4553-9a11-a80987e51432
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.event.message_value.hasAttachments }}'
+                            operator: EQUALS
+                            rvalue: "true"
+                  then:
+                    - parallel:
+                        uuid: 0c3fb011-ccdb-4b0c-ae29-335158a08df5
+                        pretty_name: Parallel Executions
+                        threads:
+                          - uuid: ad0cc3b0-21f7-4f26-91ef-6cc8a7af12e6
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/microsoft_365/run-microsoft-graph-api-query:2.0.3
+                                id: list_message_attachments_without_binary_data
+                                env:
+                                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                                  REQUEST_URL: https://graph.microsoft.com/v1.0/users/{{ $.event.user_id }}/messages/{{ $.event.message_value.id }}/attachments
+                                  RETURN_FIELDS: id,name,size,contentType,isInline
+                                uuid: cf733ef3-82fe-44e2-a1fc-c864b64c02df
+                                pretty_name: List Message Attachments without Binary Data
+                                options:
+                                  executor:
+                                    name: http_request_v_4_2_3
+                                    env:
+                                      AUTHORIZATION: Bearer
+                                      HEADERS: |-
+                                        {
+                                            "ConsistencyLevel": "eventual"
+                                        }
+                                      METHOD: GET
+                                      PARSE_HJSON: "true"
+                                      REQUIRED_VARIABLES: '["REQUEST_URL", "MICROSOFT_ACCESS_TOKEN"]'
+                                      TIMEOUT: "30"
+                                      TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                                      URL: '{{ .REQUEST_URL }}?{{ if or .FILTER_QUERY }}&$filter={{ .FILTER_QUERY | urlEnc }}{{ end }}{{ if or .SEARCH_STRING }}&$search="{{ .SEARCH_STRING | urlEnc }}"{{ end }}{{ if or .RETURN_FIELDS }}&$select={{ .RETURN_FIELDS | urlEnc }}{{ end }}{{ if or .SORT_ORDER .SORT_FIELD }}&$orderby={{ .SORT_FIELD | urlEnc }} {{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .LIMIT }}&$top={{ .LIMIT | urlEnc }}{{ end }}{{ if or .OFFSET }}&$skip={{ .OFFSET | urlEnc }}{{ end }}'
+                                    sync: true
+                                    disable: false
+                                documentationUrl: https://docs.microsoft.com/en-us/graph/query-parameters
+                                manifestId: cd902b85-af45-43bc-a479-9cf138c39c19
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                  payload: '{}'
+                                skip: false
+                              - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/array-filter:2.3.0
+                                id: filter_out_file_attachments
+                                env:
+                                  FIELD_PATH: '''@odata.type'''
+                                  FILTER_ARG: '["#microsoft.graph.fileAttachment"]'
+                                  FILTER_FUNC: Not Equals
+                                  INPUT: '{{ $.list_message_attachments_without_binary_data.api_object.value }}'
+                                uuid: 6240107a-7716-4e5d-b6e9-e30c7349eb35
+                                pretty_name: Filter out File Attachments
+                                options:
+                                  executor:
+                                    name: utils_infrastructure_v_1_5_1
+                                    env:
+                                      COMMAND: array_filter
+                                    sync: true
+                                    disable: false
+                                documentationUrl: https://learn.torq.io/docs/array-utilities#filter-array
+                                manifestId: 587bf1b7-f81a-59bd-8a23-7c002a1463c5
+                                isPrivate: false
+                                mock_output:
+                                  enabled: false
+                                skip: false
+                              - if:
+                                  conditions:
+                                    or:
+                                      - and:
+                                          - lvalue: '{{ $.filter_out_file_attachments.length }}'
+                                            operator: GREATER
+                                            rvalue: "0"
+                                  then:
+                                    - loop:
+                                        in: '{{ $.filter_out_file_attachments.result }}'
+                                        key: attachment_key
+                                        value: attachment_value
+                                        steps:
+                                          - name: us-docker.pkg.dev/stackpulse/public/microsoft_outlook/get-attachment-information:5.0.1
+                                            id: get_attachment_information
+                                            env:
+                                              ATTACHMENT_ID: '{{ $.attachment_value.id }}'
+                                              MESSAGE_ID: '{{ $.event.message_value.id }}'
+                                              MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                                              USER_ID_OR_EMAIL: '{{ $.event.user_id }}'
+                                            uuid: 70a5407f-439e-438b-9672-ccaa3d6bd3eb
+                                            pretty_name: Get Attachment Information
+                                            options:
+                                              executor:
+                                                name: http_request_v_4_2_11
+                                                env:
+                                                  AUTHORIZATION: Bearer
+                                                  HEADERS: '{}'
+                                                  METHOD: GET
+                                                  PARSE_HJSON: "true"
+                                                  REQUIRED_VARIABLES: '["ATTACHMENT_ID", "MICROSOFT_ACCESS_TOKEN", "USER_ID_OR_EMAIL", "MESSAGE_ID"]'
+                                                  TIMEOUT: "30"
+                                                  TOKEN: '{{ .MICROSOFT_ACCESS_TOKEN }}'
+                                                  URL: https://graph.microsoft.com/v1.0/users/{{ .USER_ID_OR_EMAIL | urlEnc }}/messages/{{ .MESSAGE_ID | urlEnc }}/attachments/{{ .ATTACHMENT_ID | urlEnc }}/?&$expand=microsoft.graph.itemattachment/item
+                                                sync: true
+                                                disable: false
+                                            documentationUrl: https://docs.microsoft.com/en-us/graph/api/message-list-attachments?view=graph-rest-1.0&tabs=http
+                                            manifestId: 6de16cf2-9679-4104-8382-65d717832e4b
+                                            isPrivate: false
+                                            isPrivateUrl: true
+                                            skip: false
+                                          - parallel:
+                                              uuid: b6500e43-8e38-4cd0-8831-bcdcd88ee376
+                                              pretty_name: Parallel Executions
+                                              threads:
+                                                - uuid: 051f6af5-d5ff-416a-8489-f71e3ca70b6a
+                                                  steps:
+                                                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.7.0
+                                                      id: remove_contentbytes_from_attachment
+                                                      env:
+                                                        INPUT: '{{ $.get_attachment_information.api_object }}'
+                                                        JSON_QUERY: . | del(.. | .contentBytes?)
+                                                      uuid: 524af915-d74e-4ad6-830d-831d4bb6c738
+                                                      pretty_name: Remove contentBytes from Attachment
+                                                      options:
+                                                        executor:
+                                                          name: jq_infra_v_3_7_0
+                                                          env:
+                                                            COMMAND: jq_command
+                                                          sync: true
+                                                          disable: false
+                                                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                                                      manifestId: 7cb928aa-2448-5edd-a72f-5716ab8649bd
+                                                      isPrivate: false
+                                                      isPrivateUrl: true
+                                                      skip: false
+                                                - uuid: 67db86e9-8839-4a28-b660-7d0af9ff3691
+                                                  steps:
+                                                    - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.7.0
+                                                      id: extract_attachment_message_headers
+                                                      env:
+                                                        INPUT: '{{ $.get_attachment_information.api_object }}'
+                                                        JSON_QUERY: . | (.. | .internetMessageHeaders? // empty)
+                                                      uuid: 6890f0e5-4777-4f9c-8876-e5a492adce4b
+                                                      pretty_name: Extract Attachment Message Headers
+                                                      options:
+                                                        executor:
+                                                          name: jq_infra_v_3_7_0
+                                                          env:
+                                                            COMMAND: jq_command
+                                                          sync: true
+                                                          disable: false
+                                                      documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                                                      manifestId: 7cb928aa-2448-5edd-a72f-5716ab8649bd
+                                                      isPrivate: false
+                                                      isPrivateUrl: true
+                                                      skip: false
+                                          - parallel:
+                                              uuid: 8dbbf612-a2e4-41a9-b6d3-5c040a76f6a8
+                                              pretty_name: Parallel Executions
+                                              threads:
+                                                - uuid: 38586e8e-c6a3-4601-81d5-f4203f5bb4b2
+                                                  steps:
+                                                    - if:
+                                                        conditions:
+                                                          or:
+                                                            - and:
+                                                                - lvalue: '{{ $.remove_contentbytes_from_attachment.output.item.attachments }}'
+                                                                  operator: NOT_EMPTY
+                                                                  rvalue: ""
+                                                        then:
+                                                          - loop:
+                                                              in: '{{ $.remove_contentbytes_from_attachment.output.item.attachments }}'
+                                                              key: item_attachment_key
+                                                              value: item_attachment_value
+                                                              steps:
+                                                                - if:
+                                                                    conditions:
+                                                                      or:
+                                                                        - and:
+                                                                            - lvalue: '{{ $.item_attachment_value.item.body.content }}'
+                                                                              operator: NOT_EMPTY
+                                                                              rvalue: ""
+                                                                    then:
+                                                                      - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-urls:3.1.0
+                                                                        id: extract_all_item_urls
+                                                                        env:
+                                                                          __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                                                                          INPUT: '{{ $.item_attachment_value.item.body.content }}'
+                                                                          RETURN_UNIQUE: "true"
+                                                                        uuid: efdb0b33-3d2f-47ab-b560-6c5a6de4ab8c
+                                                                        pretty_name: Extract all Item URLs
+                                                                        options:
+                                                                          executor:
+                                                                            name: utils_infrastructure_v_1_22_0
+                                                                            env:
+                                                                              COMMAND: extract_all_urls
+                                                                            sync: true
+                                                                            disable: false
+                                                                        manifestId: 711e05e8-e94a-59b9-9c3c-f01965e4875c
+                                                                        isPrivate: false
+                                                                        mock_output:
+                                                                          enabled: false
+                                                                          payload: '{}'
+                                                                        skip: false
+                                                                      - if:
+                                                                          conditions:
+                                                                            or:
+                                                                              - and:
+                                                                                  - lvalue: '{{ $.extract_all_item_urls.found }}'
+                                                                                    operator: EQUALS
+                                                                                    rvalue: "true"
+                                                                          then:
+                                                                            - collector:
+                                                                                id: collect_item_urls
+                                                                                uuid: cb2a89ec-9c0b-49a7-9e70-19a6fa549ce1
+                                                                                pretty_name: Collect Item URLs
+                                                                                expression: '{{ $.extract_all_item_urls.results }}'
+                                                                                flatten: true
+                                                                          else: []
+                                                                          uuid: 520fccdf-38f7-4e5e-991a-b7a068a1deca
+                                                                          pretty_name: If URLs are Found
+                                                                    else: []
+                                                                    uuid: c7ba9419-3ffc-438f-ab14-8d29ba94a0db
+                                                                    pretty_name: If Body Content Exists
+                                                              uuid: e19475d6-5c77-42e2-9ae9-39d4b08bf332
+                                                              pretty_name: Loop Over Item Attachments
+                                                              run_in_parallel: true
+                                                          - if:
+                                                              conditions:
+                                                                or:
+                                                                  - and:
+                                                                      - lvalue: '{{ $.collect_item_urls.length }}'
+                                                                        operator: GREATER
+                                                                        rvalue: "0"
+                                                              then:
+                                                                - collector:
+                                                                    id: collect_attachment_urls
+                                                                    uuid: d054ac5c-e920-42fc-8da0-4d77c9e8b584
+                                                                    pretty_name: Collect Attachment URLs
+                                                                    expression: '{{ $.collect_item_urls.result }}'
+                                                                    flatten: true
+                                                              else: []
+                                                              uuid: 0a491a3d-f6df-479a-ae3f-7a4139699f67
+                                                              pretty_name: If  URLs were Found
+                                                        else: []
+                                                        uuid: 36ac6a6f-394b-49c0-a79e-bd2f6facc14c
+                                                        pretty_name: If Item Attachment is not Empty
+                                                - uuid: 6bf7a917-f020-488a-9d2e-cea73223484e
+                                                  steps:
+                                                    - if:
+                                                        conditions:
+                                                          or:
+                                                            - and:
+                                                                - lvalue: '{{ $.remove_contentbytes_from_attachment.output.item.body.content }}'
+                                                                  operator: NOT_EMPTY
+                                                                  rvalue: ""
+                                                        then:
+                                                          - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-all-urls:3.1.0
+                                                            id: extract_all_urls
+                                                            env:
+                                                              __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                                                              INPUT: '{{ $.remove_contentbytes_from_attachment.output.item.body.content }}'
+                                                              RETURN_UNIQUE: "true"
+                                                            uuid: 30ed3785-b50d-4bb6-bb20-be94deba2a06
+                                                            pretty_name: Extract all URLs
+                                                            options:
+                                                              executor:
+                                                                name: utils_infrastructure_v_1_22_0
+                                                                env:
+                                                                  COMMAND: extract_all_urls
+                                                                sync: true
+                                                                disable: false
+                                                            manifestId: 711e05e8-e94a-59b9-9c3c-f01965e4875c
+                                                            isPrivate: false
+                                                            mock_output:
+                                                              enabled: false
+                                                              payload: '{}'
+                                                            skip: false
+                                                          - if:
+                                                              conditions:
+                                                                or:
+                                                                  - and:
+                                                                      - lvalue: '{{ $.extract_all_urls.found }}'
+                                                                        operator: EQUALS
+                                                                        rvalue: "true"
+                                                              then:
+                                                                - collector:
+                                                                    id: collect_body_urls
+                                                                    uuid: 70b8bbce-580c-429e-9385-423f94ca9365
+                                                                    pretty_name: Collect Body URLs
+                                                                    expression: '{{ $.extract_all_urls.results }}'
+                                                                    flatten: true
+                                                              else: []
+                                                              uuid: 19c3dc75-57bf-48c1-b959-069f1dcd7835
+                                                              pretty_name: If URLs are Found
+                                                        else: []
+                                                        uuid: 762b9028-a86e-4be7-848f-9ae043ed174a
+                                                        pretty_name: If Body Content Exists
+                                        uuid: fd4a8f6b-f9b2-45c1-bfb7-0cb473ed0add
+                                        pretty_name: Loop Over Attachments
+                                        run_in_parallel: true
+                                  else: []
+                                  uuid: dcf9db52-63c8-410d-b409-973419c4c4b3
+                                  pretty_name: If Non-File Attachments are Found
+                          - uuid: 850e3717-541b-4be7-bcbd-49da97e53bfe
+                            steps:
+                              - name: us-docker.pkg.dev/stackpulse/public/microsoft_outlook/get-attachments:1.2.0
+                                id: get_file_attachments
+                                env:
+                                  MESSAGE_ID: '{{ $.event.message_value.id }}'
+                                  MICROSOFT_ACCESS_TOKEN: '{{ $.generate_access_token.api_object.access_token }}'
+                                  USER_ID_OR_EMAIL: '{{ $.event.user_id }}'
+                                uuid: f41b5636-42d3-4e09-a5e3-f0ccedad1202
+                                pretty_name: Get File Attachments
+                                options: {}
+                                documentationUrl: https://docs.microsoft.com/en-us/graph/api/attachment-get?view=graph-rest-1.0&tabs=http
+                                manifestId: 73700cae-8d8f-52db-aadd-ea301fa54700
+                                isPrivate: false
+                                skip: false
+                              - loop:
+                                  in: '{{ $.get_file_attachments.api_object }}'
+                                  key: file_attachments_key
+                                  value: file_attachments_value
+                                  steps:
+                                    - collector:
+                                        id: collect_file_details
+                                        uuid: 71f31871-65c2-411d-8e63-36b9d6f929bf
+                                        pretty_name: Collect File Details
+                                        expression: "{\n  \"content_type\": \"{{ $.file_attachments_value.ContentType }}\",\n  \"name\": \"{{ $.file_attachments_value.Name }}\",\n  \"hashes\": {{ $.file_attachments_value.Hashes }},\n  \"size\": {{ $.file_attachments_value.Size }},\n  \"url\": \"{{ $.file_attachments_value.ContentURL }}\"  \n}"
+                                        flatten: true
+                                  uuid: 854e42d1-d8a8-4caa-94e0-7b9529012f66
+                                  pretty_name: Loop Over File Attachments
+                  else: []
+                  uuid: b5eea960-f49b-42bf-ad32-e5a35f3301e1
+                  pretty_name: If Message has Attachments
+    - parallel:
+        uuid: 9136e09f-cc29-41b3-8726-36b9e28c8e56
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 202cb7b8-6236-4d9c-92ff-85b0b4574f15
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.collect_urls.result }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                      - and:
+                          - lvalue: '{{ $.collect_attachment_urls.result }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                      - and:
+                          - lvalue: '{{ $.collect_body_urls.result }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+                      id: combine_all_url_arrays
+                      env:
+                        COMMAND: jq --slurp ' [.[0]+.[1]+.[2]]  | add | unique'
+                        INPUT: |-
+                          {{ $.collect_attachment_urls.result }}
+                          {{ $.collect_body_urls.result }}
+                          {{ $.collect_urls.result }}
+                      uuid: f40ee2ca-9884-4585-b6e8-9a0d4061ae86
+                      pretty_name: Combine all URL Arrays
+                      options: {}
+                      manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: combine_all_url_arrays
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: output
+                      uuid: 958d7a09-3eaf-4f68-a15b-534847b46cb2
+                      pretty_name: Combine all URL Arrays
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  uuid: b3de99bb-94af-4f0f-bcc2-69beb07777cb
+                  pretty_name: If URLs not are Empty
+          - uuid: b91cc1a2-b46c-4572-8d1a-7ac196b04c23
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.collect_file_details.result }}'
+                            operator: IS_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: collect_file_details
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '[]'
+                        VARIABLE_NAME: result
+                      uuid: 0278fe88-bee3-4125-bc46-63b43a342fad
+                      pretty_name: Collect File Details
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else: []
+                  uuid: 775c3a0d-c4f8-4843-81ef-7d6cdc620434
+                  pretty_name: If File Detail is Empty
+          - uuid: 53be22dd-ab61-4580-99d7-50d9739f4568
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.extract_attachment_message_headers.output }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                      - and:
+                          - lvalue: '{{ $.message_headers.output }}'
+                            operator: NOT_EMPTY
+                            rvalue: ""
+                  then:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/concat-arrays:1.1.3
+                      id: message_headers
+                      env:
+                        INPUT: '{{ $.extract_attachment_message_headers.output }}'
+                        SECOND_ARRAY: '{{ $.message_headers.output }}'
+                      uuid: 50228636-3fb4-4a51-b8e1-1413ed122f57
+                      pretty_name: Message Headers
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: concat_arrays
+                          sync: true
+                          disable: false
+                      documentationUrl: https://learn.torq.io/docs/array-utilities#concat-arrays
+                      manifestId: 1aeb2a5a-7abb-40e7-9954-9c020eb11578
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  else:
+                    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.1.2
+                      id: message_headers
+                      env:
+                        DATA_TYPE: JSON
+                        VALUE_JSON: '{{ $.extract_attachment_message_headers.output }}'
+                        VARIABLE_NAME: result
+                      uuid: 4b1acbb3-b8d8-4bfd-8525-b6e0465ed618
+                      pretty_name: Message Headers
+                      options:
+                        executor:
+                          name: utils_infrastructure_v_1_3_39
+                          env:
+                            COMMAND: set_variable
+                            SP_ENV_SCHEMA: '{"type": "object", "properties": {"DATA_TYPE": {"enum": ["boolean", "string", "JSON", "number"]}}, "required": ["VARIABLE_NAME", "DATA_TYPE"], "allOf": [{"if": {"properties": {"DATA_TYPE": {"const": "number"}}}, "then": {"required": ["VALUE_NUMBER"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "boolean"}}}, "then": {"required": ["VALUE_BOOLEAN"]}}, {"if": {"properties": {"DATA_TYPE": {"const": "JSON"}}}, "then": {"required": ["VALUE_JSON"]}}]}'
+                          sync: true
+                          disable: false
+                      manifestId: 25cbcffc-e660-43ed-804b-3c01c89180a2
+                      isPrivate: false
+                      mock_output:
+                        enabled: false
+                        payload: '{}'
+                      skip: false
+                  uuid: 99207634-e0c1-4167-97ce-a2f95274b2a3
+                  pretty_name: If Message Headers are Empty
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "urls": {{ $.combine_all_url_arrays.output }},
+            "file_hashes": {{ $.collect_file_details.result }},
+            "message_headers": {{ $.message_headers.result }}
+          }
+        uuid: c5744bdd-2e30-4013-b376-744c3d91513f
+        use_schema: true
+  annotations:
+    - uuid: 7b73384a-9ee3-424e-9260-c371331feb4b
+      x: 1529
+      "y": 3549
+      attachedStepId: 9136e09f-cc29-41b3-8726-36b9e28c8e56
+      attachedDistance:
+        x: -689
+        "y": -117
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If Arrays are Empty set default empty array for Return to Parent Workflow."}]}]}'
+  output_schema: |-
+    {
+        "urls": {
+            "type": 10,
+            "prettyName": "urls",
+            "description": "Urls that were found in the Message"
+        },
+        "file_hashes": {
+            "type": 10,
+            "prettyName": "file_hashes",
+            "description": "List of File Hash detail of Files Directly Attached."
+        },
+        "message_headers": {
+            "type": 10,
+            "prettyName": "message_headers",
+            "description": "Message Headers included in the email and any attachments"
+        }
+    }
+root: true

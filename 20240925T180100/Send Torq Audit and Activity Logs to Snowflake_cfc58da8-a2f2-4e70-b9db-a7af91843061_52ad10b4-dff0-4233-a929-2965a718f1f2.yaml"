@@ -1,0 +1,456 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: cfc58da8-a2f2-4e70-b9db-a7af91843061
+name: Send Torq Audit and Activity Logs to Snowflake
+trigger:
+  scheduledTrigger:
+    integrationId: 9a09e835-456f-414f-a24e-3319331bd906
+    scheduledTriggerParameters:
+      cronTab: 0 */15 * * * *
+      timeZone: America/Mexico_City
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "activity_log": {
+                  "type": 12,
+                  "prettyName": "Activity Log",
+                  "description": "Set to True to pull Torq Activity Logs.",
+                  "uiPlaceholder": ""
+              },
+              "activity_log_checkpoint_name": {
+                  "type": 8,
+                  "prettyName": "Activity Log Checkpoint Name",
+                  "description": "A name that will be applied to the Torq variable to track last activity log retrieved.",
+                  "uiPlaceholder": "torq_logs_s3_activity_checkpoint"
+              },
+              "audit_log": {
+                  "type": 12,
+                  "prettyName": "Audit Log",
+                  "description": "Set to True to pull Torq Audit Logs.",
+                  "uiPlaceholder": ""
+              },
+              "audit_log_checkpoint_name": {
+                  "type": 8,
+                  "prettyName": "Audit Log Checkpoint Name",
+                  "description": "A name that will be applied to the Torq variable to track last audit log retrieved.",
+                  "uiPlaceholder": "torq_logs_s3_audit_checkpoint"
+              },
+              "scheduled_interval": {
+                  "type": 8,
+                  "prettyName": "Scheduled Interval",
+                  "description": "How often you would like to schedule log retrieval.",
+                  "uiPlaceholder": "60m"
+              },
+              "torq_integration_name": {
+                  "type": 8,
+                  "prettyName": "Torq Integration Name",
+                  "description": "The name of the integration with Torq.",
+                  "uiPlaceholder": "torq_api"
+              },
+              "discard_body_in_activity_logs": {
+                  "type": 12,
+                  "prettyName": "Discard Body in Activity Logs",
+                  "description": "Removes the Body from Activity Logs. This field applies only to Activity Logs.",
+                  "uiPlaceholder": ""
+              },
+              "snowflake_integration": {
+                  "type": 8,
+                  "prettyName": "snowflake_integration",
+                  "description": "The name of the integration with Snowflake",
+                  "uiPlaceholder": "snowflake"
+              },
+              "snowflake_database": {
+                  "type": 8,
+                  "prettyName": "snowflake_database",
+                  "description": "The name of the database on Snowflake.",
+                  "uiPlaceholder": "snowflake_database"
+              },
+              "snowflake_audit_table": {
+                  "type": 8,
+                  "prettyName": "snowflake_audit_table",
+                  "description": "",
+                  "uiPlaceholder": ""
+              },
+              "snowflake_warehouse": {
+                  "type": 8,
+                  "prettyName": "snowflake_warehouse",
+                  "description": "The name of the Snowflake warehouse",
+                  "uiPlaceholder": ""
+              },
+              "snowflake_activity_table": {
+                  "type": 8,
+                  "prettyName": "snowflake_activity_table",
+                  "description": "",
+                  "uiPlaceholder": ""
+              },
+              "snowflake_schema": {
+                  "type": 8,
+                  "prettyName": "snowflake_schema",
+                  "description": "The name of tables schema",
+                  "uiPlaceholder": "PUBLIC"
+              }
+          }
+        VALUES: |-
+          {
+            "activity_log": true,
+            "activity_log_checkpoint_name": "torq_logs_snowflake_activity_checkpoint",
+            "audit_log": true,
+            "audit_log_checkpoint_name": "torq_logs_snowflake_audit_checkpoint",
+            "scheduled_interval": "15m",
+            "torq_integration_name": "torq_api",
+            "discard_body_in_activity_logs": true,
+            "snowflake_integration": "",
+            "snowflake_database": "",
+            "snowflake_audit_table": "torq_audit_logs",
+            "snowflake_warehouse": "",
+            "snowflake_activity_table": "torq_activity_logs",
+            "snowflake_schema": ""
+          }
+      uuid: 913c4536-966a-4676-a72d-121963785047
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.3.0
+      id: get_date
+      env:
+        CUSTOM_DATE_FORMAT: '%Y-%m-%dT%H-%M-%S'
+        DATE_FORMAT_LAYOUT: Custom
+      uuid: edd9504b-1e4d-42d7-aaa5-40b12250c2f2
+      pretty_name: Get Date
+      options:
+        executor:
+          name: utils_infrastructure_v_1_31_0
+          env:
+            COMMAND: get_date
+          sync: true
+          disable: false
+      documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      manifestId: 7787179b-0a7f-5aa3-9581-175746451a13
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/snowflake/generate-jwt-token:1.0.6
+      id: generate_jwt_token
+      env:
+        SNOWFLAKE_PRIVATE_KEY: ""
+      envFrom:
+        integrationRef: '{{ $.workflow_parameters.snowflake_integration }}'
+      uuid: 6cfb5b60-0ca7-4bab-9679-e548b01216e2
+      pretty_name: Generate JWT token
+      options: {}
+      manifestId: 4ac5a417-b6bd-50bf-be67-bce4913e0acf
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/cryptographic_utils/decode-jwt:1.1.0
+      id: decode_jwt
+      env:
+        JWT: '{{ $.generate_jwt_token.jwt }}'
+      uuid: 93088b2d-670a-4d67-8dc3-578ada084760
+      pretty_name: Decode JWT
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: decode_jwt_token
+          sync: true
+          disable: false
+      documentationUrl: https://jwt.io/introduction
+      manifestId: d7ee7596-a1ec-5136-b5f9-88abb6080a51
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - parallel:
+        uuid: 6e1e8dc8-c01e-46a1-a696-7bd399ce8f43
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 040eddad-a357-4f74-b4b3-def0e12ab458
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.workflow_parameters.audit_log }}'
+                            operator: EQUALS
+                            rvalue: "true"
+                  then:
+                    - trigger:
+                        id: gather_audit_logs
+                        playbook_id: 7ab04f0e-3d97-45c7-bb30-5d254f55a2d1
+                        pretty_name: Gather Audit Logs
+                        uuid: a2c1dc3b-3c45-4e96-882a-6a5917e5581d
+                        input: |-
+                          {
+                            "torq_integration_name": "{{ $.workflow_parameters.torq_integration_name }}",
+                            "log_check_point_name": "{{ $.workflow_parameters.audit_log_checkpoint_name }}",
+                            "scheduled_interval": "{{ $.workflow_parameters.scheduled_interval }}",
+                            "log_type": "audit",
+                            "discard_activity_log_body": "false"
+                          }
+                        playbook_name: Gather Torq Audit or Activity Logs
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.gather_audit_logs.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+                            id: reformat_json_to_insert
+                            env:
+                              COMMAND: jq -r '.[]  | "('\''" + (. |tostring) + "'\'')," '
+                              INPUT: '{{ $.gather_audit_logs.output }}'
+                            uuid: b069c1a7-592c-4f14-8104-db6baf475d16
+                            pretty_name: 'Reformat JSON to Insert '
+                            manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+                            isPrivate: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/trim-suffix:1.2.0
+                            id: trim_last_comma
+                            env:
+                              INPUT: '{{ $.reformat_json_to_insert.output }}'
+                              SUFFIX: ','
+                            uuid: 44772900-13fd-4dc2-a7e2-68f57e405e3d
+                            pretty_name: Trim Last Comma
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_22_0
+                                env:
+                                  COMMAND: trim_suffix
+                                sync: true
+                                disable: false
+                            manifestId: cc4498dd-eb4a-5dd9-8206-2b5c0261e61e
+                            isPrivate: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/snowflake/post-synchronous-statement:4.0.0
+                            id: insert_logs_into_snowflake
+                            env:
+                              DATABASE: '{{ $.workflow_parameters.snowflake_database }}'
+                              SCHEMA: '{{ $.workflow_parameters.snowflake_schema }}'
+                              SNOWFLAKE_JWT_TOKEN: '{{ $.generate_jwt_token.jwt }}'
+                              STATEMENT: INSERT INTO {{ $.workflow_parameters.snowflake_audit_table }} (JSONRECORD) SELECT PARSE_JSON(column1) FROM VALUES {{ $.trim_last_comma.result }};
+                            envFrom:
+                              integrationRef: '{{ $.workflow_parameters.snowflake_integration }}'
+                            uuid: fe5e7567-cf6e-4f56-9833-389f9bc2ffa3
+                            pretty_name: Insert Logs into Snowflake
+                            options:
+                              executor:
+                                name: http_request_v_4_10_1
+                                env:
+                                  AUTHORIZATION: Bearer
+                                  BODY: |-
+                                    {
+                                    {{ if .BINDINGS }}  "bindings": {{ .BINDINGS }},{{ end }}
+                                      "database": "{{ .DATABASE | jsonEscape }}",
+                                      "resultSetMetaData": {
+                                        "format": "json"
+                                      },
+                                    {{ if .ROLE }}  "role": "{{ .ROLE | jsonEscape }}",{{ end }}
+                                      "schema": "{{ .SCHEMA | jsonEscape }}",
+                                      "statement": "{{ .STATEMENT | jsonEscape }}",
+                                    {{ if .STATEMENT_TIMEOUT }}  "timeout": {{ .STATEMENT_TIMEOUT }},{{ end }}
+                                    {{ if .WAREHOUSE }}  "warehouse": "{{ .WAREHOUSE | jsonEscape }}"{{ end }}
+                                    }
+                                  CONTENT_TYPE: application/json; charset=utf-8
+                                  HEADERS: |-
+                                    {
+                                      "Accept": "application/json",
+                                      "User-Agent": "TorqHTTPStep/1.0.0",
+                                      "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT"
+                                    }
+                                  METHOD: POST
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["SNOWFLAKE_JWT_TOKEN","DATABASE","SCHEMA","SNOWFLAKE_ACCOUNT_IDENTIFIER","STATEMENT"]'
+                                  TIMEOUT: "30"
+                                  TOKEN: '{{ .SNOWFLAKE_JWT_TOKEN }}'
+                                  URL: https://{{ .SNOWFLAKE_ACCOUNT_IDENTIFIER }}.snowflakecomputing.com/api/v2/statements?{{ if .IS_NULLABLE }}&nullable={{ .IS_NULLABLE | urlEnc }}{{ end }}{{ if .PAGE_SIZE }}&pageSize={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if .REQUEST_ID }}&requestId={{ .REQUEST_ID | urlEnc }}{{ end }}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://docs.snowflake.com/en/developer-guide/sql-api/reference.html#post-api-v2-statements
+                            manifestId: 2fdb0de7-f309-5c53-a031-1606fc70046d
+                            isPrivate: false
+                            skip: false
+                        else: []
+                        uuid: da7edd4d-d974-4eb2-a50a-c1c988b8a64f
+                        pretty_name: If Logs not Empty
+                  else: []
+                  uuid: fde61346-b4a4-4e7a-b9c0-b57dd7201049
+                  pretty_name: If Audit Logs Enabled
+          - uuid: 0b3090c6-9985-4616-a18d-55c34f3b87c6
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.workflow_parameters.activity_log }}'
+                            operator: EQUALS
+                            rvalue: "true"
+                  then:
+                    - trigger:
+                        id: gather_activity_logs
+                        playbook_id: 7ab04f0e-3d97-45c7-bb30-5d254f55a2d1
+                        pretty_name: Gather Activity Logs
+                        uuid: bffc57b4-2941-4869-8740-d8327cf5baa3
+                        input: |-
+                          {
+                            "torq_integration_name": "{{ $.workflow_parameters.torq_integration_name }}",
+                            "log_check_point_name": "{{ $.workflow_parameters.activity_log_checkpoint_name }}",
+                            "scheduled_interval": "{{ $.workflow_parameters.scheduled_interval }}",
+                            "log_type": "activity",
+                            "discard_activity_log_body": "{{ $.workflow_parameters.discard_body_in_activity_logs }}"
+                          }
+                        playbook_name: Gather Torq Audit or Activity Logs
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.gather_activity_logs.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/data-transformer:1.0.3
+                            id: reformat_json_to_insert
+                            env:
+                              COMMAND: jq -r '.[]  | "('\''" + (. |tostring) + "'\'')," '
+                              INPUT: '{{ $.gather_activity_logs.output }}'
+                            uuid: 66649f95-b4ea-4989-b142-f3f30a469b13
+                            pretty_name: 'Reformat JSON to Insert '
+                            manifestId: 96650b66-2a4e-4758-a79f-f975babe5833
+                            isPrivate: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/string_utils/trim-suffix:1.2.0
+                            id: trim_last_comma
+                            env:
+                              INPUT: '{{ $.reformat_json_to_insert.output }}'
+                              SUFFIX: ','
+                            uuid: 9082e073-d18f-47de-a70e-e587f9a6a141
+                            pretty_name: Trim Last Comma
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_22_0
+                                env:
+                                  COMMAND: trim_suffix
+                                sync: true
+                                disable: false
+                            manifestId: cc4498dd-eb4a-5dd9-8206-2b5c0261e61e
+                            isPrivate: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/snowflake/post-synchronous-statement:4.0.0
+                            id: insert_logs_into_snowflake
+                            env:
+                              DATABASE: '{{ $.workflow_parameters.snowflake_database }}'
+                              SCHEMA: '{{ $.workflow_parameters.snowflake_schema }}'
+                              SNOWFLAKE_JWT_TOKEN: '{{ $.generate_jwt_token.jwt }}'
+                              STATEMENT: INSERT INTO {{ $.workflow_parameters.snowflake_activity_table }} (JSONRECORD) SELECT PARSE_JSON(column1) FROM VALUES {{ $.trim_last_comma.result }};
+                            envFrom:
+                              integrationRef: '{{ $.workflow_parameters.snowflake_integration }}'
+                            uuid: a23b62ad-851f-47d3-b9a6-a233a55ae8b5
+                            pretty_name: Insert Logs into Snowflake
+                            options:
+                              executor:
+                                name: http_request_v_4_10_1
+                                env:
+                                  AUTHORIZATION: Bearer
+                                  BODY: |-
+                                    {
+                                    {{ if .BINDINGS }}  "bindings": {{ .BINDINGS }},{{ end }}
+                                      "database": "{{ .DATABASE | jsonEscape }}",
+                                      "resultSetMetaData": {
+                                        "format": "json"
+                                      },
+                                    {{ if .ROLE }}  "role": "{{ .ROLE | jsonEscape }}",{{ end }}
+                                      "schema": "{{ .SCHEMA | jsonEscape }}",
+                                      "statement": "{{ .STATEMENT | jsonEscape }}",
+                                    {{ if .STATEMENT_TIMEOUT }}  "timeout": {{ .STATEMENT_TIMEOUT }},{{ end }}
+                                    {{ if .WAREHOUSE }}  "warehouse": "{{ .WAREHOUSE | jsonEscape }}"{{ end }}
+                                    }
+                                  CONTENT_TYPE: application/json; charset=utf-8
+                                  HEADERS: |-
+                                    {
+                                      "Accept": "application/json",
+                                      "User-Agent": "TorqHTTPStep/1.0.0",
+                                      "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT"
+                                    }
+                                  METHOD: POST
+                                  PARSE_HJSON: "true"
+                                  REQUIRED_VARIABLES: '["SNOWFLAKE_JWT_TOKEN","DATABASE","SCHEMA","SNOWFLAKE_ACCOUNT_IDENTIFIER","STATEMENT"]'
+                                  TIMEOUT: "30"
+                                  TOKEN: '{{ .SNOWFLAKE_JWT_TOKEN }}'
+                                  URL: https://{{ .SNOWFLAKE_ACCOUNT_IDENTIFIER }}.snowflakecomputing.com/api/v2/statements?{{ if .IS_NULLABLE }}&nullable={{ .IS_NULLABLE | urlEnc }}{{ end }}{{ if .PAGE_SIZE }}&pageSize={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if .REQUEST_ID }}&requestId={{ .REQUEST_ID | urlEnc }}{{ end }}
+                                sync: true
+                                disable: false
+                            documentationUrl: https://docs.snowflake.com/en/developer-guide/sql-api/reference.html#post-api-v2-statements
+                            manifestId: 2fdb0de7-f309-5c53-a031-1606fc70046d
+                            isPrivate: false
+                            skip: false
+                        else: []
+                        uuid: 53f8b2e8-4e4b-4fed-af57-a3aa96f8ff01
+                        pretty_name: If Logs Not empty
+                  else: []
+                  uuid: fe82b996-12f4-4370-9540-e3a40a9cbcd3
+                  pretty_name: If Activity Logs Enabled
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        uuid: d22f072e-523e-4165-a4d2-9a9894748e78
+  annotations:
+    - uuid: 3568d137-41b2-4c65-8868-a8a8d5243f0b
+      x: -643
+      "y": 122
+      width: 556
+      height: 666
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Send Torq Audit and Activity Logs to Snowflake on Schedule"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow is an example of sending Torq Audit and/or Activity logs to Snowflake."}]},{"type":"paragraph","content":[{"type":"text","text":"A nested workflow is used to pull the audit and/or the activity logs and save the global variable when the last time the logs were pulled."}]},{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"text","marks":[{"type":"bold"}],"text":"Note:"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"italic"}],"text":"A global variable is set to keep a checkpoint on the last time the logs were pulled. "}]},{"type":"paragraph","content":[{"type":"text","text":"Torq uses Private Key Authentication toIntegrate with Torq:"}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"https://docs.snowflake.com/en/user-guide/key-pair-auth","target":"_blank","rel":"noopener noreferrer nofollow","class":null}}],"text":"https://docs.snowflake.com/en/user-guide/key-pair-auth"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"                                 "},{"type":"image","attrs":{"src":"https://cdn.torq.io/vendors/snowflake.svg","alt":null,"title":null,"width":204,"height":204,"isDraggable":true,"isResizable":null}}]},{"type":"paragraph","content":[{"type":"text","text":"                                           "}]}]}'
+    - uuid: f26a58b1-48fd-4936-b25e-9522c7e4bff6
+      x: 897
+      "y": 891
+      width: 394
+      height: 135
+      attachedStepId: fe82b996-12f4-4370-9540-e3a40a9cbcd3
+      attachedDistance:
+        x: -617
+        "y": -92
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Activity Logs"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Activity logs contains the body of the payload from the execution."}]},{"type":"paragraph","content":[{"type":"text","text":"The body on activity logs is not shown when "},{"type":"text","marks":[{"type":"code"}],"text":"Discard Body in Activity Logs"},{"type":"text","text":" is set to "},{"type":"text","marks":[{"type":"code"}],"text":"true"},{"type":"text","text":" on workflow parameters."}]}]}'
+    - uuid: 15263ac0-6fb0-4467-9054-c32017f61b68
+      x: -891
+      "y": 848
+      attachedStepId: fde61346-b4a4-4e7a-b9c0-b57dd7201049
+      attachedDistance:
+        x: 331
+        "y": -49
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Audit Logs"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"Audit logs contains no additional body"}]}]}'
+    - uuid: 5742d1d8-3b8b-4a32-939e-d708dcde5e49
+      x: 359
+      "y": 496
+      width: 429
+      height: 93
+      attachedStepId: 6cfb5b60-0ca7-4bab-9679-e548b01216e2
+      attachedDistance:
+        x: -359
+        "y": -103
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"To create JWT, Private Key should be added as a secret."}]},{"type":"paragraph","content":[{"type":"text","marks":[{"type":"bold"},{"type":"underline"}],"text":"Private Key must be a PEM encoded PKCS1 or PKCS8 key"}]}]}'
+root: true

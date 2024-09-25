@@ -1,0 +1,44 @@
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 8371e8cf-e644-43cb-8790-e4d66c16cc40
+name: Create Hash Observable
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: hash
+          description: File Hash to be added as observable
+          required: true
+          prettyName: hash
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-observable:4.11.0
+      id: add_observable_to_a_case
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        OBSERVABLE_REPUTATION_SCORE: Other
+        OBSERVABLE_TYPE: File Hash
+        OBSERVABLE_VALUE: '{{ $.event.hash }}'
+      uuid: ad186020-cd4e-479a-bdbe-4079cd6d613e
+      pretty_name: Add observable to a case
+      options:
+        executor:
+          name: torq_cases_add-observable_v_4_11_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 7a020dd7-9235-5281-bd46-d6f257176e7e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.add_observable_to_a_case }}'
+        uuid: 12544b38-0b72-4025-a20d-e408b6bb1e02
+  output_schema: '{}'
+root: true

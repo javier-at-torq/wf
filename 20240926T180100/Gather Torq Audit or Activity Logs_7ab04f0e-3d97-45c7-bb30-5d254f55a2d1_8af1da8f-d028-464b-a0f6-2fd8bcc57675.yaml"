@@ -1,0 +1,489 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 7ab04f0e-3d97-45c7-bb30-5d254f55a2d1
+name: Gather Torq Audit or Activity Logs
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: torq_integration_name
+          description: Integration name of the Torq Integration.
+          required: true
+          prettyName: Torq Integration Name
+          shortText:
+            defaultValue: torq_api
+        - name: log_check_point_name
+          description: Name designated for the log checkpoint.
+          required: true
+          prettyName: Log Check Point Name
+          shortText:
+            defaultValue: ""
+        - name: scheduled_interval
+          description: The designated interval of time for the logs to be collected.
+          required: true
+          prettyName: Scheduled Interval
+          shortText:
+            defaultValue: ""
+        - name: log_type
+          description: Which logs to be collected, audit or activity.
+          required: true
+          prettyName: Log Type
+          singleSelect:
+            options:
+              - audit
+              - activity
+            defaultValue: audit
+        - name: discard_activity_log_body
+          required: true
+          prettyName: Discard Activity Log Body
+          boolean:
+            defaultValue: false
+    nestedOnly: true
+playbook:
+  steps:
+    - parallel:
+        uuid: f167e316-cfdc-44ee-8b9d-4a63e4130c58
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 9fa0064c-08e9-42f4-9021-9fb1e0ab0365
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq/get-a-variable:8.1.0
+                id: get_prior_log_checkpoint
+                env:
+                  KEY: '{{ $.event.log_check_point_name }}'
+                envFrom:
+                  integrationRef: '{{ $.event.torq_integration_name }}'
+                uuid: af46f8d2-6389-4029-a639-bf5508011746
+                pretty_name: Get Prior Log Checkpoint
+                options:
+                  executor:
+                    name: http_request_v_4_6_0
+                    env:
+                      AUTHORIZATION: Bearer
+                      HEADERS: '{}'
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY"]'
+                      TIMEOUT: "30"
+                      TOKEN: '{{ .ACCESS_TOKEN }}'
+                      URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                    sync: true
+                    disable: false
+                manifestId: 113df204-5b8d-5be4-8f22-895f9e87a732
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                  payload: '{}'
+                skip: false
+          - uuid: d84d3592-bc5f-4ac3-9d49-0dea40dbff59
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.3.0
+                id: calculate_end_time
+                env:
+                  CUSTOM_DATE_FORMAT: '%Y-%m-%dT%H:%M:%SZ'
+                  DATE_FORMAT_LAYOUT: Custom
+                uuid: d3e506d9-6f8a-47f3-aab2-122c1a66a762
+                pretty_name: Calculate End time
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_31_0
+                    env:
+                      COMMAND: get_date
+                    sync: true
+                    disable: false
+                documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                manifestId: 7787179b-0a7f-5aa3-9581-175746451a13
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.get_prior_log_checkpoint.api_object.value }}'
+                  operator: IS_EMPTY
+                  rvalue: ""
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/date_and_time_utils/get-date:4.3.0
+            id: calculate_start_time
+            env:
+              CUSTOM_DATE_FORMAT: '%Y-%m-%dT%H:%M:%SZ'
+              DATE_FORMAT_LAYOUT: Custom
+              TIME_AGO: '{{ $.event.scheduled_interval }}'
+            uuid: 15bbe081-e87d-4844-82d6-87f10b44f400
+            pretty_name: Calculate Start Time
+            options:
+              executor:
+                name: utils_infrastructure_v_1_31_0
+                env:
+                  COMMAND: get_date
+                sync: true
+                disable: false
+            documentationUrl: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+            manifestId: 7787179b-0a7f-5aa3-9581-175746451a13
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+            id: set_start_time
+            env:
+              DATA_TYPE: string
+              VALUE_STRING: '{{ $.calculate_start_time.result }}'
+              VARIABLE_NAME: log_start
+            uuid: a9b6c465-59a1-4add-b010-737687a78bd3
+            pretty_name: Set Start Time
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+            id: log_checkpoint
+            env:
+              KEY: '{{ $.event.log_check_point_name }}'
+              VALUE: '{{ $.calculate_end_time.result }}'
+            envFrom:
+              integrationRef: '{{ $.event.torq_integration_name }}'
+            uuid: 14c864ad-0f00-435a-95a9-d9e919c47f9b
+            pretty_name: Log Checkpoint
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                    {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                    {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                        "value": {{ .VALUE }}
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                sync: true
+                disable: false
+            manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        else:
+          - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+            id: set_start_time
+            env:
+              DATA_TYPE: string
+              VALUE_STRING: '{{ $.get_prior_log_checkpoint.api_object.value }}'
+              VARIABLE_NAME: log_start
+            uuid: 61c0ace0-594e-459d-a7b8-cede496c0ba6
+            pretty_name: Set Start Time
+            options:
+              executor:
+                name: utils_infrastructure_v_1_22_0
+                env:
+                  COMMAND: set_variable
+                sync: true
+                disable: false
+            manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+          - name: us-docker.pkg.dev/stackpulse/public/torq/set-a-variable:8.1.0
+            id: log_checkpoint
+            env:
+              KEY: '{{ $.event.log_check_point_name }}'
+              VALUE: '{{ $.calculate_end_time.result }}'
+            envFrom:
+              integrationRef: '{{ $.event.torq_integration_name }}'
+            uuid: 308326ad-b647-4d68-83fe-dd863abee623
+            pretty_name: Log Checkpoint
+            options:
+              executor:
+                name: http_request_v_4_6_0
+                env:
+                  AUTHORIZATION: Bearer
+                  BODY: |-
+                    {
+                    {{ if or .EXPIRES_IN }}    "expires_in": "{{ .EXPIRES_IN | jsonEscape }}",{{ end }}
+                    {{ if or .DO_NOT_RETURN_VALUE }}    "no_print": {{ .DO_NOT_RETURN_VALUE }},{{ end }}
+                        "value": {{ .VALUE }}
+                    }
+                  CONTENT_TYPE: application/json
+                  HEADERS: '{}'
+                  METHOD: POST
+                  PARSE_HJSON: "true"
+                  REQUIRED_VARIABLES: '["ACCESS_TOKEN", "KEY", "VALUE"]'
+                  TIMEOUT: "30"
+                  TOKEN: '{{ .ACCESS_TOKEN }}'
+                  URL: https://api.{{ .TORQ_BASE_URL }}/public/v2alpha/variables/{{ .KEY }}
+                sync: true
+                disable: false
+            manifestId: 0cd7861c-160a-5b92-9293-28d09953c01f
+            isPrivate: false
+            mock_output:
+              enabled: false
+              payload: '{}'
+            skip: false
+        uuid: 7ecb728b-5993-4376-9dbe-3bbc0a9de082
+        pretty_name: If Log Checkpoint Not Set
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.event.log_type }}'
+                  operator: EQUALS
+                  rvalue: activity
+        then:
+          - loop:
+              key: loop_2_key
+              value: loop_2_value
+              steps:
+                - name: us-docker.pkg.dev/stackpulse/public/torq/list-activity-logs:8.2.1
+                  id: list_activity_logs
+                  env:
+                    DISCARD_BODY: '{{ $.event.discard_activity_log_body }}'
+                    END_TIME: '{{ $.calculate_end_time.result }}'
+                    NEXT_PAGE_TOKEN: '{{ $.list_activity_logs.api_object.next_page_token }}'
+                    PAGE_SIZE: "500"
+                    START_TIME: '{{ $.set_start_time.log_start }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.torq_integration_name }}'
+                  uuid: 0fcda343-d3b7-483b-b1ab-2930c51cf1c8
+                  pretty_name: List Activity Logs
+                  options:
+                    executor:
+                      name: http_request_v_4_9_0
+                      env:
+                        AUTHORIZATION: Bearer
+                        HEADERS: '{}'
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .ACCESS_TOKEN }}'
+                        URL: https://api.{{ .TORQ_BASE_URL }}/public/v1alpha/activity_logs?{{ if or .START_TIME }}&start_time={{ .START_TIME }}{{ end }}{{ if or .END_TIME }}&end_time={{ .END_TIME }}{{ end }}{{ if or .PAGE_SIZE }}&page_size={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&page_token={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .ACTIVITY_TYPE }}&activity_type={{ .ACTIVITY_TYPE | urlEnc }}{{ end }}{{ if or .WORKFLOW_ID }}&workflow_id={{ .WORKFLOW_ID | urlEnc }}{{ end }}{{ if or .PAYLOAD }}&payload={{ .PAYLOAD | urlEnc }}{{ end }}{{ if .DISCARD_BODY }}&discard_body={{ .DISCARD_BODY | urlEnc }}{{end}}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.torq.io/torq-public-api/ref#listactivitylogs
+                  manifestId: 1cead1eb-e724-5c05-a1c6-8e681e4f0ca8
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.list_activity_logs.api_object.activity_logs }}'
+                              operator: NOT_EMPTY
+                              rvalue: ""
+                    then:
+                      - collector:
+                          id: collect_log_pages
+                          uuid: c76d5f85-66b4-4f42-8dab-4903801d46f4
+                          pretty_name: Collect Log Pages
+                          expression: '{{ $.list_activity_logs.api_object.activity_logs }}'
+                          flatten: true
+                      - if:
+                          conditions:
+                            or:
+                              - and:
+                                  - lvalue: '{{ $.list_activity_logs.api_object.next_page_token }}'
+                                    operator: NOT_EMPTY
+                                    rvalue: ""
+                          then: []
+                          else:
+                            - break:
+                                pretty_name: Break
+                                uuid: 79d42786-f404-4c1c-a5f0-feec49d8a141
+                          uuid: 24acb273-e98f-42cc-aa70-95bd4eafd49e
+                          pretty_name: If Next Page Token Exists
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                        id: collect_log_pages
+                        env:
+                          DATA_TYPE: JSON
+                          VALUE_JSON: '[]'
+                          VARIABLE_NAME: result
+                        uuid: 79bc528e-ec9d-4e6a-b0e5-fbd26e18252c
+                        pretty_name: Collect Log Pages
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: set_variable
+                            sync: true
+                            disable: false
+                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - break:
+                          pretty_name: Break
+                          uuid: f8b38b7c-b92c-4858-b400-b95a9c7f0c0a
+                    uuid: 7700203a-8201-418b-a14d-1454295e1bd0
+                    pretty_name: If Activity Logs Exists
+              uuid: 39f5f6cf-c6ba-43c6-93a5-f998b48f61ec
+              pretty_name: Gather Activity Logs
+              range:
+                start: "1"
+                end: "100"
+        else:
+          - loop:
+              key: key_loop
+              value: value_loop
+              steps:
+                - name: us-docker.pkg.dev/stackpulse/public/torq/list-audit-logs:8.1.0
+                  id: list_audit_logs
+                  env:
+                    END_TIME: '{{ $.calculate_end_time.result }}'
+                    NEXT_PAGE_TOKEN: '{{ $.list_audit_logs.api_object.next_page_token }}'
+                    PAGE_SIZE: "500"
+                    START_TIME: '{{ $.set_start_time.log_start }}'
+                  envFrom:
+                    integrationRef: '{{ $.event.torq_integration_name }}'
+                  uuid: 96820142-7365-4bd3-9412-c2683bf387f2
+                  pretty_name: List Audit Logs
+                  options:
+                    executor:
+                      name: http_request_v_4_6_0
+                      env:
+                        AUTHORIZATION: Bearer
+                        HEADERS: '{}'
+                        METHOD: GET
+                        PARSE_HJSON: "true"
+                        REQUIRED_VARIABLES: '["ACCESS_TOKEN"]'
+                        TIMEOUT: "30"
+                        TOKEN: '{{ .ACCESS_TOKEN }}'
+                        URL: https://api.{{ .TORQ_BASE_URL }}/public/v1alpha/audit_logs?{{ if or .START_TIME }}&start_time={{ .START_TIME }}{{ end }}{{ if or .END_TIME }}&end_time={{ .END_TIME }}{{ end }}{{ if or .PAGE_SIZE }}&page_size={{ .PAGE_SIZE | urlEnc }}{{ end }}{{ if or .NEXT_PAGE_TOKEN }}&page_token={{ .NEXT_PAGE_TOKEN | urlEnc }}{{ end }}{{ if or .SORT_ORDER }}&order={{ .SORT_ORDER | urlEnc }}{{ end }}
+                      sync: true
+                      disable: false
+                  documentationUrl: https://docs.torq.io/torq-public-api/ref#listauditlogs
+                  manifestId: baeaaba4-3d1b-5a0e-bbb3-e64a56946917
+                  isPrivate: false
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+                  skip: false
+                - if:
+                    conditions:
+                      or:
+                        - and:
+                            - lvalue: '{{ $.list_audit_logs.api_object.audit_logs }}'
+                              operator: NOT_EMPTY
+                              rvalue: ""
+                    then:
+                      - collector:
+                          id: collect_log_pages
+                          uuid: 4944e7c0-6d4d-4103-b652-7984083e4ea4
+                          pretty_name: Collect Log Pages
+                          expression: '{{ $.list_audit_logs.api_object.audit_logs }}'
+                          flatten: true
+                      - if:
+                          conditions:
+                            or:
+                              - and:
+                                  - lvalue: '{{ $.list_audit_logs.api_object.next_page_token }}'
+                                    operator: NOT_EMPTY
+                                    rvalue: ""
+                          then: []
+                          else:
+                            - break:
+                                pretty_name: Break
+                                uuid: 28095633-0d1e-4c03-8c2f-c170da0d01b2
+                          uuid: 03c97bce-ae29-47f0-9bac-30c11c1042b8
+                          pretty_name: If Next Page Token Exists
+                    else:
+                      - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                        id: collect_log_pages
+                        env:
+                          DATA_TYPE: JSON
+                          VALUE_JSON: '[]'
+                          VARIABLE_NAME: result
+                        uuid: a2bdc070-99cb-4ab6-9803-55021648bad0
+                        pretty_name: Collect Log Pages
+                        options:
+                          executor:
+                            name: utils_infrastructure_v_1_22_0
+                            env:
+                              COMMAND: set_variable
+                            sync: true
+                            disable: false
+                        manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                        isPrivate: false
+                        mock_output:
+                          enabled: false
+                        skip: false
+                      - break:
+                          pretty_name: Break
+                          uuid: 54159cbf-03c8-491b-97d9-22770723acef
+                    uuid: ba967fe8-1f2c-46c8-874d-d3a0e2d14aad
+                    pretty_name: If Audit Logs Exists
+              uuid: 388ea599-d4d6-411e-ba68-7301ac6bc8e9
+              pretty_name: Gather All Logs
+              range:
+                start: "1"
+                end: "100"
+        uuid: 454ebd20-557b-4c25-b7e7-23f178803da8
+        pretty_name: If Activity
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.collect_log_pages.result }}'
+        uuid: 80b296cb-9b4d-4780-8510-39ff08803b4b
+  annotations:
+    - uuid: f6602844-89ff-49a1-a211-20528ba46081
+      x: -670
+      "y": 111
+      width: 512
+      height: 313
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Gather Torq Audit or Activity Logs"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow can be used as a nested workflow to gather either Torq Audit or Torq Activity logs."}]},{"type":"paragraph","content":[{"type":"text","text":"A global variable is used as a checkpoint of when the last execution occurred to gather the logs.  If no checkpoint exists, use the scheduled interval to calculate the start time for the polling window."}]},{"type":"paragraph","content":[{"type":"text","text":"Return the accumulated results of the logs on the output of the workflow."}]}]}'
+    - uuid: 34e3e95f-fd37-46ef-a4b6-86995bb04fdf
+      x: 480
+      "y": 657
+      attachedStepId: 7ecb728b-5993-4376-9dbe-3bbc0a9de082
+      attachedDistance:
+        x: -480
+        "y": -133
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"If the search for the log checkpoint comes back empty, a start time is calculated for now minus the scheduled interval parameter and a new log checkpoint is set."}]},{"type":"paragraph","content":[{"type":"text","text":"If a log checkpoint is found from a prior execution, the checkpoint is updated with the current date and the global variable is updated."}]}]}'
+    - uuid: b71daf6e-4d55-466e-8a45-247434f8b817
+      x: -140
+      "y": 479
+      attachedStepId: af46f8d2-6389-4029-a639-bf5508011746
+      attachedDistance:
+        x: 0
+        "y": -204
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Gather the last log checkpoint from the Torq global variable. "}]}]}'
+    - uuid: 8bb42731-0a1c-46e8-870c-07b78047623c
+      x: 406
+      "y": 1197
+      width: 353
+      height: 184
+      attachedStepId: 454ebd20-557b-4c25-b7e7-23f178803da8
+      attachedDistance:
+        x: -406
+        "y": -18
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Logs are gathered on either the activity logs or the audit logs based on the start and end times as calculated."}]},{"type":"paragraph","content":[{"type":"text","text":"The logs are collected and will be returned on exit of the workflow."}]},{"type":"paragraph","content":[{"type":"text","text":"Activity Log not include event body If "},{"type":"text","marks":[{"type":"code"}],"text":"Discard Activity Log Body"},{"type":"text","text":" Parameter at the trigger  is set to "},{"type":"text","marks":[{"type":"code"}],"text":"True"},{"type":"text","text":" "}]}]}'
+root: true

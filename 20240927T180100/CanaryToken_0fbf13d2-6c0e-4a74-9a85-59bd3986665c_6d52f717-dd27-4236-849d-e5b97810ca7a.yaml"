@@ -1,0 +1,377 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 0fbf13d2-6c0e-4a74-9a85-59bd3986665c
+name: CanaryToken
+trigger:
+  integrationTrigger:
+    integration:
+      name: canarytoken
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "slack_integration": {
+                  "type": 17,
+                  "prettyName": "Slack integration",
+                  "description": "The name of the integration with Slack",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "slack"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "slack_integration": "wolken"
+          }
+      uuid: 91832e6d-388c-475a-8bb7-7956172aabf9
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/google_maps/create-static-map:1.0.0
+      id: create_static_map
+      env:
+        CENTER: '{{ $.event.additional_data.geo_info.loc }}'
+        FORMAT: png
+        MAPTYPE: hybrid
+        SIZE: 500x600
+      envFrom:
+        integrationRef: wolkenmaps
+      uuid: 56e0d674-dce9-44db-9e87-e56dafd818fa
+      pretty_name: Create Static Map
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: None
+            BODY: ""
+            HEADERS: ""
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["SIZE","FORMAT","MAPTYPE","GOOGLE_MAPS_API_KEY"]'
+            URL: https://maps.googleapis.com/maps/api/staticmap?format={{ .FORMAT | urlEnc }}&key={{ .GOOGLE_MAPS_API_KEY | urlEnc }}&maptype={{ .MAPTYPE | urlEnc }}&size={{ .SIZE | urlEnc }}{{ if .CENTER }}&center={{ .CENTER | urlEnc }}{{ end }}{{ if .MARKERS }}&markers={{ .MARKERS | urlEnc }}{{ end }}{{ if .PATH }}&path={{ .PATH | urlEnc }}{{ end }}{{ if .SIGNATURE }}&signature={{ .SIGNATURE | urlEnc }}{{ end }}{{ if .ZOOM }}&zoom={{ .ZOOM | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+        output_to_file: true
+      documentationUrl: https://developers.google.com/maps/documentation/maps-static/overview
+      manifestId: bea1f382-d08b-5328-9ef1-e89e48551d6d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: markers
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: color:red|label:C|size:normal|{{ $.event.additional_data.geo_info.loc }}
+        VARIABLE_NAME: data
+      uuid: ef023680-b66d-468e-bdea-b6a1fc2d3e92
+      pretty_name: Markers
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.15.0
+      id: create_static_map
+      env:
+        AUTHORIZATION: None
+        BODY: ""
+        HEADERS: ""
+        METHOD: GET
+        URL: https://maps.googleapis.com/maps/api/staticmap?format=png&key={{ $.integrations.'wolkenmaps'.api_key }}&maptype=hybrid&size=500x600&markers={{ $.markers.data }}
+      uuid: a4ba374b-b866-4197-bd7d-4ca13b46560e
+      pretty_name: Create Static Map
+      options:
+        executor:
+          name: http_request_v_4_15_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+        output_to_file: true
+      icon: https://cdn.torq.io/vendors/google_maps.svg
+      documentationUrl: https://developers.google.com/maps/documentation/maps-static/overview
+      manifestId: 5d81a971-967d-5a7e-84f9-0711fff1fa84
+      isPrivate: false
+      mock_output:
+        enabled: false
+        payload: |-
+          {
+            "api_object": {
+              "filename": "staticmap",
+              "content_type": "image/png",
+              "url": "https://link.torq.io/iYdBBfTrcfgmt29c6",
+              "size": 212561,
+              "hashes": {
+                "sha256": "bd2395dedb699b617c9a47f88c7aa545b157454e4559ac97506799bbd6642728",
+                "sha1": "078de77e029d87e12783347fcc62a3a15817729b",
+                "md5": "83eb4d02e2850489b50433e5e11d631d"
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": "*",
+              "Cache-Control": "public, max-age=86400",
+              "Content-Length": "212561",
+              "Content-Security-Policy-Report-Only": "script-src 'none'; form-action 'none'; frame-src 'none'; report-uri https://csp.withgoogle.com/csp/scaffolding/msaispmnec:830:0",
+              "Content-Type": "image/png",
+              "Cross-Origin-Opener-Policy-Report-Only": "same-origin; report-to=coop_reporting",
+              "Date": "Fri, 27 Sep 2024 02:35:50 GMT",
+              "Expires": "Sat, 28 Sep 2024 02:35:50 GMT",
+              "Report-To": "{\"group\":\"coop_reporting\",\"max_age\":2592000,\"endpoints\":[{\"url\":\"https://csp.withgoogle.com/csp/report-to/scaffolding/msaispmnec:830:0\"}],}",
+              "Server": "scaffolding on HTTPServer2",
+              "Server-Timing": "gfet4t7; dur=282",
+              "Vary": "Accept-Language",
+              "X-Frame-Options": "SAMEORIGIN",
+              "X-Xss-Protection": "0"
+            },
+            "status_code": 200,
+            "step_status": {
+              "code": 1,
+              "message": "",
+              "verbose": ""
+            },
+            "type": "file"
+          }
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: description
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: "`{{ $.event.memo }}`\nCanary Token was triggered from {{ $.event.additional_data.geo_info.city }}, {{ $.event.additional_data.geo_info.country }}\n\n__Canary Token data__\n\n<span style=\"color:green\">Token Data<img width=90/></span> |<span style=\"color:green\">Values</span>\n-------- | -----\nToken Type     | {{ $.event.token_type }}\nToken ID    | {{ $.event.token}}\nChannel    | {{ $.event.channel }}\nTrigger TIme    | {{ $.event.time }} \nUser Agent    | {{ $.event.additional_data.useragent }}\n\n__Geolocation__\n\n<span style=\"color:green\">Token Data<img width=90/></span> |<span style=\"color:green\">Values</span>\n-------- | -----\nSource IP     | {{ $.event.src_ip }}\nCity    | {{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}\n Country    | {{ $.event.additional_data.geo_info.country}}\nTime Zone    | {{ $.event.additional_data.geo_info.timezone }}\nGoogle Maps | [Google Maps Link](https://maps.google.com/?ll={{ $.event.additional_data.geo_info.loc }})\n\n\n"
+        VARIABLE_NAME: data
+      uuid: 6b2c1813-c16f-4ef2-89d9-aaa773c73fb5
+      pretty_name: Description
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: description_1
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: |-
+          `{{ $.event.memo }}`
+          Canary Token was triggered from {{ $.event.additional_data.geo_info.city }}, {{ $.event.additional_data.geo_info.country }}
+
+          <style>
+              .headerless th {  display: none; }
+          </style>
+          <div class="headerless">
+
+          Item     | Value
+          -------- | -----
+          Computer | $1600
+          Phone    | $12
+          Adapter     | $1
+
+          </div>
+        VARIABLE_NAME: data
+      uuid: f1abbc47-7a06-4c1f-b6b9-2fb3757d1280
+      pretty_name: Description 1
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.1.0
+      id: create_a_case_with_markdown_example_description
+      env:
+        CASE_DESCRIPTION: "# Headers\n---------------------------\n\n# Header 1\n\n## Header 2\n\n### Header 3\n   \n   \n\n# Styling\n---------------------------\n\n*Emphasize* _emphasize_\n\n**Strong** __strong__\n\n==Marked text.==\n\n~~Mistaken text.~~\n\n> Quoted text.\n\nH~2~O is a liquid.\n\n2^10^ is 1024.\n\n <font color=\"red\"><b> This text is red using HTML formatting </b></font> \n\nNew lines: &nbsp;\n&nbsp;&nbsp;\nEnd new lines\n\n# Lists\n---------------------------\n\n- Item\n  * Item\n    + Item\n\n1. Item 1\n2. Item 2\n3. Item 3\n\n- [ ] Incomplete item\n- [x] Complete item\n\n  \n\n\n# Links\n---------------------------\n\nA [link](https://torq.io).\n\nAn image: ![Alt](https://storage.googleapis.com/stackpulse-public/vendors/torq.svg)\n\nA resized image: [<img src=\"https://storage.googleapis.com/stackpulse-public/vendors/torq.svg\" height=\"80\"/>]()\n\n\n\n\n# Code\n---------------------------\n\nSome `inline code`.\n\n```\n// A code block\nvar foo = 'bar';\n```\n\n\n\n\n\n# Tables\n---------------------------\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n\n| Column 1 | Column 2 |Column 3      |\n|:---------- |:--------:| -------------:|\n|left-aligned | centered | right-aligned |\n\n__Table without Headers using HTML CSS__\n\n<style>\n    .headerless th {  display: none; }\n</style>\n<div class=\"headerless\">\n\nItem     | Value\n-------- | -----\nComputer | $1600\nPhone    | $12\nAdapter     | $1\n\n</div>\n\n__Table with controlled column width__\n\n<style>\ntable th:first-of-type {\n    width: 30%;\n}\ntable th:nth-of-type(2) {\n    width: 10%;\n}\ntable th:nth-of-type(3) {\n    width: 40%;\n}\n</style>\n\n<div class=\"table\">\n\nItem     | Value|Stock Count\n-------- | -----|-----\nComputer | $1600 | 15\nPhone    | $12 | 22\nAdapter     | $1 | 53\n\n</div>\n\n# Footnotes\n---------------------------\n\nSome text with a footnote.[^1]\n\n[^1]: The footnote.\n\n\n\n"
+        CASE_SEVERITY: Low
+        CASE_SLA: 24h
+        CASE_TITLE: Example Case Descriptions
+        TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+      uuid: d71d4ca7-a3d9-4c4b-b618-8125e0fbd529
+      pretty_name: Create a Case with Markdown Example Description
+      options:
+        executor:
+          name: torq_cases_create-a-case_v_4_1_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: e83f849d-0487-5ce1-b8bd-b6538b1d34b8
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.4.0
+      id: create_a_case
+      env:
+        CASE_DESCRIPTION: '{{ $.description.data }}'
+        CASE_SEVERITY: Low
+        CASE_SLA: 24h
+        CASE_TAGS: '{{ upper $.event.token_type }}_TOKEN'
+        CASE_TITLE: '{{ upper $.event.token_type }} Canary Token Triggerd'
+        TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+      uuid: f3aa2c61-53e4-4f51-a4a7-f4798e3193c3
+      pretty_name: Create a case
+      options:
+        executor:
+          name: torq_cases_create-a-case_v_4_4_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 283afb6a-db73-5e3a-bb0e-b08fef75d9cf
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-observable:4.11.0
+      id: add_observable_to_a_case
+      env:
+        CASE_ID: '{{ $.create_a_case.case.id }}'
+        OBSERVABLE_REPUTATION_SCORE: Other
+        OBSERVABLE_TYPE: IP Address
+        OBSERVABLE_VALUE: '{{ $.event.additional_data.geo_info.ip }}'
+      uuid: 52c96cdc-92b3-4c91-97b9-9af22819648c
+      pretty_name: Add observable to a case
+      options:
+        executor:
+          name: torq_cases_add-observable_v_4_11_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 7a020dd7-9235-5281-bd46-d6f257176e7e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.9.0
+      id: add_attachment_to_case
+      env:
+        CASE_ID: '{{ $.create_a_case.case.id }}'
+        CONTENT_TYPE: '{{ $.create_static_map.api_object.content_type }}'
+        FILE: '{{ $.create_static_map.api_object.url }}'
+        FILE_NAME: Map.png
+        INPUT_TYPE: file
+      uuid: 9a41572d-5b0a-493c-b050-8b827db6d34a
+      pretty_name: Add attachment to case
+      options:
+        executor:
+          name: torq_cases_add-attachment_v_3_9_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 04c7c452-d52a-527d-bcc3-399fa441810e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.4.0
+      id: send_slack_message_blocks
+      env:
+        BLOCKS: |-
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "Canary Token was Triggered ",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Memo:* {{ $.event.memo }}\n*Token Type:* {{ $.event.token_type }}\n*Channel:* {{ $.event.channel }}\n*Date:* {{ $.event.time }}"
+                }
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": ":round_pushpin: Geolocation",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Source IP:* {{ $.event.src_ip }}\n*Country:* {{ $.event.additional_data.geo_info.country }}\n*Region:* {{ $.event.additional_data.geo_info.region }}\n*City:* {{ $.event.additional_data.geo_info.city }}"
+                }
+              },
+              {
+                "type": "image",
+                "image_url": "https://link.torq.io/iYdBBfTrcfgmt29c6",
+                "alt_text": "Location"
+              }
+            ]
+          }
+        MESSAGE_TYPE: blocks
+        RECIPIENT: '#dwl-tech'
+      envFrom:
+        integrationRef: wolken
+      uuid: 3cd7342c-52d0-4205-b7e9-7aeaee4bf117
+      pretty_name: Send Slack Message Blocks
+      options:
+        executor:
+          name: slack_message_blocks_v_2_4_0
+          env: {}
+          sync: true
+          disable: false
+      documentationUrl: https://app.slack.com/block-kit-builder
+      manifestId: 97cbe107-231f-5e3f-b8c1-c0ee42fd32d8
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

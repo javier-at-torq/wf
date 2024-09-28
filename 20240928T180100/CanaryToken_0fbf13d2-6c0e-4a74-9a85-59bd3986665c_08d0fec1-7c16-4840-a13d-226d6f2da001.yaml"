@@ -1,0 +1,508 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 0fbf13d2-6c0e-4a74-9a85-59bd3986665c
+name: CanaryToken
+trigger:
+  integrationTrigger:
+    integration:
+      name: canarytoken
+      typeId: webhook
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+      id: workflow_parameters
+      env:
+        SCHEMA: |-
+          {
+              "slack_integration": {
+                  "type": 17,
+                  "prettyName": "Slack integration",
+                  "description": "The name of the integration with Slack",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "slack"
+                  }
+              },
+              "google_maps_integration": {
+                  "type": 17,
+                  "prettyName": "Google Maps Integration",
+                  "description": "The name of the integration with Google Maps",
+                  "uiPlaceholder": "",
+                  "integration": {
+                      "defaultValue": "",
+                      "vendor": "google_maps_token"
+                  }
+              }
+          }
+        VALUES: |-
+          {
+            "slack_integration": "wolken",
+            "google_maps_integration": "wolkenmaps"
+          }
+      uuid: 91832e6d-388c-475a-8bb7-7956172aabf9
+      pretty_name: Workflow Parameters
+      options:
+        executor:
+          name: utils_workflow_parameters_v_1_3_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - parallel:
+        uuid: b52185fe-37e6-4e6c-9730-f98b2a6c7fb0
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: 1abb9414-4739-4257-817e-9c889c97b710
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: marker
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: color:red|label:C|size:normal|{{ $.event.additional_data.geo_info.loc }}
+                  VARIABLE_NAME: data
+                uuid: 951f6914-cfda-4c5e-a2cc-c00f8caa4d13
+                pretty_name: Marker
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: custom-step:2.0.0
+                id: create_static_map
+                env:
+                  FORMAT: png
+                  MAPTYPE: hybrid
+                  MARKERS: '{{ $.marker.data }}'
+                  SIZE: 500x400
+                envFrom:
+                  integrationRef: wolkenmaps
+                uuid: 0e6d6cd7-c3ae-4df0-817f-c5ccea24727b
+                pretty_name: Create Static Map
+                options:
+                  executor:
+                    name: http_request_v_4_15_0
+                    env: {}
+                    sync: true
+                    disable: false
+                  output_to_file: true
+                documentationUrl: https://developers.google.com/maps/documentation/maps-static/overview
+                manifestId: 87520fcb-4257-4eda-b688-04430294f266
+                isPrivate: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/blocks:2.4.0
+                id: send_slack_message_blocks
+                env:
+                  BLOCKS: |-
+                    {
+                      "blocks": [
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "Canary Token was Triggered ",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Memo:* {{ $.event.memo }}\n*Token Type:* {{ $.event.token_type }}\n*Channel:* {{ $.event.channel }}\n*Date:* {{ $.event.time }}"
+                          }
+                        },
+                        {
+                          "type": "divider"
+                        },
+                        {
+                          "type": "header",
+                          "text": {
+                            "type": "plain_text",
+                            "text": ":round_pushpin: Geolocation",
+                            "emoji": true
+                          }
+                        },
+                        {
+                          "type": "section",
+                          "text": {
+                            "type": "mrkdwn",
+                            "text": "*Source IP:* {{ $.event.src_ip }}\n*Country:* {{ $.event.additional_data.geo_info.country }}\n*Region:* {{ $.event.additional_data.geo_info.region }}\n*City:* {{ $.event.additional_data.geo_info.city }}"
+                          }
+                        },
+                        {
+                          "type": "image",
+                          "image_url": "{{ $.create_static_map.api_object.url }}",
+                          "alt_text": "Location"
+                        }
+                      ]
+                    }
+                  MESSAGE_TYPE: blocks
+                  RECIPIENT: '#dwl-tech'
+                envFrom:
+                  integrationRef: wolken
+                ignoreFailure: true
+                uuid: 3cd7342c-52d0-4205-b7e9-7aeaee4bf117
+                pretty_name: Send Slack Message Blocks
+                options:
+                  executor:
+                    name: slack_message_blocks_v_2_4_0
+                    env: {}
+                    sync: true
+                    disable: false
+                documentationUrl: https://app.slack.com/block-kit-builder
+                manifestId: 97cbe107-231f-5e3f-b8c1-c0ee42fd32d8
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: acbd7bc0-74f1-42e1-963c-d81cbc25c0c8
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: description
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: "`{{ $.event.memo }}`\nCanary Token was triggered from {{ $.event.additional_data.geo_info.city }}, {{ $.event.additional_data.geo_info.country }}\n\n__Canary Token data__\n\n<span style=\"color:green\">Token Data<img width=90/></span> |<span style=\"color:green\">Values<img width=400/></span>\n-------- | -----\nToken Type     | {{ $.event.token_type }}\nToken ID    | {{ $.event.token}}\nChannel    | {{ $.event.channel }}\nTrigger TIme    | {{ $.event.time }} \nUser Agent    | {{ $.event.additional_data.useragent }}\n\n__Geolocation__\n\n<span style=\"color:green\">Token Data<img width=70/></span> |<span style=\"color:green\">Values<img width=430/></span>\n-------- | -----\nSource IP     | {{ $.event.src_ip }}\nCity    | {{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}\n Country    | {{ $.event.additional_data.geo_info.country}}\nTime Zone    | {{ $.event.additional_data.geo_info.timezone }}\nMap | [Open in Google Maps](https://maps.google.com/?q={{ $.event.additional_data.geo_info.loc }})\n\n\n"
+                  VARIABLE_NAME: data
+                uuid: 6b2c1813-c16f-4ef2-89d9-aaa773c73fb5
+                pretty_name: Description
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-case:4.4.0
+                id: create_a_case
+                env:
+                  CASE_DESCRIPTION: '{{ $.description.data }}'
+                  CASE_SEVERITY: Medium
+                  CASE_SLA: 24h
+                  CASE_TAGS: '{{ upper $.event.token_type }}_TOKEN'
+                  CASE_TITLE: '{{ upper $.event.token_type }} Canary Token Triggerd from {{ $.event.additional_data.geo_info.city }}, {{ $.event.additional_data.geo_info.country }}'
+                  TORQ_EVENT_ID: '{{ $.metadata.alert_id }}'
+                uuid: f3aa2c61-53e4-4f51-a4a7-f4798e3193c3
+                pretty_name: Create a case
+                options:
+                  executor:
+                    name: torq_cases_create-a-case_v_4_4_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 283afb6a-db73-5e3a-bb0e-b08fef75d9cf
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.9.0
+      id: add_attachment_to_case
+      env:
+        CASE_ID: '{{ $.create_a_case.case.id }}'
+        CONTENT_TYPE: '{{ $.create_static_map.api_object.content_type }}'
+        FILE: '{{ $.create_static_map.api_object.url }}'
+        FILE_NAME: Map.png
+        INPUT_TYPE: file
+      uuid: 9a41572d-5b0a-493c-b050-8b827db6d34a
+      pretty_name: Add attachment to case
+      options:
+        executor:
+          name: torq_cases_add-attachment_v_3_9_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 04c7c452-d52a-527d-bcc3-399fa441810e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - parallel:
+        uuid: bf258e10-d137-4bf3-890f-3a170238397f
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: d0e3fe76-3860-4564-8bd1-21264bab2559
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/create-a-note:2.8.0
+                id: adds_a_new_note_to_a_case
+                env:
+                  CASE_ID: '{{ $.create_a_case.case.id }}'
+                  CONTENT: <html><head><title>A case note</title></head><body><img src="{{ $.add_attachment_to_case.attachment.static_link }}" alt="{{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}.{{ $.event.additional_data.geo_info.country}}"/</body></html>
+                  TITLE: 'Geolocation: {{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}.{{ $.event.additional_data.geo_info.country}}'
+                uuid: 65a01cd4-4f0a-41eb-a812-b1b53fd22e4a
+                pretty_name: Adds a new note to a case
+                options:
+                  executor:
+                    name: torq_cases_create-a-note_v_2_8_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: cfba0bd4-eafa-5767-9512-1c40fdfbc035
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-observable:4.11.0
+                id: add_observable_to_a_case
+                env:
+                  CASE_ID: '{{ $.create_a_case.case.id }}'
+                  OBSERVABLE_REPUTATION_SCORE: Other
+                  OBSERVABLE_TYPE: IP Address
+                  OBSERVABLE_VALUE: '{{ $.event.additional_data.geo_info.ip }}'
+                uuid: 52c96cdc-92b3-4c91-97b9-9af22819648c
+                pretty_name: Add observable to a case
+                options:
+                  executor:
+                    name: torq_cases_add-observable_v_4_11_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 7a020dd7-9235-5281-bd46-d6f257176e7e
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: a0e68cfe-fb6b-40e3-8134-6ed77fc6b2c2
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: updated_description
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: "`{{ $.event.memo }}`\nCanary Token was triggered from {{ $.event.additional_data.geo_info.city }}, {{ $.event.additional_data.geo_info.country }}\n\n__Canary Token data__\n\n<span style=\"color:green\">Token Data<img width=90/></span> |<span style=\"color:green\">Values<img width=400/></span>\n-------- | -----\nToken Type     | {{ $.event.token_type }}\nToken ID    | {{ $.event.token}}\nChannel    | {{ $.event.channel }}\nTrigger TIme    | {{ $.event.time }} \nUser Agent    | {{ $.event.additional_data.useragent }}\n\n__Geolocation__\n\n<span style=\"color:green\">Token Data<img width=70/></span> |<span style=\"color:green\">Values<img width=420/></span>\n-------- | -----\nSource IP     | {{ $.event.src_ip }}\nCity    | {{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}\n Country    | {{ $.event.additional_data.geo_info.country}}\nTime Zone    | {{ $.event.additional_data.geo_info.timezone }}\nMap | [Open in Google Maps](https://maps.google.com/?q={{ $.event.additional_data.geo_info.loc }})\n\n![{{ $.event.additional_data.geo_info.city}}, {{ $.event.additional_data.geo_info.region}}.{{ $.event.additional_data.geo_info.country}}]({{ $.add_attachment_to_case.attachment.static_link }})\n"
+                  VARIABLE_NAME: data
+                uuid: daad8632-d750-48ca-94ec-8f70e42311d9
+                pretty_name: Updated Description
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-description:3.8.0
+                id: change_case_description
+                env:
+                  CASE_DESCRIPTION: '{{ $.updated_description.data }}'
+                  CASE_ID: '{{ $.create_a_case.case.id }}'
+                uuid: d8bfa8c4-0738-4ca1-aec4-e15c9996ef86
+                pretty_name: Change case description
+                options:
+                  executor:
+                    name: torq_cases_update-description_v_3_8_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 859e03fc-884f-5a6d-a2af-edb26fe91f9f
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: a96b712d-8dd2-495d-8227-572477e28927
+    - name: us-docker.pkg.dev/stackpulse/public/google_maps/create-static-map:1.0.0
+      id: create_static_map
+      env:
+        FORMAT: png
+        MAPTYPE: roadmap
+        MARKERS: '{{ $.marker.data }}'
+        SIZE: 500x400
+      envFrom:
+        integrationRef: '{{ $.workflow_parameters.google_maps_integration }}'
+      uuid: e9c89dc3-2501-425a-935d-5d0c600001e9
+      pretty_name: Create Static Map
+      options:
+        executor:
+          name: http_request_v_4_6_0
+          env:
+            AUTHORIZATION: None
+            BODY: ""
+            HEADERS: ""
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["SIZE","FORMAT","MAPTYPE","GOOGLE_MAPS_API_KEY"]'
+            URL: https://maps.googleapis.com/maps/api/staticmap?format={{ .FORMAT | urlEnc }}&key={{ .GOOGLE_MAPS_API_KEY | urlEnc }}&maptype={{ .MAPTYPE | urlEnc }}&size={{ .SIZE | urlEnc }}{{ if .CENTER }}&center={{ .CENTER | urlEnc }}{{ end }}{{ if .MARKERS }}&markers={{ .MARKERS | urlEnc }}{{ end }}{{ if .PATH }}&path={{ .PATH | urlEnc }}{{ end }}{{ if .SIGNATURE }}&signature={{ .SIGNATURE | urlEnc }}{{ end }}{{ if .ZOOM }}&zoom={{ .ZOOM | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+        output_to_file: true
+      documentationUrl: https://developers.google.com/maps/documentation/maps-static/overview
+      manifestId: bea1f382-d08b-5328-9ef1-e89e48551d6d
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+  output_schema: '{}'
+root: true
+---
+!!ExportedPrivateStep
+basestepid: ""
+vendor:
+  id: ""
+  icon: https://cdn.torq.io/vendors/google_maps.svg
+  vendor: google_maps
+  name: Google Maps
+  is_private: false
+name: Create Static Map
+description: Creates an static Google Maps image.
+documentationurl: https://developers.google.com/maps/documentation/maps-static/overview
+runtime:
+  image: us-docker.pkg.dev/stackpulse/public/http/request
+  imageVersion: 4.15.0
+  envs:
+    - key: AUTHORIZATION
+      value: None
+    - key: REQUIRED_VARIABLES
+      value: '["SIZE","FORMAT","MAPTYPE","GOOGLE_MAPS_API_KEY"]'
+    - key: URL
+      value: https://maps.googleapis.com/maps/api/staticmap?format={{ .FORMAT | urlEnc }}&key={{ .GOOGLE_MAPS_API_KEY | urlEnc }}&maptype={{ .MAPTYPE | urlEnc }}&size={{ .SIZE | urlEnc }}{{ if .CENTER }}&center={{ .CENTER | urlEnc }}{{ end }}{{ if .MARKERS }}&markers={{ .MARKERS | urlEnc }}{{ end }}{{ if .MARKERS_PATH }}&path={{ .MARKERS_PATH | urlEnc }}{{ end }}{{ if .SIGNATURE }}&signature={{ .SIGNATURE | urlEnc }}{{ end }}{{ if .ZOOM }}&zoom={{ .ZOOM | urlEnc }}{{ end }}
+    - key: BODY
+      value: ""
+    - key: METHOD
+      value: GET
+    - key: HEADERS
+      value: ""
+    - key: PARSE_HJSON
+      value: "true"
+    - key: CONTENT_TYPE
+      value: application/json; charset=utf-8
+    - key: FAIL_ON_NON_SUCCESS_RESPONSE
+      value: "true"
+    - key: GO_TEMPLATE_BODY_PARSING
+      value: "true"
+    - key: RESPONSE_API_OBJECT_ONLY
+      value: "true"
+envs:
+  - name: CENTER
+    description: Defines the center of the map, equidistant from all edges of the map.
+    type: string
+    example: 47.2394, -0.3136
+    options: {}
+  - name: ZOOM
+    description: A number between 1 and 20 which defines the resolution of the current view.
+    type: oneof
+    default: "5"
+    options:
+      values:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"
+        - "10"
+        - "11"
+        - "12"
+        - "13"
+        - "14"
+        - "15"
+        - "16"
+        - "17"
+        - "18"
+        - "19"
+        - "20"
+  - name: SIZE
+    description: Defines the rectangular dimensions of the map image.
+    type: oneof
+    required: true
+    default: 500x600
+    options:
+      values:
+        - 500x400
+        - 1000x500
+        - 1000x800
+        - 500x600
+  - name: FORMAT
+    description: Defines the format of the image.
+    type: oneof
+    required: true
+    default: png
+    options:
+      values:
+        - png
+        - gif
+        - jpg
+  - name: MAPTYPE
+    description: Defines the type of map to create.
+    type: oneof
+    required: true
+    default: hybrid
+    options:
+      values:
+        - roadmap
+        - satellite
+        - hybrid
+        - terrain
+  - name: MARKERS
+    description: The markers define one or more Pins at a set of locations.
+    type: string
+    example: color:blue|label:C|size:tiny|47.2394, -0.3136|45.71, 3.6614|45.5674, 5.0447|44.9542, 2.6108|48.7208, 7.3611|43.2333, 0.5975|49.2742, 6.5947
+    options: {}
+  - name: GOOGLE_MAPS_API_KEY
+    type: string
+    required: true
+    options: {}
+    fromIntegration: google_maps_token
+  - name: SIGNATURE
+    description: Digital signature used to verify the source application creating the map.
+    type: string
+    example: YOUR_SIGNATURE
+    options: {}
+  - name: MARKERS_PATH
+    description: A path line to connect locations, in the specified order.
+    type: string
+    example: color:yellow|weight:5|47.2394, -0.3136|45.71, 3.6614|45.5674, 5.0447|44.9542, 2.6108|48.7208, 7.3611|43.2333, 0.5975|49.2742, 6.5947
+    options: {}
+outputs:
+  - name: api_object
+    type: json
+integrations:
+  - google_maps_token
+basetype: 1
+options:
+  executor:
+    name: http_request_v_4_15_0
+    sync: true
+  outputToFile: true
+exportedstepid: 87520fcb-4257-4eda-b688-04430294f266

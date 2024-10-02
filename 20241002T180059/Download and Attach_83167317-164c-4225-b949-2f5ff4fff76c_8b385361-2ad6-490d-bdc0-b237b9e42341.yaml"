@@ -1,0 +1,72 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 83167317-164c-4225-b949-2f5ff4fff76c
+name: Download and Attach
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: url
+          description: The URL where the file will be downloaded.
+          required: true
+          prettyName: URL
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/http/request:4.14.0
+      id: download_a_file
+      env:
+        AUTHORIZATION: None
+        HEADERS: ""
+        METHOD: GET
+        URL: '{{ $.event.url }}'
+      uuid: 153b54a8-0210-4680-9c5f-1991a208f960
+      pretty_name: Download a file
+      options:
+        executor:
+          name: http_request_v_4_14_0
+          env:
+            FAIL_ON_NON_SUCCESS_RESPONSE: "false"
+            GO_TEMPLATE_BODY_PARSING: "false"
+            RESPONSE_API_OBJECT_ONLY: "false"
+          sync: true
+          disable: false
+        output_to_file: true
+      manifestId: 72a92fcc-9419-5600-a006-3401c658ea08
+      isPrivate: false
+      isPrivateUrl: true
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.8.0
+      id: add_attachment
+      env:
+        CASE_ID: '{{ $.metadata.case.id }}'
+        CONTENT_TYPE: '{{ $.download_a_file.api_object.content_type }}'
+        FILE: '{{ file $.download_a_file.api_object.url }}'
+        FILE_NAME: '{{ $.download_a_file.api_object.filename }}'
+        INPUT_TYPE: file
+      uuid: f11c066a-7b00-4a5b-ada8-4542b79cd8b5
+      pretty_name: Add Attachment
+      options:
+        executor:
+          name: torq_cases_add-attachment_v_3_8_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 01d86597-fbef-5789-ada6-166988660780
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{{ $.add_attachment.attachment }}'
+        uuid: a2bbd231-707a-46ea-a02b-2be1ecc5af1c
+  output_schema: '{}'
+root: true

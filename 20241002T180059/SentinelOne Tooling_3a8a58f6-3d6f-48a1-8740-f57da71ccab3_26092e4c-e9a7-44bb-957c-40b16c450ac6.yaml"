@@ -1,0 +1,729 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3a8a58f6-3d6f-48a1-8740-f57da71ccab3
+name: SentinelOne Tooling
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: action
+          description: The name of the action to execute in this workflow
+          required: true
+          prettyName: action
+          singleSelect:
+            options:
+              - scan
+              - quarantine
+              - fetch_file
+              - help
+            defaultValue: ""
+        - name: file_path
+          description: The Full File Path of a file to be fetched by automation
+          prettyName: file_path
+          shortText:
+            defaultValue: ""
+        - name: agent_id
+          description: The ID of a SentinelOne Agent, composed by 19 Numeric characters
+          required: true
+          prettyName: agent_id
+          shortText:
+            defaultValue: ""
+        - name: agent_query
+          description: A JSON object with query parameters for searching endpoints in SentinelOne
+          required: true
+          prettyName: agent_query
+          json:
+            defaultValue: ""
+playbook:
+  steps:
+    - switch:
+        uuid: b0673499-ee56-4deb-803e-2f568095e6e3
+        pretty_name: Switch
+        cases:
+          - id: ba4c506a-c4ce-4038-8c85-2e4787fd0abe
+            pretty_name: Scan
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: scan
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message
+                env:
+                  MESSAGE_TEXT: |-
+                    Scanning a device
+
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 9ea21193-c47c-4baf-a201-814938542d22
+                pretty_name: Send Message
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/initiate-scan:3.1.0
+                id: initiate_scan
+                env:
+                  AGENT_IDS: '["{{ $.event.agent_id }}"]'
+                envFrom:
+                  integrationRef: sentinelone
+                ignoreFailure: true
+                uuid: 69a7e752-ab6d-4268-8736-3609a594f84e
+                pretty_name: Initiate Scan
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      BODY: |-
+                        {
+                            "filter": {
+                                "ids": {{ .AGENT_IDS }}
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: |-
+                        {
+                            "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                        }
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "AGENT_IDS"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents/actions/initiate-scan
+                    sync: true
+                    disable: false
+                manifestId: 0f68eae4-a815-5df4-be4e-b617d4c6d151
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ $.initiate_scan.api_object }}"
+                    }
+                  uuid: 8e90ac04-5428-4c8b-b028-3faf0a24db92
+                  use_schema: true
+          - id: b7d4b741-34e5-435e-b84a-696f76e2f654
+            pretty_name: Quarantine
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: quarantine
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_1
+                env:
+                  MESSAGE_TEXT: |-
+                    Isolating a device
+
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 734714f2-af76-4dc5-82c3-2b6b3ff0c8a0
+                pretty_name: Send Message 1
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/disconnect-from-network:3.1.0
+                id: disconnect_from_network
+                env:
+                  AGENT_IDS: '["{{ $.event.agentid }}"]'
+                envFrom:
+                  integrationRef: sentinelone
+                ignoreFailure: true
+                uuid: 152f56ba-ad49-4366-920e-4b96da95a76c
+                pretty_name: Disconnect from Network
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      BODY: |-
+                        {
+                            "filter": {
+                                "ids": {{ .AGENT_IDS }}
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: |-
+                        {
+                            "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                        }
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "AGENT_IDS"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents/actions/disconnect
+                    sync: true
+                    disable: false
+                manifestId: 5746e4c3-8691-5f9b-b9ec-c2168abd5777
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ $.disconnect_from_network.api_object }}"
+                    }
+                  uuid: 97e97af4-cae2-4057-a364-4813a2d1224a
+                  use_schema: true
+          - id: 41472e9a-f6ac-46ea-93d7-989b4b20d326
+            pretty_name: Reconnect
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: reconnect
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_7
+                env:
+                  MESSAGE_TEXT: |-
+                    Reconnect a device
+
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: a036b9f7-9d9a-4831-91a4-cb115fa5156f
+                pretty_name: Send Message 7
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/connect-to-network:3.1.0
+                id: connect_to_network
+                env:
+                  AGENT_IDS: '["{{ $.event.agent_id }}"]'
+                envFrom:
+                  integrationRef: sentinelone
+                uuid: 9d31f0f9-06e4-4e4f-85c6-4d8e68ffdf8b
+                pretty_name: Connect to Network
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      BODY: |-
+                        {
+                            "filter": {
+                                "ids": {{ .AGENT_IDS }}
+                            }
+                        }
+                      CONTENT_TYPE: application/json
+                      HEADERS: |-
+                        {
+                            "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                        }
+                      METHOD: POST
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL", "AGENT_IDS"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents/actions/connect
+                    sync: true
+                    disable: false
+                manifestId: 47697d2d-55dc-5fef-9114-89cbb7fe45ec
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ $.connect_to_network.api_object }}"
+                    }
+                  uuid: 7b9ef9d1-9e81-47be-afad-847a3f94b888
+                  use_schema: true
+          - id: d149a8fe-5195-4154-bdbd-0a3a595c8b45
+            pretty_name: Fecth File
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: fetch_file
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_2
+                env:
+                  MESSAGE_TEXT: |-
+                    Fetching a file
+
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: c66c5a75-f326-4522-8ed7-cd6627e28d6a
+                pretty_name: Send Message 2
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - trigger:
+                  id: download_a_file_from_a_sentinelone_endpoint
+                  playbook_id: 521040c1-2ce6-4e19-8759-550e5391b489
+                  pretty_name: Download a File from a SentinelOne Endpoint
+                  uuid: 79e8cf71-a86b-471e-93da-ddc3be9655f7
+                  input: |-
+                    {
+                      "agent_id": "{{ $.event.agent_id }}",
+                      "file_password": "",
+                      "file_path": "{{ jsonEscape $.event.file_path }}",
+                      "sentinelone_integration_name": "sentinelone",
+                      "shareable_link": false,
+                      "max_hours_to_wait_agent": "12",
+                      "polling_active_agent_interval_minutes": "5"
+                    }
+                  playbook_name: Download a File from a SentinelOne Endpoint (1)
+                  mock_output:
+                    enabled: false
+                    payload: '{}'
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-attachment:3.8.0
+                id: add_zipped_attachment
+                env:
+                  CASE_ID: '{{ $.metadata.case.id }}'
+                  FILE: '{{ file $.download_a_file_from_a_sentinelone_endpoint.result.file_url }}'
+                  FILE_NAME: '{{ $.download_a_file_from_a_sentinelone_endpoint.result.file_name }}'
+                  INPUT_TYPE: file
+                uuid: e28199d2-80ab-44bf-9c6e-0459a48da040
+                pretty_name: Add Zipped Attachment
+                options:
+                  executor:
+                    name: torq_cases_add-attachment_v_3_8_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 01d86597-fbef-5789-ada6-166988660780
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ $.download_a_file_from_a_sentinelone_endpoint }}"
+                    }
+                  uuid: 40b9feb8-1050-4562-af07-1c2df475a78a
+                  use_schema: true
+          - id: 41e99f27-b43e-434e-acd9-b1c4eb21947f
+            pretty_name: Agent Properties
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: agent_properties
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_5
+                env:
+                  MESSAGE_TEXT: |-
+                    List Agents
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: c90341a8-0651-4ae9-a279-5874410cdfb0
+                pretty_name: Send Message 5
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-agents:4.1.0
+                id: get_agent
+                env:
+                  AGENT_IDS: '"{{ $.event.agent_id }}"'
+                envFrom:
+                  integrationRef: sentinelone
+                ignoreFailure: true
+                uuid: 6c8e94e8-1f1c-476a-8a0c-6af45bca704c
+                pretty_name: Get Agent
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      AUTHORIZATION: None
+                      BODY: ""
+                      CONTENT_TYPE: application/json; charset=utf-8
+                      HEADERS: |-
+                        {
+                          "Authorization": "ApiToken {{ .S1_API_KEY | jsonEscape }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY","S1_MGMT_URL"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents?{{ if .ACCOUNT_IDS }}&accountIds={{ .ACCOUNT_IDS | urlEnc }}{{ end }}{{ if .ACTIVE_THREATS }}&activeThreats={{ .ACTIVE_THREATS | urlEnc }}{{ end }}{{ if .AGENT_VERSION_GTE }}&agentVersion__gte={{ .AGENT_VERSION_GTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_LTE }}&agentVersion__lte={{ .AGENT_VERSION_LTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_INCLUDE_LIST }}&agentVersions={{ .AGENT_VERSION_INCLUDE_LIST | urlEnc }}{{ end }}{{ if .AGENT_VERSION_EXCLUDE_LIST }}&agentVersionsNin={{ .AGENT_VERSION_EXCLUDE_LIST | urlEnc }}{{ end }}{{ if .COMPUTER_NAME }}&computerName__like={{ .COMPUTER_NAME | urlEnc }}{{ end }}{{ if .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if .DECOMMISSIONED_BETWEEN }}&decommissionedAt__between={{ .DECOMMISSIONED_BETWEEN | urlEnc }}{{ end }}{{ if .DOMAINS }}&domains={{ .DOMAINS | urlEnc }}{{ end }}{{ if .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if .AGENT_IDS }}&ids={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if .INFECTED_AGENTS }}&infected={{ .INFECTED_AGENTS | urlEnc }}{{ end }}{{ if .ACTIVE_AGENTS }}&isActive={{ .ACTIVE_AGENTS | urlEnc }}{{ end }}{{ if .UNINSTALLED_AGENTS }}&isUninstalled={{ .UNINSTALLED_AGENTS | urlEnc }}{{ end }}{{ if .LAST_ACTIVE_BETWEEN }}&lastActiveDate__between={{ .LAST_ACTIVE_BETWEEN | urlEnc }}{{ end }}{{ if .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if .SCAN_STATUSES }}&scanStatuses={{ .SCAN_STATUSES | urlEnc }}{{ end }}{{ if .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if .THREAT_HIDDEN }}&threatHidden={{ .THREAT_HIDDEN | urlEnc }}{{ end }}{{ if .AGENT_UUIDS }}&uuids={{ .AGENT_UUIDS | urlEnc }}{{ end }}
+                    sync: true
+                    disable: false
+                manifestId: c488da0f-67a3-5e1b-9e11-d4bb44698470
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ $.get_agent.api_object.data.0 }}"
+                    }
+                  uuid: 7474087a-16b6-45e3-8a7a-4f842b9e062e
+                  use_schema: true
+          - id: 8d3eb9fb-74fb-4529-bd7e-840725494b9e
+            pretty_name: Query Agents
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: query_agents
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: query
+                env:
+                  DATA_TYPE: JSON
+                  VALUE_JSON: '{{ $.event.agent_query }}'
+                  VARIABLE_NAME: params
+                uuid: 499f146e-4f75-4d31-ad83-ee87e705f760
+                pretty_name: Query
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_6
+                env:
+                  MESSAGE_TEXT: |-
+                    Query Agents
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 08039b1f-b945-45b8-a66e-9bd59857f935
+                pretty_name: Send Message 6
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-agents:4.1.0
+                id: query_agents
+                env:
+                  INFECTED_AGENTS: '{{ $.query.params.infected }}'
+                  OS_TYPES: '{{ $.query.params.host_os }}'
+                envFrom:
+                  integrationRef: sentinelone
+                ignoreFailure: true
+                uuid: 088b688c-ef3c-4f9e-89c5-861603be40a7
+                pretty_name: 'Query Agents '
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      AUTHORIZATION: None
+                      BODY: ""
+                      CONTENT_TYPE: application/json; charset=utf-8
+                      HEADERS: |-
+                        {
+                          "Authorization": "ApiToken {{ .S1_API_KEY | jsonEscape }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY","S1_MGMT_URL"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/agents?{{ if .ACCOUNT_IDS }}&accountIds={{ .ACCOUNT_IDS | urlEnc }}{{ end }}{{ if .ACTIVE_THREATS }}&activeThreats={{ .ACTIVE_THREATS | urlEnc }}{{ end }}{{ if .AGENT_VERSION_GTE }}&agentVersion__gte={{ .AGENT_VERSION_GTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_LTE }}&agentVersion__lte={{ .AGENT_VERSION_LTE | urlEnc }}{{ end }}{{ if .AGENT_VERSION_INCLUDE_LIST }}&agentVersions={{ .AGENT_VERSION_INCLUDE_LIST | urlEnc }}{{ end }}{{ if .AGENT_VERSION_EXCLUDE_LIST }}&agentVersionsNin={{ .AGENT_VERSION_EXCLUDE_LIST | urlEnc }}{{ end }}{{ if .COMPUTER_NAME }}&computerName__like={{ .COMPUTER_NAME | urlEnc }}{{ end }}{{ if .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if .DECOMMISSIONED_BETWEEN }}&decommissionedAt__between={{ .DECOMMISSIONED_BETWEEN | urlEnc }}{{ end }}{{ if .DOMAINS }}&domains={{ .DOMAINS | urlEnc }}{{ end }}{{ if .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if .AGENT_IDS }}&ids={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if .INFECTED_AGENTS }}&infected={{ .INFECTED_AGENTS | urlEnc }}{{ end }}{{ if .ACTIVE_AGENTS }}&isActive={{ .ACTIVE_AGENTS | urlEnc }}{{ end }}{{ if .UNINSTALLED_AGENTS }}&isUninstalled={{ .UNINSTALLED_AGENTS | urlEnc }}{{ end }}{{ if .LAST_ACTIVE_BETWEEN }}&lastActiveDate__between={{ .LAST_ACTIVE_BETWEEN | urlEnc }}{{ end }}{{ if .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if .SCAN_STATUSES }}&scanStatuses={{ .SCAN_STATUSES | urlEnc }}{{ end }}{{ if .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if .THREAT_HIDDEN }}&threatHidden={{ .THREAT_HIDDEN | urlEnc }}{{ end }}{{ if .AGENT_UUIDS }}&uuids={{ .AGENT_UUIDS | urlEnc }}{{ end }}
+                    sync: true
+                    disable: false
+                manifestId: c488da0f-67a3-5e1b-9e11-d4bb44698470
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": {{ $.query_agents.api_object.data }}
+                    }
+                  uuid: cdc98a45-a414-4fbf-a682-a29a760c2784
+                  use_schema: true
+          - id: a4b20347-74c6-4adf-af91-439b2c27f84f
+            pretty_name: Last Threats
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: last_threats
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_8
+                env:
+                  MESSAGE_TEXT: Lookup Threats{{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 3d744732-71f2-4b49-9755-4f2326e506d8
+                pretty_name: Send Message 8
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/sentinelone/get-threats:3.1.0
+                id: get_threats
+                env:
+                  AGENT_IDS: "1570510948363737031"
+                envFrom:
+                  integrationRef: sentinelone
+                uuid: 1d971014-a370-4dd2-8007-249d0f768c16
+                pretty_name: Get Threats
+                options:
+                  executor:
+                    name: http_request_v_4_12_0
+                    env:
+                      HEADERS: |-
+                        {
+                            "Authorization": "ApiToken {{ .S1_API_KEY }}"
+                        }
+                      METHOD: GET
+                      PARSE_HJSON: "true"
+                      REQUIRED_VARIABLES: '["S1_API_KEY", "S1_MGMT_URL"]'
+                      TIMEOUT: "30"
+                      URL: https://{{ .S1_MGMT_URL }}/web/api/v2.1/threats?{{ if or .SORT_ORDER }}&sortOrder={{ .SORT_ORDER | urlEnc }}{{ end }}{{ if or .SORT_BY }}&sortBy={{ .SORT_BY | urlEnc }}{{ end }}{{ if or .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}{{ if or .CURSOR }}&cursor={{ .CURSOR | urlEnc }}{{ end }}{{ if or .SITE_IDS }}&siteIds={{ .SITE_IDS | urlEnc }}{{ end }}{{ if or .GROUP_IDS }}&groupIds={{ .GROUP_IDS | urlEnc }}{{ end }}{{ if or .AGENT_IDS }}&agentIds={{ .AGENT_IDS | urlEnc }}{{ end }}{{ if or .FREE_TEXT_SEARCH }}&query={{ .FREE_TEXT_SEARCH | urlEnc }}{{ end }}{{ if or .CREATED_AFTER }}&createdAt__gte={{ .CREATED_AFTER | urlEnc }}{{ end }}{{ if or .CREATED_BEFORE }}&createdAt__lte={{ .CREATED_BEFORE | urlEnc }}{{ end }}{{ if or .THREAT_IDS }}&ids={{ .THREAT_IDS | urlEnc }}{{ end }}{{ if or .OS_TYPES }}&osTypes={{ .OS_TYPES | urlEnc }}{{ end }}{{ if or .CONTENT_HASH }}&contentHash__contains={{ .CONTENT_HASH | urlEnc }}{{ end }}
+                    sync: true
+                    disable: false
+                manifestId: bf72b1ce-5541-5a6c-baee-cc95bec28d09
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": {{ $.get_threats.api_object.data }}
+                    }
+                  uuid: ffb4abd7-0d74-4f67-a319-458fa7eb955c
+                  use_schema: true
+          - id: 2edde8de-83f6-421f-a9a6-aa3f100f8aae
+            pretty_name: Help
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: help
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_4
+                env:
+                  MESSAGE_TEXT: |-
+                    Help!
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 90f31566-098c-456b-b449-869866d10e12
+                pretty_name: Send Message 4
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: help
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: |
+                    This workflows provides functions relevant to run automations on Sentinel One Endpoint product.
+                    Look first for parameters on Custom Fields, then at Case Overview data.
+                    Use the action parameter to choose between: 'quarantine', 'scan', 'fetch_file' and 'list_agents' using the following descriptions:
+
+                    - Use parameter 'agent_id' on all requests except 'list_agents'.
+
+                    - Use 'quarantine' to quarantine/isolate a computer from the network.
+                    - Use 'reconnect' to connect an agent again to the network and remove que quaratine of an agent.
+
+                    - Use 'scan' when you need to scan a computer for malware.
+
+                    - Use 'fecth_file' when you have the full path of a file and need to download a file from the remote endpoint computer. For fetching a file you need to specify the Full Path of the file.
+
+                    - Use 'agent_properties' to get the complete information about an agent.
+
+                    -Use 'query_agents' to search endpoints using a set of query parameters passing a JSON document using the following keys:
+                    a) 'host_os': valid options are 'linux' and 'windows'
+                    b) 'last_active': a timestamp of the date when the agent was last seen.
+                    c) 'infected': whether you are looking for only infected endpoints. This is a boolean value of True or False
+                    d) 'hostname': The name of the host without domains.
+
+                    -Use 'last_threats' to get a list of previous threats on this agent.
+                  VARIABLE_NAME: help
+                uuid: 82a139bb-3ad2-482f-aa68-9c949f87644a
+                pretty_name: Help
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ jsonEscape $.help.help }}"
+                    }
+                  uuid: 12572af3-f1a3-4a32-80ab-a223d03bef52
+                  use_schema: true
+        default:
+          id: ca7b4117-36f2-456b-a636-1afca1b1b494
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+              id: send_message_3
+              env:
+                MESSAGE_TEXT: |-
+                  No valid Action
+                  {{ $.event }}
+                RECIPIENT: devnull
+              envFrom:
+                integrationRef: wolken
+              uuid: 35939230-4103-4fda-a281-d32f04b805e8
+              pretty_name: Send Message 3
+              options:
+                executor:
+                  name: slack_message_message_v_2_1_0
+                  env: {}
+                  sync: true
+                  disable: false
+              manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: false
+              retry: {}
+            - exit:
+                success: "true"
+                pretty_name: Exit
+                output: |-
+                  {
+                    "result": "It looks like action {{ $.event.action }} is not implemented yet. "
+                  }
+                uuid: 44c95c71-b8f3-48f1-ac05-901b0b1509ce
+                use_schema: true
+  output_schema: |-
+    {
+        "result": {
+            "type": 10,
+            "prettyName": "result",
+            "description": ""
+        }
+    }
+root: true

@@ -1,0 +1,254 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: c721c5c1-4265-4f23-bb3d-419e1cb73501
+name: Custom Fields Toolkit
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: action
+          description: The name of the action to execute in this workflow
+          required: true
+          prettyName: action
+          singleSelect:
+            options:
+              - help
+              - read
+              - create
+              - update
+            defaultValue: ""
+        - name: case_id
+          description: The Id of the case you are working on
+          required: true
+          prettyName: case_id
+          shortText:
+            defaultValue: ""
+        - name: field_name
+          description: The name of the custom field
+          required: true
+          prettyName: field_name
+          shortText:
+            defaultValue: ""
+        - name: field_value
+          description: The value of the custom field
+          required: true
+          prettyName: field_value
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - switch:
+        uuid: b0673499-ee56-4deb-803e-2f568095e6e3
+        pretty_name: Switch
+        cases:
+          - id: b65102cb-001f-4bd7-bb05-c3194e37c2e4
+            pretty_name: Read
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: read
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-custom-fields:2.7.0
+                id: lists_custom_fields_of_a_case
+                env:
+                  CASE_IDS: '{{ $.event.case_id }}'
+                uuid: cb24b69f-fdc6-4d25-9bae-cd2a61c11cd6
+                pretty_name: Lists custom fields of a case
+                options:
+                  executor:
+                    name: torq_cases_list-custom-fields_v_2_7_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 660d116b-7724-5b85-867b-7d0122ae755a
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+                id: run_jq_command
+                env:
+                  __TQ_FILE_ENV_PARSER__INPUT: plain-text
+                  INPUT: '{{ $.lists_custom_fields_of_a_case.custom_fields }}'
+                  JSON_QUERY: from_entries
+                uuid: 3ec2c7dd-3193-477b-b3a7-29d03c7dfa8f
+                pretty_name: Run jq Command
+                options:
+                  executor:
+                    name: jq_infra_v_3_13_0
+                    env:
+                      COMMAND: jq_command
+                    sync: true
+                    disable: false
+                documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+                isPrivate: false
+                isPrivateUrl: true
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": {{ $.get_message.api_object }}
+                    }
+                  uuid: 36e053bb-d0c8-48c3-ba01-a3f98e1b97b8
+                  use_schema: true
+          - id: 1bf21eae-decf-4179-a514-b1d406e93980
+            pretty_name: Create
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: create
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/torq_cases/add-custom-field:5.7.0
+                id: add_a_custom_field_to_a_case
+                env:
+                  CASE_ID: '{{ $.event.case_id }}'
+                  CUSTOM_FIELD_KEY: '{{ $.event.field_name }}'
+                  CUSTOM_FIELD_TYPE: short text
+                  CUSTOM_FIELD_VALUE: '{{ $.event.field_value }}'
+                uuid: 1bd37466-7d74-4da1-a4e4-9338b1c18c9c
+                pretty_name: Add a custom field to a case
+                options:
+                  executor:
+                    name: torq_cases_add-custom-field_v_5_7_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 33b00eb7-f0d9-5283-a11b-327765911ab7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": {{ $.add_a_custom_field_to_a_case.custom_field }}
+                    }
+                  uuid: 0c1ae95e-00aa-4d3a-b9f0-da1099f9eea8
+                  use_schema: true
+          - id: 2edde8de-83f6-421f-a9a6-aa3f100f8aae
+            pretty_name: Help
+            conditions:
+              or:
+                - and:
+                    - lvalue: '{{ $.event.action }}'
+                      operator: EQUALS
+                      rvalue: help
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+                id: send_message_4
+                env:
+                  MESSAGE_TEXT: |-
+                    Help!
+                    {{ $.event }}
+                  RECIPIENT: devnull
+                envFrom:
+                  integrationRef: wolken
+                uuid: 90f31566-098c-456b-b449-869866d10e12
+                pretty_name: Send Message 4
+                options:
+                  executor:
+                    name: slack_message_message_v_2_1_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+                id: help
+                env:
+                  DATA_TYPE: string
+                  VALUE_STRING: |
+                    This workflows provides estra functionality for custom fields
+
+                    Use the action parameter to choose between 'read', or 'create':
+
+                    - Use 'read': to retrieve the list of custom fields.
+                    - Use 'create' to add a new custom fields with a value. It uses parameters 'field_name' and 'fields_value"
+                  VARIABLE_NAME: help
+                uuid: 82a139bb-3ad2-482f-aa68-9c949f87644a
+                pretty_name: Help
+                options:
+                  executor:
+                    name: utils_infrastructure_v_1_22_0
+                    env:
+                      COMMAND: set_variable
+                    sync: true
+                    disable: false
+                manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+              - exit:
+                  success: "true"
+                  pretty_name: Exit
+                  output: |-
+                    {
+                      "result": "{{ jsonEscape $.help.help }}"
+                    }
+                  uuid: 12572af3-f1a3-4a32-80ab-a223d03bef52
+                  use_schema: true
+        default:
+          id: ca7b4117-36f2-456b-a636-1afca1b1b494
+          steps:
+            - name: us-docker.pkg.dev/stackpulse/public/slack/message/message:2.1.0
+              id: send_message_3
+              env:
+                MESSAGE_TEXT: |-
+                  No valid Action
+                  {{ $.event }}
+                RECIPIENT: devnull
+              envFrom:
+                integrationRef: wolken
+              uuid: 35939230-4103-4fda-a281-d32f04b805e8
+              pretty_name: Send Message 3
+              options:
+                executor:
+                  name: slack_message_message_v_2_1_0
+                  env: {}
+                  sync: true
+                  disable: false
+              manifestId: 111abb4b-15cf-5065-8775-2f2662132e88
+              isPrivate: false
+              mock_output:
+                enabled: false
+              skip: false
+              retry: {}
+            - exit:
+                success: "true"
+                pretty_name: Exit
+                output: |-
+                  {
+                    "result": "It looks like action {{ $.event.action }} is not implemented yet. "
+                  }
+                uuid: 44c95c71-b8f3-48f1-ac05-901b0b1509ce
+                use_schema: true
+  output_schema: |-
+    {
+        "result": {
+            "type": 10,
+            "prettyName": "result",
+            "description": ""
+        }
+    }
+root: true

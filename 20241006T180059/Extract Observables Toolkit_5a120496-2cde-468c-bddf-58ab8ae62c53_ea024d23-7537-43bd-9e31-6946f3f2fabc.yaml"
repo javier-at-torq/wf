@@ -1,0 +1,54 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 5a120496-2cde-468c-bddf-58ab8ae62c53
+name: Extract Observables Toolkit
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: raw_text
+          required: true
+          prettyName: raw_text
+          longText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/extraction_utils/extract-ioc:2.0.0
+      id: extract_iocs
+      env:
+        __TQ_FILE_ENV_PARSER__INPUT: plain-text
+        INPUT: '{{ $.event.raw_text }}'
+      uuid: 951028c6-d2d8-4476-a2a4-c4725740bf19
+      pretty_name: Extract IOCs
+      options:
+        executor:
+          name: utils_infrastructure_v_1_26_0
+          env:
+            COMMAND: extract_ioc
+          sync: true
+          disable: false
+      manifestId: 4bf3a91f-54a9-5d7c-9513-222a0ac7c2da
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: |-
+          {
+            "result": {{ $.extract_iocs.results }}
+          }
+        uuid: 7e074219-648a-493a-a987-eb646cab5c39
+        use_schema: true
+  output_schema: |-
+    {
+        "result": {
+            "type": 10,
+            "prettyName": "result",
+            "description": ""
+        }
+    }
+root: true

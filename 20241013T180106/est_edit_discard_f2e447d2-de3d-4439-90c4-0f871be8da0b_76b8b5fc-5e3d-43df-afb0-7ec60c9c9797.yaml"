@@ -1,0 +1,61 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: f2e447d2-de3d-4439-90c4-0f871be8da0b
+name: est_edit_discard
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/abuseipdb/get-a-blacklist:1.0.3
+      id: get_a_blacklist
+      envFrom:
+        integrationRef: ""
+      uuid: 407f356b-bfcb-4d90-95da-6a709694c042
+      pretty_name: Get a blacklist
+      options:
+        executor:
+          name: http_request_v_1_0_20
+          env:
+            HEADERS: '{"Key": "{{ .ABUSEIPDB_API_KEY }}", "Accept": "application/json"}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["ABUSEIPDB_API_KEY"]'
+            URL: https://api.abuseipdb.com/api/v2/blacklist?{{ if .CONFIDENCE_MINIMUM }}&confidenceMinimum={{ .CONFIDENCE_MINIMUM | urlEnc }}{{ end }}{{ if .LIMIT }}&limit={{ .LIMIT | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      manifestId: 2a3df861-5e63-4d7e-b039-e7ae1ff31758
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/abuseipdb/get-information-for-a-single-ip-address:1.0.3
+      id: get_information_for_a_single_ip_address
+      env:
+        IP: ""
+      envFrom:
+        integrationRef: ""
+      uuid: 66729776-396c-441b-ad92-cc99e6f8b8b7
+      pretty_name: Get information for a single IP address
+      options:
+        executor:
+          name: http_request_v_1_0_20
+          env:
+            HEADERS: '{"Key": "{{ .ABUSEIPDB_API_KEY }}", "Accept": "application/json"}'
+            METHOD: GET
+            PARSE_HJSON: "true"
+            REQUIRED_VARIABLES: '["IP", "ABUSEIPDB_API_KEY"]'
+            URL: https://api.abuseipdb.com/api/v2/check?&ipAddress={{ .IP | urlEnc }}{{ if .MAX_AGE_IN_DAYS }}&maxAgeInDays={{ .MAX_AGE_IN_DAYS | urlEnc }}{{ end }}{{ if .VERBOSE }}&verbose={{ .VERBOSE | urlEnc }}{{ end }}
+          sync: true
+          disable: false
+      manifestId: e451d3f0-a76d-4f6f-bac9-cec65c3dd4bb
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

@@ -1,0 +1,488 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: f9f5aa0f-f5da-4790-9f4e-e449b97cb4b9
+name: Send Torq Audit or Activity Logs on a Schedule to Splunk
+trigger:
+  scheduledTrigger:
+    integrationId: 14b0ab78-57f8-4538-a64a-b3c0222b0933
+    scheduledTriggerParameters:
+      cronTab: 0 */10 * * * *
+      timeZone: America/New_York
+playbook:
+  steps:
+    - parallel:
+        uuid: c4b078de-fd7f-404a-b003-05ae89143ee8
+        pretty_name: Setup Contexts
+        threads:
+          - uuid: e80bc6be-eacf-4579-8684-ebaae662ff01
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+                id: workflow_parameters
+                env:
+                  SCHEMA: |-
+                    {
+                        "activity_log": {
+                            "type": 12,
+                            "prettyName": "Activity Log",
+                            "description": "Set to true if Activity logs should be gathered.",
+                            "uiPlaceholder": ""
+                        },
+                        "discard_activity_log_body": {
+                            "type": 12,
+                            "prettyName": "Discard Activity Log Body",
+                            "description": "Set to true if 'event' body should be discarded from activity logs.",
+                            "uiPlaceholder": ""
+                        },
+                        "scheduled_interval": {
+                            "type": 8,
+                            "prettyName": "Scheduled interval",
+                            "description": "Match the scheduled workflow interval.",
+                            "uiPlaceholder": ""
+                        },
+                        "torq_integration": {
+                            "type": 17,
+                            "prettyName": "Torq Integration",
+                            "description": "The name of the configured Torq Integration.",
+                            "uiPlaceholder": "",
+                            "integration": {
+                                "defaultValue": "",
+                                "vendor": "torq_token"
+                            }
+                        },
+                        "splunk_integration": {
+                            "type": 17,
+                            "prettyName": "Splunk Integration",
+                            "description": "The name of the configured Splunk Enterprise integration. Make sure to use the correct integration with the proper port to send the HEC information to Splunk.",
+                            "uiPlaceholder": "",
+                            "integration": {
+                                "defaultValue": "",
+                                "vendor": "splunk_token"
+                            }
+                        },
+                        "audit_log": {
+                            "type": 12,
+                            "prettyName": "Audit Log",
+                            "description": "Set to true if Audit logs should be gathered.",
+                            "uiPlaceholder": ""
+                        },
+                        "chunk_size": {
+                            "type": 11,
+                            "prettyName": "Chunk Size",
+                            "description": "",
+                            "uiPlaceholder": "150"
+                        },
+                        "skip_ssl_verification_on_splunk": {
+                            "type": 12,
+                            "prettyName": "Skip SSL Verification on Splunk",
+                            "description": "",
+                            "uiPlaceholder": ""
+                        }
+                    }
+                  VALUES: |-
+                    {
+                      "activity_log": true,
+                      "discard_activity_log_body": true,
+                      "scheduled_interval": "10m",
+                      "torq_integration": "torq_api",
+                      "splunk_integration": "splunk_hec",
+                      "audit_log": true,
+                      "chunk_size": 150,
+                      "skip_ssl_verification_on_splunk": true
+                    }
+                uuid: 15f341f6-3ad1-40b0-b616-13c3b384813e
+                pretty_name: Workflow Parameters
+                options:
+                  executor:
+                    name: utils_workflow_parameters_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: e37b64c9-57ab-42e9-83a5-515651cc02fe
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+                id: audit_log_context
+                env:
+                  SCHEMA: |-
+                    {
+                        "splunk_index": {
+                            "type": 8,
+                            "prettyName": "splunk_index",
+                            "description": "The name of the Splunk index.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_sourcetype": {
+                            "type": 8,
+                            "prettyName": "splunk_sourcetype",
+                            "description": "The Splunk sourcetype for the events.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_source": {
+                            "type": 8,
+                            "prettyName": "splunk_source",
+                            "description": "The Splunk source for the events.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_host": {
+                            "type": 8,
+                            "prettyName": "splunk_host",
+                            "description": "The Splunk host for the events.",
+                            "uiPlaceholder": ""
+                        }
+                    }
+                  VALUES: |-
+                    {
+                      "splunk_index": "torqaudit",
+                      "splunk_sourcetype": "torq:api:audit_log:json",
+                      "splunk_source": "https://api.torq.io/public/v1alpha/audit_logs",
+                      "splunk_host": "torq"
+                    }
+                uuid: 759276c1-3172-4bb0-9a11-51313f860b6d
+                pretty_name: Audit Log Context
+                options:
+                  executor:
+                    name: utils_workflow_parameters_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+          - uuid: 873c622d-4ae1-443c-b1fc-9aed80b9b374
+            steps:
+              - name: us-docker.pkg.dev/stackpulse/public/utils/parameters_utils/workflow_parameters:1.3.0
+                id: activity_log_context
+                env:
+                  SCHEMA: |-
+                    {
+                        "splunk_index": {
+                            "type": 8,
+                            "prettyName": "splunk_index",
+                            "description": "The name of the Splunk index.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_sourcetype": {
+                            "type": 8,
+                            "prettyName": "splunk_sourcetype",
+                            "description": "The Splunk sourcetype for the events.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_source": {
+                            "type": 8,
+                            "prettyName": "splunk_source",
+                            "description": "The Splunk source for the events.",
+                            "uiPlaceholder": ""
+                        },
+                        "splunk_host": {
+                            "type": 8,
+                            "prettyName": "splunk_host",
+                            "description": "The Splunk host for the events.",
+                            "uiPlaceholder": ""
+                        }
+                    }
+                  VALUES: |-
+                    {
+                      "splunk_index": "torqactivity",
+                      "splunk_sourcetype": "torq:api:activity_log:json",
+                      "splunk_source": "https://api.torq.io/public/v1alpha/activity_logs",
+                      "splunk_host": "torq"
+                    }
+                uuid: 6efacaa3-a7a2-46d1-b754-af499e8ebb94
+                pretty_name: Activity Log Context
+                options:
+                  executor:
+                    name: utils_workflow_parameters_v_1_3_0
+                    env: {}
+                    sync: true
+                    disable: false
+                manifestId: 30ebccc8-0ce8-5f13-960d-bc03b0179f53
+                isPrivate: false
+                mock_output:
+                  enabled: false
+                skip: false
+                retry: {}
+    - parallel:
+        uuid: 134e6038-a529-42d5-96ed-0c4386f2858a
+        pretty_name: Parallel Executions
+        threads:
+          - uuid: c793ff53-b25a-4a22-9a8e-a19bc725f1e4
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.workflow_parameters.audit_log }}'
+                            operator: EQUALS
+                            rvalue: "true"
+                  then:
+                    - trigger:
+                        id: gather_torq_audit_logs
+                        playbook_id: 7ab04f0e-3d97-45c7-bb30-5d254f55a2d1
+                        pretty_name: Gather Torq Audit Logs
+                        uuid: 37ad9f75-5ed4-49f5-bf7a-8daa618f16c8
+                        input: |-
+                          {
+                            "torq_integration_name": "{{ $.workflow_parameters.torq_integration }}",
+                            "log_check_point_name": "{{ $.metadata.workflow_id }}_audit_checkpoint",
+                            "scheduled_interval": "{{ $.workflow_parameters.scheduled_interval }}",
+                            "log_type": "audit",
+                            "discard_activity_log_body": "false"
+                          }
+                        playbook_name: Gather Torq Audit or Activity Logs
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.gather_torq_audit_logs.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+                            id: transform_audit_events
+                            env:
+                              INPUT: '{{ $.gather_torq_audit_logs.output }}'
+                              JSON_QUERY: ".[] | \n{\"event\":  ., \n     \"index\": \"{{ $.audit_log_context.splunk_index }}\",\n     \"time\": (.timestamp | scan(\"(.+?)([.][0-9]+)?Z$\")\n           | [(.[0] + \"Z\" | fromdateiso8601), (.[1] // 0 | tonumber)] | add), \n     \"source\": \"{{ $.audit_log_context.splunk_source }}\",\n     \"host\": \"{{ $.audit_log_context.splunk_host }}\",\n     \"sourcetype\": \"{{ $.audit_log_context.splunk_sourcetype }}\" }"
+                            uuid: feb397aa-91f4-46c8-9c33-952cb20bfb53
+                            pretty_name: Transform Audit Events
+                            options:
+                              executor:
+                                name: jq_infra_v_3_13_0
+                                env:
+                                  COMMAND: jq_command
+                                sync: true
+                                disable: false
+                            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                            manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+                            isPrivate: false
+                            isPrivateUrl: true
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/chunk-array:1.2.0
+                            id: chunk_the_audit_events_into_a_consumable_size
+                            env:
+                              CHUNK_SIZE: '{{ $.workflow_parameters.chunk_size }}'
+                              INPUT: '{{ $.transform_audit_events.output }}'
+                            uuid: ffa02a50-8b1d-4817-9588-4b826c723c81
+                            pretty_name: Chunk the audit events into a consumable size
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_22_0
+                                env:
+                                  COMMAND: chunk_array
+                                sync: true
+                                disable: false
+                            documentationUrl: https://learn.torq.io/docs/array-utilities#chunk-array
+                            manifestId: d6f8de59-66a3-571c-a973-4b5d0c8b814a
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                            retry: {}
+                          - loop:
+                              in: '{{ $.chunk_the_audit_events_into_a_consumable_size.result }}'
+                              key: audit_chunk_key
+                              value: audit_chunk_value
+                              steps:
+                                - name: us-docker.pkg.dev/stackpulse/public/splunk/send-batch-http-event-collector-data:1.1.1
+                                  id: send_batch_http_event_collector_data
+                                  env:
+                                    HEC_JSON_DATA: '{{ $.audit_chunk_value }}'
+                                    SKIP_SSL_VERIFICATION: '{{ $.workflow_parameters.skip_ssl_verification_on_splunk }}'
+                                  envFrom:
+                                    integrationRef: '{{ $.workflow_parameters.splunk_integration }}'
+                                  uuid: d5be6aab-7dd3-4824-b005-e81570023135
+                                  pretty_name: Send Batch HTTP Event Collector Data
+                                  options:
+                                    executor:
+                                      name: http_request_v_4_6_0_vpc
+                                      env:
+                                        AUTHORIZATION: None
+                                        BODY: '{{ .HEC_JSON_DATA }}'
+                                        CONTENT_TYPE: application/json; charset=utf-8
+                                        HEADERS: |-
+                                          {
+                                            "Authorization": "Splunk {{ .SPLUNK_TOKEN | jsonEscape }}"
+                                          }
+                                        METHOD: POST
+                                        PARSE_HJSON: "true"
+                                        REQUIRED_VARIABLES: '["SPLUNK_URL","SPLUNK_TOKEN","HEC_JSON_DATA"]'
+                                        URL: '{{ .SPLUNK_URL }}/services/collector/event?output_mode=json'
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://docs.splunk.com/Documentation/SplunkCloud/latest/Data/HECExamples
+                                  manifestId: 0b661b24-125a-5fb2-858a-2f2a0abbc24f
+                                  isPrivate: false
+                                  isPrivateUrl: true
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              uuid: 97adae7a-70b0-45e3-91b3-12656ea4005d
+                              pretty_name: Loop over the audit log chunks
+                              run_in_parallel: true
+                        else: []
+                        uuid: 03b023d0-4109-4c1e-a488-b85c14e3d36b
+                        pretty_name: If New Logs are Found
+                  else: []
+                  uuid: 20b376de-3751-410b-b418-b2eecebf01c2
+                  pretty_name: If Audit Logs is True
+          - uuid: d09a23c8-de34-41b7-9894-79793efccd4f
+            steps:
+              - if:
+                  conditions:
+                    or:
+                      - and:
+                          - lvalue: '{{ $.workflow_parameters.activity_log }}'
+                            operator: EQUALS
+                            rvalue: "true"
+                  then:
+                    - trigger:
+                        id: gather_torq_activity_logs
+                        playbook_id: 7ab04f0e-3d97-45c7-bb30-5d254f55a2d1
+                        pretty_name: Gather Torq Activity Logs
+                        uuid: f009bcd7-ed4a-48be-92a4-f2901a09b068
+                        input: |-
+                          {
+                            "torq_integration_name": "{{ $.workflow_parameters.torq_integration }}",
+                            "log_check_point_name": "{{ $.metadata.workflow_id }}_activity_checkpoint",
+                            "scheduled_interval": "{{ $.workflow_parameters.scheduled_interval }}",
+                            "log_type": "activity",
+                            "discard_activity_log_body": "{{ $.workflow_parameters.discard_activity_log_body }}"
+                          }
+                        playbook_name: Gather Torq Audit or Activity Logs
+                        mock_output:
+                          enabled: false
+                          payload: '{}'
+                    - if:
+                        conditions:
+                          or:
+                            - and:
+                                - lvalue: '{{ $.gather_torq_activity_logs.output }}'
+                                  operator: NOT_EMPTY
+                                  rvalue: ""
+                        then:
+                          - name: us-docker.pkg.dev/stackpulse/public/jq/infra:3.13.0
+                            id: transform_activity_events
+                            env:
+                              INPUT: '{{ $.gather_torq_activity_logs.output }}'
+                              JSON_QUERY: ".[] | \n{\"event\":  ., \n     \"index\": \"{{ $.activity_log_context.splunk_index }}\",\n     \"time\": (.event.timestamp | scan(\"(.+?)([.][0-9]+)?Z$\")\n           | [(.[0] + \"Z\" | fromdateiso8601), (.[1] // 0 | tonumber)] | add), \n     \"source\": \"{{ $.activity_log_context.splunk_source }}\",\n     \"host\": \"{{ $.activity_log_context.splunk_host }}\",\n     \"sourcetype\": \"{{ $.activity_log_context.splunk_sourcetype }}\" }"
+                            uuid: 578f2584-ee2d-4719-83d6-8a15e5ae2efa
+                            pretty_name: Transform Activity Events
+                            options:
+                              executor:
+                                name: jq_infra_v_3_13_0
+                                env:
+                                  COMMAND: jq_command
+                                sync: true
+                                disable: false
+                            documentationUrl: https://stedolan.github.io/jq/manual/#Basicfilters
+                            manifestId: 54f591ea-6fd7-5be5-9392-87c5e0b20bab
+                            isPrivate: false
+                            isPrivateUrl: true
+                            mock_output:
+                              enabled: false
+                            skip: false
+                          - name: us-docker.pkg.dev/stackpulse/public/utils/array_utils/chunk-array:1.2.0
+                            id: chunk_activity_log_events_into_a_consumable_size
+                            env:
+                              CHUNK_SIZE: '{{ $.workflow_parameters.chunk_size }}'
+                              INPUT: '{{ $.transform_activity_events.output }}'
+                            uuid: a51cf11b-0e13-415d-be22-b59e3879fe37
+                            pretty_name: Chunk Activity Log events into a consumable size
+                            options:
+                              executor:
+                                name: utils_infrastructure_v_1_22_0
+                                env:
+                                  COMMAND: chunk_array
+                                sync: true
+                                disable: false
+                            documentationUrl: https://learn.torq.io/docs/array-utilities#chunk-array
+                            manifestId: d6f8de59-66a3-571c-a973-4b5d0c8b814a
+                            isPrivate: false
+                            mock_output:
+                              enabled: false
+                            skip: false
+                            retry: {}
+                          - loop:
+                              in: '{{ $.chunk_activity_log_events_into_a_consumable_size.result }}'
+                              key: activity_chunk_key
+                              value: activity_chunk_value
+                              steps:
+                                - name: us-docker.pkg.dev/stackpulse/public/splunk/send-batch-http-event-collector-data:1.1.1
+                                  id: send_batch_http_event_collector_data
+                                  env:
+                                    HEC_JSON_DATA: '{{ $.activity_chunk_value }}'
+                                    SKIP_SSL_VERIFICATION: '{{ $.workflow_parameters.skip_ssl_verification_on_splunk }}'
+                                  envFrom:
+                                    integrationRef: '{{ $.workflow_parameters.splunk_integration }}'
+                                  uuid: 252f251d-eb49-41d4-8688-6bfbbe9b5216
+                                  pretty_name: Send Batch HTTP Event Collector Data
+                                  options:
+                                    executor:
+                                      name: http_request_v_4_6_0_vpc
+                                      env:
+                                        AUTHORIZATION: None
+                                        BODY: '{{ .HEC_JSON_DATA }}'
+                                        CONTENT_TYPE: application/json; charset=utf-8
+                                        HEADERS: |-
+                                          {
+                                            "Authorization": "Splunk {{ .SPLUNK_TOKEN | jsonEscape }}"
+                                          }
+                                        METHOD: POST
+                                        PARSE_HJSON: "true"
+                                        REQUIRED_VARIABLES: '["SPLUNK_URL","SPLUNK_TOKEN","HEC_JSON_DATA"]'
+                                        URL: '{{ .SPLUNK_URL }}/services/collector/event?output_mode=json'
+                                      sync: true
+                                      disable: false
+                                  documentationUrl: https://docs.splunk.com/Documentation/SplunkCloud/latest/Data/HECExamples
+                                  manifestId: 0b661b24-125a-5fb2-858a-2f2a0abbc24f
+                                  isPrivate: false
+                                  isPrivateUrl: true
+                                  mock_output:
+                                    enabled: false
+                                  skip: false
+                              uuid: 2a3ad586-d6dd-4bff-8da2-124f9fa00f2a
+                              pretty_name: Loop over activity log chunks
+                              run_in_parallel: true
+                        else: []
+                        uuid: 5ea3886d-dd8c-49e4-912a-337dc998612e
+                        pretty_name: If New Logs are Found
+                  else: []
+                  uuid: c8778f65-ae67-464c-abcf-cf17d4323869
+                  pretty_name: If Activity Logs is True
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        uuid: 3c8de208-ed6c-4f80-96a9-1ee56eea2082
+  annotations:
+    - uuid: 736f8bcc-74d9-4981-a584-7c1433b02a63
+      x: -886
+      "y": 106
+      width: 541
+      height: 554
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Send Torq Audit or Activity Logs on a Schedule to Splunk"}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"This workflow is an example of sending Torq Audit and/or Activity logs to Splunk.  "}]},{"type":"paragraph","content":[{"type":"text","text":"Schedule the workflow to run on a specific time period, pull the logs and send to Splunk in a HTTP Event Collector (HEC) batch transaction."}]},{"type":"paragraph","content":[{"type":"text","text":"A nested workflow is used to pull the audit and/or the activity logs and save the global variable when the last time the logs were pulled."},{"type":"hardBreak"},{"type":"hardBreak"},{"type":"text","marks":[{"type":"bold"}],"text":"Note:"},{"type":"text","text":" "},{"type":"text","marks":[{"type":"italic"}],"text":"A global variable is set to keep a checkpoint on the last time the logs were pulled.  The name of this global variable is derived from the workflow_id and log type. "}]},{"type":"paragraph"},{"type":"paragraph","content":[{"type":"text","text":"                                           "},{"type":"image","attrs":{"src":"https://storage.googleapis.com/stackpulse-public/vendors/splunk.svg","alt":null,"title":null,"width":154,"height":154,"isDraggable":true,"isResizable":null}},{"type":"text","text":". "}]}]}'
+    - uuid: d7ee4177-e752-4770-84eb-65c3ba798d50
+      x: 34
+      "y": 1025
+      attachedStepId: 03b023d0-4109-4c1e-a488-b85c14e3d36b
+      attachedDistance:
+        x: -454
+        "y": -82
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"If logs are found, transform them into individual events that Splunk HEC can use by sending a batch event."}]}]}'
+    - uuid: 92f66c82-d319-4d56-b911-1715494cfffd
+      x: 29
+      "y": 1323
+      content: '{"type":"doc","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"Upload transformed HEC events into Splunk."}]}]}'
+root: true

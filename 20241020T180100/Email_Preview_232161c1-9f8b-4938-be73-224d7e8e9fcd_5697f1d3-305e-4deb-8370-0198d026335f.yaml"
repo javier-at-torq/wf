@@ -1,0 +1,169 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 232161c1-9f8b-4938-be73-224d7e8e9fcd
+name: Email_Preview
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: mail_content
+          required: true
+          prettyName: Mail Content
+          longText:
+            defaultValue: ""
+        - name: questions
+          required: true
+          prettyName: Questions
+          json:
+            defaultValue: ""
+        - name: subject
+          required: true
+          prettyName: Subject
+          shortText:
+            defaultValue: ""
+        - name: recipients
+          required: true
+          prettyName: Recipients
+          shortText:
+            defaultValue: ""
+        - name: alerttitle
+          required: true
+          prettyName: AlertTitle
+          shortText:
+            defaultValue: ""
+        - name: case_id
+          required: true
+          prettyName: case_id
+          shortText:
+            defaultValue: ""
+        - name: cc
+          prettyName: cc
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: logo
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: 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
+        VARIABLE_NAME: Logo
+      uuid: b8ebefec-be9f-4f7b-8675-d45b9fcc5a89
+      pretty_name: Logo
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: email_template
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">\n  \n  <head>\n    <title>\n      {{ $.get_case_details.case.title }} - {{ $.get_case_details.case.id }}\n    </title>\n    <!--[if !mso]><!-- -->\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n    <!--<![endif]-->\n    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <style type=\"text/css\">\n    #outlook a {\n            padding: 0;\n      text-decoration: none !important;\n      color: #4da9ff;\n      }\n      a{\n      text-decoration: none !important;\n      color: #4da9ff;\n      }\n      \n      .ReadMsgBody {\n            width: 100%;\n      }\n      \n      .ExternalClass {\n            width: 100%;\n      }\n      \n      .ExternalClass * {\n            line-height: 100%;\n      }\n      \n      body {\n            margin: 0;\n            padding: 0;\n            -webkit-text-size-adjust: 100%;\n            -ms-text-size-adjust: 100%;\n      }\n      \n      table,\n      td {\n            border-collapse: collapse;\n            mso-table-lspace: 0pt;\n            mso-table-rspace: 0pt;\n      }\n      \n      img {\n            border: 0;\n            height: auto;\n            line-height: 100%;\n            outline: none;\n            text-decoration: none;\n            -ms-interpolation-mode: bicubic;\n      }\n      \n      p {\n            display: block;\n            margin: 13px 0;\n      }\n    </style>\n    <!--[if !mso]><!-->\n    <style type=\"text/css\">\n      @media only screen and (max-width:480px) {\n            @-ms-viewport {\n      width: 320px;\n            }\n            @viewport {\n      width: 320px;\n            }\n      }\n    </style>\n    <!--<![endif]-->\n    <!--[if mso]>\n      <xml>\n      <o:OfficeDocumentSettings>\n      <o:AllowPNG/>\n      <o:PixelsPerInch>96</o:PixelsPerInch>\n      </o:OfficeDocumentSettings>\n      </xml>\n    <![endif]-->\n    <!--[if lte mso 11]>\n      <style type=\"text/css\">\n      .outlook-group-fix { width:100% !important; }\n      </style>\n    <![endif]-->\n    \n    \n    <style type=\"text/css\">\n      @media only screen and (min-width:480px) {\n            .mj-column-per-100 {\n      width: 100% !important;\n            }\n      }\n    </style>\n    \n    \n    <style type=\"text/css\">\n    </style>\n    <style type=\"text/css\">\n      div {\n      margin: 0 auto;\n      }\n      \n      td {\n            padding: 0;\n      }\n      \n      p {\n            padding: 0;\n            margin: 0;\n      }\n    </style>\n  </head>\n  \n  <body>\n<div style=\"background-color: #f9f9fb;width: 100%; height: 100%; font-family: Helvetica, 'Trebuchet MS', Verdana, Geneva, Century Gothic, Arial, sans-serif;\">\n<table style=\"background-color: #0B6695; width: 100%; height: 80px; vertical-align: middle;\">\n<tbody>\n<tr>\n<td style=\"width: 70%;\">\n<h2 style=\"margin: 0 10px; color:white; font-size:36\">FICO's Global Cyber Security Center </h2>\n</td>\n<td style=\"width: 30%; text-align: center;\"><img style=\"margin: 0 10px; width: auto; max-height:100%;\" src=\"data:image/png;base64, {{ $.logo.logo }}\" alt=\"Logo\" /></td>\n</tr>\n</tbody>\n</table>\n<div style=\"margin: 20px; background-color: white; padding: 20px;\">\n<p style=\"word-break: break-all;\">{{ $.email_banner.string }}</p>\n<p style=\"word-break: break-all;\">{{ $.event.mail_content }}</p>\n<br />\n<p style=\"word-break: break-all;text-decoration-line: underline\"><a href=\"{{ interactionFlowURL \"Interaction Flow Question\" }}\">To respond this email click here</a></p><br>\n<p style=\"font-size:14; color:#3498DB\">Torq Automation</p>\n<p style=\"font-size:10; color:#85929E\">To report any incident you can contact FICO´s CSC on ML_CyberSecurityCenter@fico.com</p>\n<p style=\"word-break: break-all; font-size:12; text-decoration-line: underline\"><a href=\"https://www.fico.com/en\">www.fico.com</a></p><br>\n<strong style=\"word-break: break-all; font-size:10; text-decoration-line: underline\">Confidentiality Notice:</strong>\n<p style=\"word-break: break-all; font-size:10\">The information included in this email, including any attachments, is for the sole use of the intended recipient and may contain information that is confidential and protected. Any unauthorized review, use, disclosure, distribution, or similar action is prohibited. If you are not the intended recipient, please contact the sender and delete all copies of the original message immediately. For additional information on our privacy policies, including state-specific information, please visit our privacy policy.</p>\n</div>\n</div>\n</body>\n</html>"
+        VARIABLE_NAME: tmpl
+      uuid: 6905dc01-54b8-4e71-a50e-5136ba7cb99a
+      pretty_name: Email Template
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: true
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.11
+      id: email_preview
+      env:
+        CASE_ID: "151"
+        FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+        FORM_SCHEMA: '{ "parameters": [{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"{{ jsonEscape $.event.mail_content }}\n","uploadedFile":{},"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"user_action_button","type":"BUTTONS","buttons":[{"text":"Send Email"},{"text":"Edit Fields"}]}]}'
+        FORM_TITLE: Email Preview
+        HAS_NEXT: "true"
+        TIMEOUT: 24h
+      uuid: db594f01-14f2-4518-8246-8ddbd3302292
+      pretty_name: Email Preview
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_11
+          env: {}
+          sync: true
+          disable: false
+      manifestId: de441ab2-b89c-5601-80ea-1a2f117a1c1e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - if:
+        conditions:
+          or:
+            - and:
+                - lvalue: '{{ $.email_preview.answers.user_action_button }}'
+                  operator: EQUALS
+                  rvalue: Edit Fields
+        then:
+          - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.11
+            id: edit_fields
+            env:
+              CASE_ID: "151"
+              FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+              FORM_SCHEMA: '{ "parameters": [{"name":"alert_title","type":"SHORT_TEXT","prettyName":"Alert Title","value":"{{ $.event.alerttitle }}","uploadedFile":{},"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"subject","type":"SHORT_TEXT","prettyName":"Subject","value":"{{ $.event.subject }}","uploadedFile":{},"allowMultipleFiles":true,"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"recipients","type":"SHORT_TEXT","prettyName":"Recipients","value":"{{ $.event.recipients }}","uploadedFile":{},"allowMultipleFiles":true,"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"cc","type":"SHORT_TEXT","prettyName":"CC","value":"{{ $.event.cc }}","uploadedFile":{},"allowMultipleFiles":true,"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"email_content","type":"LONG_TEXT","prettyName":"Email content","value":"{{ $.event.mail_content }}","uploadedFile":{},"allowMultipleFiles":true,"selectDisplayMode":"DROPDOWN_DISPLAY"}, {"name":"user_action_button","type":"BUTTONS","buttons":[{"text":"Submit Changes"},{"text":"Skip Changes"}]}]}'
+              FORM_TITLE: Edit Email
+              HAS_NEXT: "true"
+              TIMEOUT: 24h
+            uuid: 168417a2-4281-4aea-b9b0-bc688d324c7a
+            pretty_name: Edit Fields
+            options:
+              executor:
+                name: interact_send_interaction_v_2_0_11
+                env: {}
+                sync: true
+                disable: false
+            manifestId: de441ab2-b89c-5601-80ea-1a2f117a1c1e
+            isPrivate: false
+            mock_output:
+              enabled: false
+            skip: false
+            retry: {}
+        else: []
+        uuid: 3b5a4030-54cd-4f7d-994d-08ff17bc93d0
+        pretty_name: If
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.11
+      id: email_sent
+      env:
+        CASE_ID: "151"
+        FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false,"allowedToCancelExecution":false,"cancelExecutionWhenTimedOut":false}'
+        FORM_SCHEMA: '{ "parameters": [{"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+        FORM_TITLE: Email sent
+        HAS_NEXT: "false"
+        TIMEOUT: 24h
+      uuid: fe6dc1e0-efe1-4b10-a085-e1c8f37ff5c8
+      pretty_name: Email sent
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_11
+          env: {}
+          sync: true
+          disable: false
+      manifestId: de441ab2-b89c-5601-80ea-1a2f117a1c1e
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

@@ -1,0 +1,54 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 9ee5114f-3163-4a70-a4e7-558e94af2f8e
+name: delete_monitor
+trigger:
+  internalEventTrigger:
+    scenarioId: CASE_DELETED
+    conditions:
+      or:
+        and: []
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/utils/output_utils/set-variable:2.2.0
+      id: set_variable
+      env:
+        DATA_TYPE: string
+        VALUE_STRING: '{{ $.event }}'
+        VARIABLE_NAME: user_id
+      uuid: f97f5aef-3af4-4417-81d1-130ef6f86ff6
+      pretty_name: Set Variable
+      options:
+        executor:
+          name: utils_infrastructure_v_1_22_0
+          env:
+            COMMAND: set_variable
+          sync: true
+          disable: false
+      manifestId: e430703a-6b6f-5114-9368-5e3fc166edb7
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/list-custom-fields:2.7.0
+      id: lists_custom_fields_of_a_case
+      env:
+        CASE_IDS: '{{ $.metadata.case.id }}'
+      uuid: f92cfe3b-efac-4116-b27e-4cc9c1874b2b
+      pretty_name: Lists custom fields of a case
+      options:
+        executor:
+          name: torq_cases_list-custom-fields_v_2_7_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 660d116b-7724-5b85-867b-7d0122ae755a
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+  output_schema: '{}'
+root: true

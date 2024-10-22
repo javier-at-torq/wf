@@ -1,0 +1,46 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 3e03e155-f941-4551-bd70-f155b2f48a63
+name: nested_interact
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: case_id
+          required: true
+          prettyName: case_id
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/interact/send_interaction:2.0.3
+      id: interaction
+      env:
+        CASE_ID: '{{ $.event.case_id }}'
+        FLOW_SETTINGS: '{"name":"Interaction Flow","openToOrgSso":false}'
+        FORM_SCHEMA: '{"parameters":[{"name":"information","type":"MARKDOWN_TEXT","prettyName":"Information","value":"Interaction''s general information, **markdown** can be used here\n"},{"name":"user_input","type":"SHORT_TEXT","prettyName":"A question that requires some user input","value":""},{"name":"buttons","type":"BUTTONS","buttons":[{}]}]}'
+        FORM_TITLE: Opcion 3
+        HAS_NEXT: "false"
+        TIMEOUT: 24h
+      uuid: faba5ba1-9ff1-4e12-9b3b-7685b2c19ae3
+      pretty_name: Interaction
+      options:
+        executor:
+          name: interact_send_interaction_v_2_0_3
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 43b30300-5f26-57ac-b341-272029a06841
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 0aa830e1-c1fa-4546-b28a-feb694b2fab9
+  output_schema: '{}'
+root: true

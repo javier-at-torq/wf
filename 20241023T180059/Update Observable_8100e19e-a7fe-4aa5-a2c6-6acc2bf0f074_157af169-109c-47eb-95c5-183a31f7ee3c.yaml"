@@ -1,0 +1,58 @@
+!!ExportedWorkflow
+apiVersion: torq.io/v2alpha
+kind: Workflow
+id: 8100e19e-a7fe-4aa5-a2c6-6acc2bf0f074
+name: Update Observable
+trigger:
+  onDemandTrigger:
+    parameterList:
+      parameters:
+        - name: observable_id
+          description: The ID of the Observable
+          required: true
+          prettyName: observable_id
+          shortText:
+            defaultValue: ""
+        - name: reputation
+          description: Reputation of the Observable
+          required: true
+          prettyName: Reputation
+          shortText:
+            defaultValue: ""
+playbook:
+  steps:
+    - name: us-docker.pkg.dev/stackpulse/public/torq_cases/update-observable-reputation-score:3.8.0
+      id: update_observable_reputation_score
+      env:
+        OBSERVABLE_ID: '{{ $.event.observable_id }}'
+        OBSERVABLE_REPUTATION_SCORE: '{{ $.event.reputation }}'
+      uuid: b2235a5d-d6ad-45b9-982e-822caab35ac1
+      pretty_name: Update observable reputation score
+      options:
+        executor:
+          name: torq_cases_update-observable-reputation-score_v_3_8_0
+          env: {}
+          sync: true
+          disable: false
+      manifestId: 30256414-eb4d-5a69-9723-cee7f6f4301c
+      isPrivate: false
+      mock_output:
+        enabled: false
+      skip: false
+      retry: {}
+    - exit:
+        success: "true"
+        pretty_name: Exit
+        output: '{}'
+        uuid: 12544b38-0b72-4025-a20d-e408b6bb1e02
+  annotations:
+    - uuid: 41e08070-d78a-49e8-b785-460e1deb83dd
+      x: -47
+      "y": 490
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Safe, Suspicious or risky, Malicious, Unknown"}]}]}'
+    - uuid: 0e0df785-1e22-4776-9694-2ad30f72d5c6
+      x: -404
+      "y": 120
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}'
+  output_schema: '{}'
+root: true
